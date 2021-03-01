@@ -1,0 +1,15 @@
+{
+  "name": "godwoken-web3",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "eslint": "^7.16.0",
+    "prettier": "^2.2.1"
+  },
+  "version": "1.0.0",
+  "author": "hupeng <bitrocks.hu@gmail.com>"
+}
