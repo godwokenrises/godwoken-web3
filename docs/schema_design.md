@@ -41,9 +41,9 @@ CREATE TABLE transactions (
     s NUMERIC NOT NULL,
     cumulative_gas_used NUMERIC,
     gas_used NUMERIC,
-    log_bloom TEXT,
+    log_bloom TEXT NOT NULL,
     contract_address TEXT,
-    status SMALLINT
+    status SMALLINT NOT NULL
 );
 
 CREATE TABLE logs (
@@ -90,20 +90,19 @@ CREATE TABLE logs (
 - block_hash：区块哈希
 - transaction_index：交易在区块里的位置，这个和L2Transaction在L2Block的位置存在差异
 - from_address：交易发出方，对应godwoken里面L2Transaction的from_id
-- to_address: 交易接受方，在eth中如果是合约创建交易则为null；在godwoken中需要解析L2Transaction的args（不同于to_id概念），
-提取出sudt转账交易的接受账户，或者是polyjuice交易的接受账户(合约)
+- to_address: 交易接受方，在eth中如果是合约创建交易则为null；在godwoken中需要解析L2Transaction的args（不同于to_id概念），提取出sudt转账交易的接受账户，或者是polyjuice交易的接受账户(合约)
 - value: 转账额度(是sudt的转账还是polyjuice的转账？)
 - nonce: 地址发出过的交易数量，单调递增（polyjuice交易是否有单独的nonce?)
 - gas_limit: polyjuice交易的gas_limit，非polyjuice交易设置为0
 - gas_price: polyjuice交易的gas_price，非polyjuice交易设置为0
-- input: solidity合约调用的input，非polyjuice交易设置为0
+- input: solidity合约调用的input，非polyjuice交易设置为null
 - v: ECDSA recovery ID
 - r: ECDSA signature
 - s: ECDSA signature
 - cumulative_gas_used: 该区块里当前交易和之前的交易花费的gas之和
 - gas_used：交易实际花费的gas
 - log_bloom：该交易中logs的bloom filter
-- contract_address:  如果是合约创建交易，这个则为创建的合约的地址；否则为null
+- contract_address: 如果是合约创建交易，这个则为创建的合约的地址；否则为null
 - status: 表示交易是否成功，0失败，1成功
 
 ### log
