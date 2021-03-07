@@ -88,3 +88,10 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
+
+
+const isListening = function() {
+  return server.listening;
+}
+
+module.exports.isListening = isListening;

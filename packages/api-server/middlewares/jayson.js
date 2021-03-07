@@ -1,11 +1,6 @@
 var jayson = require('jayson');
+var methods = require('../lib/methods/index');
 
-function eth_blockNumber(args, callback) {
-    callback(null, "0x123")
-}
-
-var server = jayson.server({
-    eth_blockNumber: eth_blockNumber
-});
+var server = jayson.server(methods);
 
 module.exports = server.middleware()
