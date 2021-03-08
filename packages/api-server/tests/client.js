@@ -1,4 +1,5 @@
 const jayson = require('jayson');
+const test = require('ava');
 
 const PORT = process.env.PORT || '3000';
 
@@ -7,18 +8,14 @@ const client = jayson.client.http({
   port: PORT
 });
 
-// invoke "methods"
-
-// invoke "methods"
-client.request('web3_clientVersion', [], function(err, response) {
-  if(err) throw err;
-  console.log(`web3_clientVersion: ${response.result}`); // 2
+test('create client', t => {
+    t.is(client.options.port, PORT);
 });
 
-client.request('web3_sha3', ['0x0012'], function(err, response) {
-    if(err) throw err;
-    console.log(`web3_sha3: ${response.result}`); // 2
-});
+module.exports = { client };
+
+/*
+// invoke "methods"
 
 client.request('net_version', [], function(err, response) {
     if(err) throw err;
