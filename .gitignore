@@ -1,4 +1,5 @@
 node_modules
 packages/api-server/node_modules
+packages/api-server/lib
 packages/sql-indexer/node_modules
 packages/sql-indexer/knexfile.js
