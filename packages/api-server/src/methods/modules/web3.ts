@@ -8,6 +8,7 @@ export class Web3 {
   constructor () {
     this.sha3 = middleware(this.sha3.bind(this), 1, [validators.hex]);
   }
+
   /**
    * Returns the current client version
    * @param  {Array<*>} [params] An empty array
@@ -34,7 +35,5 @@ export class Web3 {
         callback(err);
     }
   }
-
-
-
+  
 }
