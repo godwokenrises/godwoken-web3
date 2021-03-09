@@ -17,6 +17,23 @@ test.cb('web3_sha3' , t => {
     });
 });
 
+test.cb('web3_sha3_param_is_empty', t => {
+    client.request('web3_sha3', [], function(err, response) {
+        if(err) throw err;
+        t.is(response.error.code, -32602);
+        t.is(response.error.message, 'missing value for required argument 0');
+        t.end();
+    });
+})
+
+test.cb('web3_sha3_param_is_not_hex', t => {
+    client.request('web3_sha3', ['dsfsa'], function(err, response) {
+        if(err) throw err;
+        t.is(response.error.code, -32602);
+        t.is(response.error.message, 'invalid argument 0: hex string without 0x prefix');
+        t.end();
+    });
+})
   
   
   

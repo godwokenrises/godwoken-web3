@@ -1,10 +1,11 @@
 import { Callback } from '../types';
 const Config = require('../../../config/eth.json');
+import { middleware, validators } from '../validator';
 
 export class Eth {
 
   constructor () {
-
+    
   }
    
   /**
