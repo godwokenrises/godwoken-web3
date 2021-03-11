@@ -41,7 +41,7 @@ CREATE TABLE transactions (
     s NUMERIC NOT NULL,
     cumulative_gas_used NUMERIC,
     gas_used NUMERIC,
-    log_bloom TEXT NOT NULL,
+    logs_bloom TEXT NOT NULL,
     contract_address TEXT,
     status SMALLINT NOT NULL
 );
