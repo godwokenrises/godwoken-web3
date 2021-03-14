@@ -1,4 +1,4 @@
 node_modules
 packages/api-server/node_modules
 packages/api-server/lib
-packages/api-server/knexfile.ts
+.env
