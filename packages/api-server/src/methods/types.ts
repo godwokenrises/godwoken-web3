@@ -10,4 +10,4 @@ export type SyningStatus = false | {
 
 export type Response = number | string | boolean | SyningStatus | Array<string>
 
-export type Callback =  (err: Error, res?: Response) => {}
+export type Callback =  (err: Error, res?: any | Response) => {}
