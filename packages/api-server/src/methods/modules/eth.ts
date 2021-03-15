@@ -1,11 +1,13 @@
 import { Callback } from '../types';
 import * as Knex from 'knex';
 const Config = require('../../../config/eth.json');
+import { middleware, validators } from '../validator';
 require('dotenv').config({path: "./.env"})
 
 export class Eth {
   knex: Knex;
   constructor () {
+    
     this.knex = require("knex")({
       client: "postgresql",
       connection:  process.env.DATABASE_URL,

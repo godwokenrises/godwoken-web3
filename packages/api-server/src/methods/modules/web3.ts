@@ -1,12 +1,14 @@
 import { Callback } from '../types';
 import { getClientVersion } from '../../util';
 import { addHexPrefix, keccak, toBuffer } from 'ethereumjs-util';
+import { middleware, validators } from '../validator';
 
 export class Web3 {
   
   constructor () {
-     
+    this.sha3 = middleware(this.sha3.bind(this), 1, [validators.hex]);
   }
+
   /**
    * Returns the current client version
    * @param  {Array<*>} [params] An empty array
@@ -33,7 +35,5 @@ export class Web3 {
         callback(err);
     }
   }
-
-
-
+  
 }

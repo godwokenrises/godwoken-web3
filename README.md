@@ -21,7 +21,7 @@ yarn workspace @godwoken-web3/api-server start
 
 Test JSON RPC
 ```
-yarn workspace @godwoken-web3/api-server client
+yarn workspace @godwoken-web3/api-server test 
 ```
 
 ### Call JSON RPC from CURL
