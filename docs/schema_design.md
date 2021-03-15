@@ -28,7 +28,7 @@ CREATE TABLE transactions (
     hash TEXT UNIQUE NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
     block_hash TEXT NOT NULL,
-    transaction_index NUMERIC NOT NULL,
+    transaction_index INTEGER NOT NULL,
     from_address TEXT NOT NULL,
     to_address TEXT,
     value NUMERIC NOT NULL,
@@ -36,28 +36,41 @@ CREATE TABLE transactions (
     gas_limit NUMERIC,
     gas_price NUMERIC,
     input TEXT,
-    v NUMERIC NOT NULL,
-    r NUMERIC NOT NULL,
-    s NUMERIC NOT NULL,
+    v TEXT NOT NULL,
+    r TEXT NOT NULL,
+    s TEXT NOT NULL,
     cumulative_gas_used NUMERIC,
     gas_used NUMERIC,
     logs_bloom TEXT NOT NULL,
     contract_address TEXT,
-    status SMALLINT NOT NULL
+    status BOOLEAN NOT NULL
 );
+
+CREATE INDEX ON transactions (block_number);
+CREATE INDEX ON transactions (block_hash);
+CREATE INDEX ON transactions (from_address);
+CREATE INDEX ON transactions (to_address);
+CREATE INDEX ON transactions (contract_address);
+CREATE UNIQUE INDEX block_number_transaction_index_idx ON transactions (block_number, transaction_index);
+CREATE UNIQUE INDEX block_hash_transaction_index_idx ON transactions (block_hash, transaction_index);
 
 CREATE TABLE logs (
     id NUMERIC PRIMARY KEY,
     transaction_id NUMERIC REFERENCES transactions(id) NOT NULL,
     transaction_hash TEXT NOT NULL,
-    transaction_index NUMERIC NOT NULL,
+    transaction_index INTEGER NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
     block_hash TEXT NOT NULL,
     address TEXT NOT NULL,
     data TEXT NOT NULL,
-    log_index NUMERIC NOT NULL,
+    log_index INTEGER NOT NULL,
     topics TEXT[] NOT NULL
 );
+
+CREATE INDEX ON logs (transaction_hash);
+CREATE INDEX ON logs (block_hash);
+CREATE INDEX ON logs (address);
+
 ```
 
 ## 字段含义
