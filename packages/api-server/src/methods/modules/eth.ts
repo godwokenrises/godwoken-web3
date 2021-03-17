@@ -4,7 +4,8 @@ const Config = require('../../../config/eth.json');
 import { middleware, validators } from '../validator';
 import { Filter } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
-require('dotenv').config({ path: "./.env" })
+import { camelToSnake, toHex } from '../../util';
+require('dotenv').config({ path: "./.env" });
 
 export class Eth {
 
@@ -189,17 +190,17 @@ export class Eth {
   newFilter(args: [FilterObject], callback: Callback) {
     const filter = args[0];
     const filter_id = this.filterManager.install(filter);
-    callback(null, BigInt(filter_id).toString(16));
+    callback(null, toHex(filter_id));
   }
 
   newBlockFilter(args: [], callback: Callback) {
     const filter_id = this.filterManager.install(1); // 1 for block filter
-    callback(null, BigInt(filter_id).toString(16));
+    callback(null, toHex(filter_id));
   }
 
   newPendingTransactionFilter(args: [], callback: Callback) {
     const filter_id = this.filterManager.install(2); // 2 for pending tx filter
-    callback(null, BigInt(filter_id).toString(16));
+    callback(null, toHex(filter_id));
   }
 
   uninstallFilter(args: [string], callback: Callback) {
@@ -213,7 +214,7 @@ export class Eth {
     const filter = this.filterManager.get(filter_id);
 
     if(!filter)
-      callback(null, []);
+      return callback(null, []);
 
     if(filter === 1){// block filter
       const blocks = await this.knex.select().table("blocks").where({}); 
@@ -233,11 +234,11 @@ export class Eth {
     const filter = this.filterManager.get(filter_id); 
     
     if(!filter)
-      callback(null, []); 
+      return callback(null, []); 
     
-    if(filter === 1) {// block-filter
+    // block-filter
+    if(filter === 1) { 
       const last_poll_block_number = this.filterManager.getLastPoll(filter_id);
-
       // get all block occured since last poll 
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.knex.select().table("blocks")
@@ -245,21 +246,24 @@ export class Eth {
                                 'number', '>', BigInt(last_poll_block_number).toString()
                               )
                               .orderBy('number', 'desc');
+  
+      if(blocks.length === 0)
+          return callback(null, []);
+      
       // remember to update the last poll cache
-      // blocks[0] is now the higest block number(meaning the newest cache block number)
-      if(blocks.length > 0) {
-        this.filterManager.updateLastPollCache(filter_id, blocks[0].number);
-      }
+      // blocks[0] is now the higest block number(meaning it is the newest cache block number)
+      this.filterManager.updateLastPollCache(filter_id, blocks[0].number);
       const block_hashes = blocks.map(block => block.hash);
       return callback(null, block_hashes); 
     }
 
-    if(filter === 2) {// pending-tx-filter, not supported.
+    // pending-tx-filter, not supported.
+    if(filter === 2) { 
       return callback(null, []);
     }
 
     // normal-filter
-    // filter the empty query params
+    // get non-empty query params
     const params = [
       {
         name: 'address',
@@ -286,52 +290,71 @@ export class Eth {
        return { [p.name] : p.value }
      });
     const q = {};
-    var query = params.map(q => Object.assign(q, q))[0];
+    var query = params.map( p => Object.assign(q, p) )[0];
     
+    const last_poll_log_id = this.filterManager.getLastPoll(filter_id);
     
-    if(query.blockHash){
-      delete query.fromBlock;
-      delete query.toBlock;
-      await this.knex.select().table("logs")
-        .where({
-          block_hash: query.blockHash,
+    //@ts-ignore
+    const topics: [] = query.topics ? query.topics : [];
+    const from_block = query.fromBlock;
+    const to_block = query.toBlock;
 
-        })
+    delete query.fromBlock;
+    delete query.toBlock;
+    delete query.topics;
+
+    // if blockHash exits, fromBlock and toBlock is not allowed.
+    if(query.blockHash){
+      const logsData = await this.knex.select().table("logs")
+        .where(camelToSnake(query))
+        .where('topics', '@>', topics)
+        // select the recent whose log_id is greater than lastPollCache's log_id
+        .where('id', '>', !last_poll_log_id?.toString());
+      const logs = logsData.map(log => dbLogToApiLog(log));
+      return callback(null, logs);
     }
 
-
-    // select the recent logs from db
-    // whose log_id is greater than lastPollCache's log_id
-    await this.knex.select().table("logs").where(query).where
-    
+    // todo: handle block parameter
+    const logsData = await this.knex.select().table("logs")
+        .where(camelToSnake(query))
+        .where('topics', '@>', topics)
+        .where('block_number', '>', !from_block?.toString())
+        .where('block_number', '<', !to_block?.toString())
+        // select the recent whose log_id is greater than lastPollCache's log_id
+        .where('id', '>', !last_poll_log_id?.toString());
+    const logs = logsData.map(log => dbLogToApiLog(log));
+    return callback(null, logs);
   }
 
   async getLogs(args: [FilterObject], callback: Callback) {
-
     const filter = args[0];
-    
-    if (filter.blockHash) {
 
+    //@ts-ignore
+    const topics: [] = filter.topics ? filter.topics : [];
+    const from_block = filter.fromBlock;
+    const to_block = filter.toBlock;
+
+    delete filter.fromBlock;
+    delete filter.toBlock;
+    delete filter.topics;
+
+    // if blockHash exits, fromBlock and toBlock is not allowed.
+    if(filter.blockHash){
       const logsData = await this.knex.select().table("logs")
-      .where({ // todo: handle address topis undefind
-          block_hash: filter.blockHash, 
-          address: filter.address, 
-          topics: filter.topics 
-       });
-      callback( null, logsData.map( log => dbLogToApiLog(log)) );
-
-    }else{ // todo: handle block parameter
-
-      const logsData = await this.knex.select().table("logs")
-      .where({ //todo: handle block ranges
-          address: filter.address, 
-          topics: filter.topics 
-       })
-       //@ts-ignore
-       // todo: handler block number from hex string to number
-      .whereBetween('block_number', [filter.fromBlock, filter.toBlock]);
-      callback( null, logsData.map( log => dbLogToApiLog(log)) );
+        .where(camelToSnake(filter))
+        .where('topics', '@>', topics)
+      const logs = logsData.map(log => dbLogToApiLog(log));
+      return callback(null, logs);
     }
+
+    // todo: handle block parameter
+    const logsData = await this.knex.select().table("logs")
+        .where(camelToSnake(filter))
+        .where('topics', '@>', topics)
+        .where('block_number', '>', !from_block?.toString())
+        .where('block_number', '<', !to_block?.toString())
+    const logs = logsData.map(log => dbLogToApiLog(log));
+    return callback(null, logs);
   }
 /* #endregion */
 
