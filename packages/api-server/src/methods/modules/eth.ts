@@ -4,7 +4,7 @@ const Config = require('../../../config/eth.json');
 import { middleware, validators } from '../validator';
 import { Filter } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
-import { camelToSnake, toHex } from '../../util';
+import { camelToSnake, toHex, handleBlockParamter } from '../../util';
 require('dotenv').config({ path: "./.env" });
 
 export class Eth {
@@ -186,7 +186,6 @@ export class Eth {
 
 
 /* #region filter-related api methods */
-
   newFilter(args: [FilterObject], callback: Callback) {
     const filter = args[0];
     const filter_id = this.filterManager.install(filter);
@@ -216,13 +215,13 @@ export class Eth {
     if(!filter)
       return callback(null, []);
 
-    if(filter === 1){// block filter
+    if(filter === 1) {// block filter
       const blocks = await this.knex.select().table("blocks").where({}); 
       const block_hashes = blocks.map(block => block.hash);
       return callback(null, block_hashes); 
     }
 
-    if(filter === 2){// pending tx filter, not supported.
+    if(filter === 2) {// pending tx filter, not supported.
       return callback(null, []);
     }
     
@@ -236,7 +235,7 @@ export class Eth {
     if(!filter)
       return callback(null, []); 
     
-    // block-filter
+    //***** handle block-filter
     if(filter === 1) { 
       const last_poll_block_number = this.filterManager.getLastPoll(filter_id);
       // get all block occured since last poll 
@@ -257,13 +256,15 @@ export class Eth {
       return callback(null, block_hashes); 
     }
 
-    // pending-tx-filter, not supported.
+    //***** handle pending-tx-filter, currently not supported.
     if(filter === 2) { 
       return callback(null, []);
     }
 
-    // normal-filter
-    // get non-empty query params
+    //***** handle normal-filter
+    const last_poll_log_id = this.filterManager.getLastPoll(filter_id);
+
+    // filter non-empty query params
     const params = [
       {
         name: 'address',
@@ -289,39 +290,73 @@ export class Eth {
      .map(p => {
        return { [p.name] : p.value }
      });
-    const q = {};
+    var q = {};
     var query = params.map( p => Object.assign(q, p) )[0];
-    
-    const last_poll_log_id = this.filterManager.getLastPoll(filter_id);
     
     //@ts-ignore
     const topics: [] = query.topics ? query.topics : [];
-    const from_block = query.fromBlock;
-    const to_block = query.toBlock;
+    const from_block = handleBlockParamter(filter.fromBlock ? filter.fromBlock : 'earliest');
+    const to_block = handleBlockParamter(filter.toBlock ? filter.toBlock : 'latest');
 
+    // we will pass query object dirrectly to knex where method.
+    // so here need to delete the un-querable key.
     delete query.fromBlock;
     delete query.toBlock;
     delete query.topics;
 
     // if blockHash exits, fromBlock and toBlock is not allowed.
-    if(query.blockHash){
+    if(query.blockHash) {
       const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(query))
         .where('topics', '@>', topics)
         // select the recent whose log_id is greater than lastPollCache's log_id
-        .where('id', '>', !last_poll_log_id?.toString());
+        .where('id', '>', last_poll_log_id!.toString());
+
+      if(logsData.length === 0)
+        return callback(null, []);
+
+      // remember to update the last poll cache
+      // logsData[0] is now the higest log id(meaning it is the newest cache log id)
+      this.filterManager.updateLastPollCache(filter_id, logsData[0].id);
+
       const logs = logsData.map(log => dbLogToApiLog(log));
       return callback(null, logs);
     }
 
-    // todo: handle block parameter
+    console.log(last_poll_log_id?.toString());
     const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(query))
+        /*
+          todo: incomplete topics control. 
+          todo: (currently only impl a simple topic query method)
+
+          Topics are order-dependent. 
+          Each topic can also be an array of DATA with “or” options.
+          [example]:
+            A transaction with a log with topics [A, B], 
+            will be matched by the following topic filters:
+
+              1. [] “anything”
+              2. [A] “A in first position (and anything after)”
+              3. [null, B] “anything in first position AND B in second position (and anything after)”
+              4. [A, B] “A in first position AND B in second position (and anything after)”
+              5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+              
+          source: https://eth.wiki/json-rpc/API#eth_newFilter
+        */
         .where('topics', '@>', topics)
-        .where('block_number', '>', !from_block?.toString())
-        .where('block_number', '<', !to_block?.toString())
+        .where('block_number', '>', from_block?.toString())
+        .where('block_number', '<', to_block?.toString())
         // select the recent whose log_id is greater than lastPollCache's log_id
-        .where('id', '>', !last_poll_log_id?.toString());
+        .where('id', '>', last_poll_log_id!.toString());
+
+    if(logsData.length === 0)
+      return callback(null, []);
+
+    // remember to update the last poll cache
+    // logsData[0] is now the higest log id(meaning it is the newest cache log id)
+    this.filterManager.updateLastPollCache(filter_id, logsData[0].id);
+
     const logs = logsData.map(log => dbLogToApiLog(log));
     return callback(null, logs);
   }
@@ -331,8 +366,8 @@ export class Eth {
 
     //@ts-ignore
     const topics: [] = filter.topics ? filter.topics : [];
-    const from_block = filter.fromBlock;
-    const to_block = filter.toBlock;
+    const from_block = handleBlockParamter(filter.fromBlock ? filter.fromBlock : 'earliest');
+    const to_block = handleBlockParamter(filter.toBlock ? filter.toBlock : 'latest');
 
     delete filter.fromBlock;
     delete filter.toBlock;
@@ -347,25 +382,33 @@ export class Eth {
       return callback(null, logs);
     }
 
-    // todo: handle block parameter
     const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(filter))
+        /*
+          todo: incomplete topics control. 
+          todo: (currently only impl a simple topic query method)
+
+          Topics are order-dependent. 
+          Each topic can also be an array of DATA with “or” options.
+          [example]:
+            A transaction with a log with topics [A, B], 
+            will be matched by the following topic filters:
+
+              1. [] “anything”
+              2. [A] “A in first position (and anything after)”
+              3. [null, B] “anything in first position AND B in second position (and anything after)”
+              4. [A, B] “A in first position AND B in second position (and anything after)”
+              5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+              
+          source: https://eth.wiki/json-rpc/API#eth_newFilter
+        */
         .where('topics', '@>', topics)
-        .where('block_number', '>', !from_block?.toString())
-        .where('block_number', '<', !to_block?.toString())
+        .where('block_number', '>', from_block?.toString())
+        .where('block_number', '<', to_block?.toString())
     const logs = logsData.map(log => dbLogToApiLog(log));
     return callback(null, logs);
   }
 /* #endregion */
-
-  
-
-
-
-
-
-
-
 
 }
 
