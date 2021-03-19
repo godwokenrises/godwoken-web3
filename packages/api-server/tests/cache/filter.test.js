@@ -1,7 +1,7 @@
 const test = require('ava');
 const { Filter } = require('../../lib/cache/index');
 
-const filter = new Filter();
+const filter = new Filter(1000, 1000);
 const f = {
     address: '0x0000',
     fromBlock: 123,
@@ -44,4 +44,11 @@ test.serial('filter_updateLastPoll', t => {
 test.serial('filter_uninstall', t => {
     filter.uninstall(1);
     t.is(filter.size(), 1);
+});
+
+test.serial.cb('filter_cache_expired', t => {
+    setTimeout(() => {
+        t.is(filter.size(), 0);
+        t.end();
+    }, 4000);
 });
