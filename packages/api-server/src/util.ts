@@ -15,14 +15,14 @@ export function handleBlockParamter (block_paramter: BlockParameter): BigInt {
 
     switch (block_paramter) {
         case 'latest':
-            return BigInt('1'+'0'.repeat(10));// a very large number
+            return BigInt('1'+'0'.repeat(10)); // a very large number
         
         case 'earliest':
             return BigInt(0);
 
         case 'pending':
-            //throw new Error("pending transaction unsupported.");
-            return BigInt('1'+'0'.repeat(10));//treat it as 'latest'
+            // throw new Error("pending transaction unsupported.");
+            return BigInt('1'+'0'.repeat(10)); // treat it as 'latest'
 
         default:
             return BigInt(block_paramter);

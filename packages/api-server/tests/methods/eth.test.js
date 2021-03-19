@@ -151,7 +151,7 @@ const filter_without_blockHash = {
     "topics": [
         '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 
         '0x00000000000000000000000000000000000000000000000000000000000012d1'
-    ]
+    ],
 }
 
 const filter_with_pending = {
@@ -160,7 +160,7 @@ const filter_with_pending = {
     "topics": [
         '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 
         '0x00000000000000000000000000000000000000000000000000000000000012d1'
-    ] 
+    ]
 }
 
 var filter_id;
@@ -384,4 +384,23 @@ test.serial.cb('eth_getFilterLogs_for_newBlockFilter_after_uninstall', t => {
         }
     );    
 });
+
+// if you want to test the below cache case,
+// remenber to change the filter's TTL(cache time, default is 5 minutes)
+// to a much shorter one (like 3000 milseconds) for test convience.
+//
+// test.serial.cb('eth_filter_cache', t => {
+//     setTimeout(() => {
+//         client.request(
+//             "eth_getFilterLogs",
+//             ['0x4'],
+//             function (err, response) {
+//               if (err) throw err;
+//               t.deepEqual(response.result, []);
+//               t.end();    
+//             }
+//         )
+//     }, 6000);
+// });
+
 /* #endregion */

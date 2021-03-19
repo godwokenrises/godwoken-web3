@@ -2,7 +2,7 @@ import { Callback } from '../types';
 import * as Knex from 'knex';
 const Config = require('../../../config/eth.json');
 import { middleware, validators } from '../validator';
-import { Filter } from '../../cache/index';
+import { FilterManager } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
 require('dotenv').config({ path: "./.env" });
@@ -10,7 +10,7 @@ require('dotenv').config({ path: "./.env" });
 export class Eth {
 
   knex: Knex;
-  private filterManager: Filter;
+  private filterManager: FilterManager;
   
   constructor() {
 
@@ -19,7 +19,7 @@ export class Eth {
       connection: process.env.DATABASE_URL,
     });
 
-    this.filterManager = new Filter();
+    this.filterManager = new FilterManager();
     
   }
 
@@ -251,7 +251,7 @@ export class Eth {
       
       // remember to update the last poll cache
       // blocks[0] is now the higest block number(meaning it is the newest cache block number)
-      this.filterManager.updateLastPollCache(filter_id, blocks[0].number);
+      this.filterManager.updateLastPoll(filter_id, blocks[0].number);
       const block_hashes = blocks.map(block => block.hash);
       return callback(null, block_hashes); 
     }
@@ -305,7 +305,7 @@ export class Eth {
     delete query.topics;
 
     // if blockHash exits, fromBlock and toBlock is not allowed.
-    if(query.blockHash) {
+    if(filter.blockHash) {
       const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(query))
         .where('topics', '@>', topics)
@@ -317,22 +317,21 @@ export class Eth {
 
       // remember to update the last poll cache
       // logsData[0] is now the higest log id(meaning it is the newest cache log id)
-      this.filterManager.updateLastPollCache(filter_id, logsData[0].id);
+      this.filterManager.updateLastPoll(filter_id, logsData[0].id);
 
       const logs = logsData.map(log => dbLogToApiLog(log));
       return callback(null, logs);
     }
 
-    console.log(last_poll_log_id?.toString());
     const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(query))
         /*
-          todo: incomplete topics control. 
-          todo: (currently only impl a simple topic query method)
-
+          todo: incomplete topics query. (currently only impl a simple topic query method)
           Topics are order-dependent. 
           Each topic can also be an array of DATA with “or” options.
+
           [example]:
+          
             A transaction with a log with topics [A, B], 
             will be matched by the following topic filters:
 
@@ -355,7 +354,7 @@ export class Eth {
 
     // remember to update the last poll cache
     // logsData[0] is now the higest log id(meaning it is the newest cache log id)
-    this.filterManager.updateLastPollCache(filter_id, logsData[0].id);
+    this.filterManager.updateLastPoll(filter_id, logsData[0].id);
 
     const logs = logsData.map(log => dbLogToApiLog(log));
     return callback(null, logs);
@@ -385,12 +384,12 @@ export class Eth {
     const logsData = await this.knex.select().table("logs")
         .where(camelToSnake(filter))
         /*
-          todo: incomplete topics control. 
-          todo: (currently only impl a simple topic query method)
-
+          todo: incomplete topics matching. (currently only impl a simple topic query method)
           Topics are order-dependent. 
           Each topic can also be an array of DATA with “or” options.
+
           [example]:
+
             A transaction with a log with topics [A, B], 
             will be matched by the following topic filters:
 

@@ -1,7 +1,7 @@
 const test = require('ava');
-const { Filter } = require('../../lib/cache/index');
+const { FilterManager } = require('../../lib/cache/index');
 
-const filter = new Filter(1000, 1000);
+const filter = new FilterManager(1000, 1000);
 const f = {
     address: '0x0000',
     fromBlock: 123,
@@ -37,7 +37,7 @@ test.serial('filter_getLastPoll', t => {
 })
 
 test.serial('filter_updateLastPoll', t => {
-    filter.updateLastPollCache(1, 25);
+    filter.updateLastPoll(1, 25);
     t.is(filter.getLastPoll(1), 25);
 })
 
