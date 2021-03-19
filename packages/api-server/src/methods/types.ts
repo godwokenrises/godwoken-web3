@@ -10,4 +10,6 @@ export type SyningStatus = false | {
 
 export type Response = number | string | boolean | SyningStatus | Array<string>
 
-export type Callback =  (err: Error, res?: any | Response) => {}
+export type Callback =  (err: Error, res?: any | Response) => void
+
+export type BlockParameter = string | "latest" | "earliest" | "pending";
