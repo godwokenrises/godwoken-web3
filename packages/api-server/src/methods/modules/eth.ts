@@ -1,16 +1,33 @@
 import { Callback } from '../types';
 import * as Knex from 'knex';
-const Config = require('../../../config/eth.json');
+import { RPC } from 'ckb-js-toolkit';
 import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
+import { core, utils, Script } from '@ckb-lumos/base';
+import { normalizers, Reader } from 'ckb-js-toolkit';
+const Config = require('../../../config/eth.json');
+const { blake2bInit, blake2bUpdate, blake2bFinal } = require('blakejs');
+const blake2b = require('blake2b');
 require('dotenv').config({ path: './.env' });
 
+const POLYJUICE_ACCOUNT_CODE_HASH =
+  '0x0000000000000000000000000000000000000000000000000000000000000001';
+const POLYJUICE_VALIDATOR_CODE_HASH =
+  '0x20814f4f3ebaf8a297d452aa38dbf0f9cb0b2988a87cb6119c2497de817e7de9';
+const POLYJUICE_SYSTEM_PREFIX = 255;
+const POLYJUICE_CONTRACT_CODE = 1;
+const POLYJUICE_DESTRUCTED = 2;
+const GW_KEY_BYTES = 32;
+const GW_ACCOUNT_KV = 0;
+const SUDT_ID = 1;
+const CKB_PERSONALIZATION = 'ckb-default-hash';
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
 
+  rpc: RPC;
   constructor() {
     this.knex = require('knex')({
       client: 'postgresql',
@@ -18,6 +35,8 @@ export class Eth {
     });
 
     this.filterManager = new FilterManager();
+    console.log('node_rpc', process.env.GODWOKEN_JSON_RPC);
+    this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
   }
 
   /**
@@ -37,7 +56,26 @@ export class Eth {
    * SyningStatus as the second argument.
    *    SyningStatus: false or { startingBlock, currentBlock, highestBlock }
    */
-  syncing(args: [], callback: Callback) {}
+  async syncing(args: [], callback: Callback) {
+    // TODO get the latest L2 block number
+    // const result = await this.rpc.last_synced();
+    const blockData = await this.knex
+      .select('number')
+      .from('blocks')
+      .orderBy('number', 'desc')
+      .limit(1);
+    if (blockData.length === 1) {
+      let blockHeight = '0x' + BigInt(blockData[0].number).toString(16);
+      const result = {
+        startingBlock: blockHeight,
+        currentBlock: blockHeight,
+        highestBlock: blockHeight
+      };
+      callback(null, result);
+    } else {
+      callback(null, false);
+    }
+  }
 
   /**
    * Returns client coinbase address, which is always zero hashes
@@ -69,7 +107,9 @@ export class Eth {
     callback(null, '0x0');
   }
 
-  gasPrice(args: [], callback: Callback) {}
+  async gasPrice(args: [], callback: Callback) {
+    callback(null, '0x1');
+  }
 
   /**
    * Returns client saved wallet addresses, which is always zero array
@@ -81,9 +121,86 @@ export class Eth {
     callback(null, []);
   }
 
-  blockNumber(args: [], callback: Callback) {}
+  async blockNumber(args: [], callback: Callback) {
+    const blockData = await this.knex
+      .select('number')
+      .from('blocks')
+      .orderBy('number', 'desc')
+      .limit(1);
+    if (blockData.length === 1) {
+      let blockHeight = '0x' + BigInt(blockData[0].number).toString(16);
+      callback(null, blockHeight);
+    } else {
+      callback(null, null);
+    }
+  }
 
-  getBalance(args: [], callback: Callback) {}
+  async getBalance(args: [string, string], callback: Callback) {
+    // TODO validate address
+    const address = args[0];
+    const scriptHash = ethAddressToScriptHash(address);
+    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const balance = await this.rpc.gw_getBalance(accountId, SUDT_ID);
+    callback(null, balance);
+    // TODO handle error
+  }
+
+  async getStorageAt(args: [string, string, string], callback: Callback) {
+    const address = args[0];
+    const scriptHash = ethAddressToScriptHash(address);
+    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const storagePosition = args[1];
+    const key = ethStoragePositionToRawKey(storagePosition);
+  }
+
+  async getTransactionCount(args: [string, string], callback: Callback) {
+    const address = args[0];
+    const scriptHash = ethAddressToScriptHash(address);
+    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const nonce = await this.rpc.gw_getNonce(accountId);
+    callback(null, '0x' + BigInt(nonce).toString(16));
+  }
+
+  async getCode(args: [string, string], callback: Callback) {
+    const address = args[0];
+    const scriptHash = ethContractAddressToScriptHash(address);
+    console.log('scriptHash:', scriptHash);
+    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    console.log('accountId', accountId);
+    const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
+    console.log('contractCodeKey:', contractCodeKey);
+    const rawKey = gwBuildAccountKey(accountId, contractCodeKey);
+    console.log('rawKey:', rawKey);
+    const hexRawKey = '0x' + Buffer.from(rawKey).toString('hex');
+    console.log('hexRawKey:', hexRawKey);
+    const dataHash = await this.rpc.gw_getStorageAt(accountId, hexRawKey);
+    console.log('dataHash:', dataHash);
+    const data = await this.rpc.gw_getData(dataHash);
+    callback(null, data);
+  }
+
+  async call(
+    args: [string, string, string, string, string, string, string],
+    callback: Callback
+  ) {
+    const fromAddress = args[0];
+    const toAddress = args[1];
+    const gas = args[2];
+    const gasPrice = args[3];
+    const value = args[4];
+    const data = args[5];
+    const fromScriptHash = ethAddressToScriptHash(fromAddress);
+    const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+      fromScriptHash
+    );
+    const nonce = await this.rpc.gw_getNonce(fromAccountId);
+    const toScriptHash = ethAddressToScriptHash(toAddress);
+    const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+      toScriptHash
+    );
+    const polyjuiceArgs = buildPolyjuiceArgs();
+    // const rawL2Transaction = buildRawL2Transaction(fromAccountId, toAccountId, nonce, polyjuiceArgs);
+  }
 
   async getBlockByHash(args: [string], callback: Callback) {
     const blockData = await this.knex
@@ -528,4 +645,96 @@ function dbLogToApiLog(log: any) {
     topics: log.topics,
     removed: false
   };
+}
+
+function ethAddressToScriptHash(address: string) {
+  const script = {
+    code_hash: POLYJUICE_ACCOUNT_CODE_HASH,
+    hash_type: 'data',
+    args: address
+  };
+  console.log('script: ', script);
+  const scriptHash = utils
+    .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
+    .serializeJson();
+  return scriptHash;
+}
+
+function ethContractAddressToScriptHash(address: string) {
+  const script = {
+    code_hash: POLYJUICE_VALIDATOR_CODE_HASH,
+    hash_type: 'data',
+    args: address
+  };
+  console.log('script: ', script);
+  const scriptHash = utils
+    .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
+    .serializeJson();
+  return scriptHash;
+}
+
+function gwBuildAccountKey(accountId: number, key: Uint8Array) {
+  const buffer = Buffer.from(CKB_PERSONALIZATION);
+  const personal = new Uint8Array(buffer);
+  console.log(personal);
+  let context = blake2b(32, null, null, personal);
+  const accountIdArray = new Uint8Array(
+    accountIdTo4BytesArray(accountId) as number[]
+  );
+  const type = new Uint8Array([GW_ACCOUNT_KV]);
+  context = context.update(accountIdArray);
+  context = context.update(type);
+  context = context.update(key);
+  const hash = context.digest();
+  console.log('hash:', hash);
+  return hash;
+}
+
+function polyjuiceBuildContractCodeKey(accountId: number) {
+  return polyjuiceBuildSystemKey(accountId, POLYJUICE_CONTRACT_CODE);
+}
+
+function polyjuiceBuildSystemKey(accountId: number, fieldType: number) {
+  let key = new Uint8Array(32);
+  const array = accountIdTo4BytesArray(accountId) as number[];
+  key[0] = array[0];
+  key[1] = array[1];
+  key[2] = array[2];
+  key[3] = array[3];
+  key[4] = POLYJUICE_SYSTEM_PREFIX;
+  key[5] = fieldType;
+  return key;
+}
+
+function ethStoragePositionToRawKey(ethStoragePosition: string) {}
+
+function accountIdTo4BytesArray(id: number) {
+  let hex = id.toString(16);
+  if (hex.length < 8) {
+    hex = '0'.repeat(8 - hex.length) + hex;
+  }
+  const array = hex
+    .match(/../g)
+    ?.reverse()
+    .map((x) => {
+      return parseInt('0x' + x);
+    });
+  return array;
+}
+
+function buildPolyjuiceArgs() {}
+
+function buildRawL2Transaction(
+  fromId: number,
+  toId: number,
+  nonce: number,
+  args: string
+) {
+  const rawL2Transaction = {
+    from_id: fromId,
+    to_id: toId,
+    nonce: nonce,
+    args: args
+  };
+  return rawL2Transaction;
 }
