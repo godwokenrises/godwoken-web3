@@ -1,7 +1,8 @@
 const test = require('ava');
 const { client } = require('../client');
 const EthConfig = require('../../config/eth.json');
-
+const SimpleStorageCodeBin =
+  '60806040526004361060295760003560e01c806360fe47b114602f5780636d4ce63c14605b576029565b60006000fd5b60596004803603602081101560445760006000fd5b81019080803590602001909291905050506084565b005b34801560675760006000fd5b50606e6094565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060a2565b9056fea2646970667358221220044daf4e34adffc61c3bb9e8f40061731972d32db5b8c2bc975123da9e988c3e64736f6c63430006060033';
 test.cb('eth_protocolVersion', (t) => {
   client.request('eth_protocolVersion', [], function (err, response) {
     if (err) throw err;
@@ -530,13 +531,25 @@ test.cb('eth_blockNumber', (t) => {
 // });
 
 /* #endregion */
+// test.cb('eth_getStorageAt', (t) => {
+//   client.request(
+//     'eth_getStorageAt',
+//     ['0x01000000020000000a000000', '0x0', 'latest'],
+//     function (err, response) {
+//       if (err) throw err;
+//       t.is(response.result, '');
+//       t.end();
+//     }
+//   );
+// });
+
 test.cb('eth_getCode', (t) => {
   client.request(
     'eth_getCode',
-    ['0x01000000020000000a000000', 'latest'],
+    ['0x010000000200000002000000', 'latest'],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '');
+      t.is(response.result, SimpleStorageCodeBin);
       t.end();
     }
   );

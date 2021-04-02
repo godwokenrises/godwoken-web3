@@ -15,7 +15,7 @@ require('dotenv').config({ path: './.env' });
 const POLYJUICE_ACCOUNT_CODE_HASH =
   '0x0000000000000000000000000000000000000000000000000000000000000001';
 const POLYJUICE_VALIDATOR_CODE_HASH =
-  '0x20814f4f3ebaf8a297d452aa38dbf0f9cb0b2988a87cb6119c2497de817e7de9';
+  '0x4b83dd9158e7f3407bbc3fefbcac5dfeecf40221ea28706eb97fd653d375e00c';
 const POLYJUICE_SYSTEM_PREFIX = 255;
 const POLYJUICE_CONTRACT_CODE = 1;
 const POLYJUICE_DESTRUCTED = 2;
@@ -147,10 +147,12 @@ export class Eth {
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
-    const scriptHash = ethAddressToScriptHash(address);
+    const scriptHash = ethContractAddressToScriptHash(address);
     const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
     const storagePosition = args[1];
-    const key = ethStoragePositionToRawKey(storagePosition);
+    const key = buildStorageKey(storagePosition);
+    const value = await this.rpc.gw_getStorageAt(accountId, key);
+    callback(null, value);
   }
 
   async getTransactionCount(args: [string, string], callback: Callback) {
@@ -164,17 +166,9 @@ export class Eth {
   async getCode(args: [string, string], callback: Callback) {
     const address = args[0];
     const scriptHash = ethContractAddressToScriptHash(address);
-    console.log('scriptHash:', scriptHash);
     const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
-    console.log('accountId', accountId);
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    console.log('contractCodeKey:', contractCodeKey);
-    const rawKey = gwBuildAccountKey(accountId, contractCodeKey);
-    console.log('rawKey:', rawKey);
-    const hexRawKey = '0x' + Buffer.from(rawKey).toString('hex');
-    console.log('hexRawKey:', hexRawKey);
-    const dataHash = await this.rpc.gw_getStorageAt(accountId, hexRawKey);
-    console.log('dataHash:', dataHash);
+    const dataHash = await this.rpc.gw_getStorageAt(accountId, contractCodeKey);
     const data = await this.rpc.gw_getData(dataHash);
     callback(null, data);
   }
@@ -676,17 +670,13 @@ function ethContractAddressToScriptHash(address: string) {
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
   const buffer = Buffer.from(CKB_PERSONALIZATION);
   const personal = new Uint8Array(buffer);
-  console.log(personal);
   let context = blake2b(32, null, null, personal);
-  const accountIdArray = new Uint8Array(
-    accountIdTo4BytesArray(accountId) as number[]
-  );
+  const accountIdArray = new Uint8Array(uint32ToLeBytes(accountId) as number[]);
   const type = new Uint8Array([GW_ACCOUNT_KV]);
   context = context.update(accountIdArray);
   context = context.update(type);
   context = context.update(key);
   const hash = context.digest();
-  console.log('hash:', hash);
   return hash;
 }
 
@@ -696,19 +686,19 @@ function polyjuiceBuildContractCodeKey(accountId: number) {
 
 function polyjuiceBuildSystemKey(accountId: number, fieldType: number) {
   let key = new Uint8Array(32);
-  const array = accountIdTo4BytesArray(accountId) as number[];
+  const array = uint32ToLeBytes(accountId) as number[];
   key[0] = array[0];
   key[1] = array[1];
   key[2] = array[2];
   key[3] = array[3];
   key[4] = POLYJUICE_SYSTEM_PREFIX;
   key[5] = fieldType;
-  return key;
+  return '0x' + Buffer.from(key).toString('hex');
 }
 
 function ethStoragePositionToRawKey(ethStoragePosition: string) {}
 
-function accountIdTo4BytesArray(id: number) {
+function uint32ToLeBytes(id: number) {
   let hex = id.toString(16);
   if (hex.length < 8) {
     hex = '0'.repeat(8 - hex.length) + hex;
@@ -737,4 +727,14 @@ function buildRawL2Transaction(
     args: args
   };
   return rawL2Transaction;
+}
+
+function buildStorageKey(storagePosition: string) {
+  let key = storagePosition.slice(2);
+  if (key.length < 64) {
+    key = '0'.repeat(64 - key.length) + key;
+  }
+  // const buf = Buffer.from(key, "hex");
+  // return new Uint8Array(buf);
+  return '0x' + key;
 }
