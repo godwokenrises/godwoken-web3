@@ -179,9 +179,9 @@ export class Eth {
   ) {
     const fromAddress = args[0];
     const toAddress = args[1];
-    const gas = args[2];
-    const gasPrice = args[3];
-    const value = args[4];
+    const gas = BigInt(args[2]);
+    const gasPrice = BigInt(args[3]);
+    const value = BigInt(args[4]);
     const data = args[5];
     const fromScriptHash = ethAddressToScriptHash(fromAddress);
     const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
@@ -192,8 +192,26 @@ export class Eth {
     const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
       toScriptHash
     );
-    const polyjuiceArgs = buildPolyjuiceArgs();
-    // const rawL2Transaction = buildRawL2Transaction(fromAccountId, toAccountId, nonce, polyjuiceArgs);
+    const polyjuiceArgs = buildPolyjuiceArgs(
+      toAccountId,
+      gas,
+      gasPrice,
+      value,
+      data
+    );
+    const rawL2Transaction = buildRawL2Transaction(
+      fromAccountId,
+      toAccountId,
+      nonce,
+      polyjuiceArgs
+    );
+    // const rawL2TransactionHex = new Reader();
+    const runResult = await this.rpc.gw_executeRawL2Transaction(
+      rawL2Transaction
+    );
+    // TODO runResult
+    console.log('RunResult:', runResult);
+    callback(null, runResult.return_data);
   }
 
   async getBlockByHash(args: [string], callback: Callback) {
@@ -712,7 +730,35 @@ function uint32ToLeBytes(id: number) {
   return array;
 }
 
-function buildPolyjuiceArgs() {}
+function buildPolyjuiceArgs(
+  toId: number,
+  gas: bigint,
+  gasPrice: bigint,
+  value: bigint,
+  data: string
+) {
+  const callKind = toId > 0 ? 0 : 3;
+  const gasLimitBuf = Buffer.alloc(8);
+  const gasPriceBuf = Buffer.alloc(16);
+  const valueBuf = Buffer.alloc(32);
+  const dataSizeBuf = Buffer.alloc(4);
+  const dataBuf = Buffer.from(data.slice(2), 'hex');
+  gasLimitBuf.writeBigUInt64LE(gas);
+  gasPriceBuf.writeBigUInt64LE(gasPrice);
+  valueBuf.writeBigUInt64BE(value);
+  dataSizeBuf.writeUInt32LE(dataBuf.length);
+  const argsLength = 1 + 1 + 8 + 16 + 32 + 4 + dataBuf.length;
+  const argsBuf = Buffer.alloc(argsLength);
+  argsBuf[0] = callKind;
+  argsBuf[1] = 0;
+  gasLimitBuf.copy(argsBuf, 2);
+  gasPriceBuf.copy(argsBuf, 10);
+  valueBuf.copy(argsBuf, 26);
+  dataSizeBuf.copy(argsBuf, 58);
+  dataBuf.copy(argsBuf, 62);
+  const argsHex = '0x' + argsBuf.toString('hex');
+  return argsHex;
+}
 
 function buildRawL2Transaction(
   fromId: number,
