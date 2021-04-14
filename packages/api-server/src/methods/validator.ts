@@ -1,4 +1,4 @@
-import { INVALID_PARAMS } from './error-code';
+import { INVALID_PARAMS } from "./error-code";
 
 /**
  * middleware for parameters validation
@@ -6,27 +6,30 @@ import { INVALID_PARAMS } from './error-code';
  * @param {number} requiredParamsCount required parameters count
  * @param {Function[]} validators      array of validator
  */
-export function middleware(method: any, requiredParamsCount: number, validators: any[] = []): any {
+export function middleware(
+  method: any,
+  requiredParamsCount: number,
+  validators: any[] = []
+): any {
   return function (params: any[] = [], cb: (err: any, val?: any) => void) {
     if (params.length < requiredParamsCount) {
       const err = {
         code: INVALID_PARAMS,
         message: `missing value for required argument ${params.length}`,
-      }
-      return cb(err)
+      };
+      return cb(err);
     }
 
     for (let i = 0; i < validators.length; i++) {
-      if (!validators[i])return cb(null);
-      
+      if (!validators[i]) return cb(null);
+
       const err = validators[i](params, i);
       if (err) return cb(err);
     }
 
-    method(params, cb)
-  }
+    method(params, cb);
+  };
 }
-
 
 export const validators = {
   /**
@@ -35,22 +38,22 @@ export const validators = {
    * @param {number} index index of parameter
    */
   hex(params: any[], index: number): any {
-    let err
-    if (typeof params[index] !== 'string') {
+    let err;
+    if (typeof params[index] !== "string") {
       return {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: argument must be a hex string`,
-      }
+      };
     }
 
-    if (params[index].substr(0, 2) !== '0x') {
+    if (params[index].substr(0, 2) !== "0x") {
       err = {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: hex string without 0x prefix`,
-      }
+      };
     }
 
-    return err
+    return err;
   },
 
   /**
@@ -59,25 +62,25 @@ export const validators = {
    * @param {number} index index of parameter
    */
   blockHash(params: any[], index: number): any {
-    let err
+    let err;
 
-    if (typeof params[index] !== 'string') {
+    if (typeof params[index] !== "string") {
       return {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: argument must be a hex string`,
-      }
+      };
     }
 
-    const blockHash = params[index].substring(2)
+    const blockHash = params[index].substring(2);
 
     if (!/^[0-9a-fA-F]+$/.test(blockHash) || blockHash.length !== 64) {
       err = {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: invalid block hash`,
-      }
+      };
     }
 
-    return err
+    return err;
   },
 
   /**
@@ -86,13 +89,13 @@ export const validators = {
    * @param {number} index index of parameter
    */
   bool(params: any[], index: number): any {
-    let err
-    if (typeof params[index] !== 'boolean') {
+    let err;
+    if (typeof params[index] !== "boolean") {
       err = {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: argument is not boolean`,
-      }
+      };
     }
-    return err
+    return err;
   },
-}
+};

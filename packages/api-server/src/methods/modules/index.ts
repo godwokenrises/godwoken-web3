@@ -1,5 +1,5 @@
-export const list = ['Eth', 'Web3', 'Net']
+export const list = ["Eth", "Web3", "Net"];
 
-export * from './eth'
-export * from './web3'
-export * from './net'
+export * from "./eth";
+export * from "./web3";
+export * from "./net";
