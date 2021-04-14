@@ -1,11 +1,11 @@
 {
   "name": "@godwoken-web3/api-server",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server PORT=5000 nodemon ./bin/www\"",
     "test": "PORT=5000 ava",
-    "fmt": "prettier --write \"{lib,migrations,tests}/**/*.js\" app.js src/methods/* package.json",
+    "fmt": "prettier --write \"{migrations,tests}/**/*.js\" app.js src/methods/* package.json",
     "reset_database": "knex migrate:down && knex migrate:up && knex seed:run"
   },
   "dependencies": {
@@ -29,6 +29,7 @@
     "concurrently": "^6.0.0",
     "ckb-js-toolkit": "^0.10.2",
     "@ckb-lumos/base": "^0.16.0",
-    "blake2b": "2.1.3"
+    "blake2b": "2.1.3",
+    "@godwoken-web3/godwoken": "0.0.1"
   }
 }

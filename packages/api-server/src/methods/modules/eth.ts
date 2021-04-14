@@ -7,6 +7,7 @@ import { FilterObject, FilterType } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
 import { core, utils, Script } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
+import { types, schemas } from '@godwoken-web3/godwoken';
 const Config = require('../../../config/eth.json');
 const { blake2bInit, blake2bUpdate, blake2bFinal } = require('blakejs');
 const blake2b = require('blake2b');
@@ -188,7 +189,7 @@ export class Eth {
       fromScriptHash
     );
     const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    const toScriptHash = ethAddressToScriptHash(toAddress);
+    const toScriptHash = ethContractAddressToScriptHash(toAddress);
     const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
       toScriptHash
     );
@@ -205,12 +206,62 @@ export class Eth {
       nonce,
       polyjuiceArgs
     );
-    // const rawL2TransactionHex = new Reader();
+    console.log(rawL2Transaction);
+    const rawL2TransactionHex = new Reader(
+      schemas.SerializeRawL2Transaction(
+        types.NormalizeRawL2Transaction(rawL2Transaction)
+      )
+    ).serializeJson();
     const runResult = await this.rpc.gw_executeRawL2Transaction(
-      rawL2Transaction
+      rawL2TransactionHex
     );
-    // TODO runResult
     console.log('RunResult:', runResult);
+    callback(null, runResult.return_data);
+  }
+
+  async estimateGas(
+    args: [string, string, string, string, string, string, string],
+    callback: Callback
+  ) {
+    const fromAddress = args[0];
+    const toAddress = args[1];
+    const gas = BigInt(args[2]);
+    const gasPrice = BigInt(args[3]);
+    const value = BigInt(args[4]);
+    const data = args[5];
+    const fromScriptHash = ethAddressToScriptHash(fromAddress);
+    const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+      fromScriptHash
+    );
+    const nonce = await this.rpc.gw_getNonce(fromAccountId);
+    const toScriptHash = ethContractAddressToScriptHash(toAddress);
+    const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+      toScriptHash
+    );
+    const polyjuiceArgs = buildPolyjuiceArgs(
+      toAccountId,
+      gas,
+      gasPrice,
+      value,
+      data
+    );
+    const rawL2Transaction = buildRawL2Transaction(
+      fromAccountId,
+      toAccountId,
+      nonce,
+      polyjuiceArgs
+    );
+    console.log(rawL2Transaction);
+    const rawL2TransactionHex = new Reader(
+      schemas.SerializeRawL2Transaction(
+        types.NormalizeRawL2Transaction(rawL2Transaction)
+      )
+    ).serializeJson();
+    const runResult = await this.rpc.gw_executeRawL2Transaction(
+      rawL2TransactionHex
+    );
+    console.log('RunResult:', runResult);
+    // TODO gas used info
     callback(null, runResult.return_data);
   }
 

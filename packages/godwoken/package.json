@@ -1,0 +1,13 @@
+{
+  "name": "@godwoken-web3/godwoken",
+  "version": "0.0.1",
+  "private": true,
+  "main": "lib/index.js",
+  "scripts": {
+    "fmt": "prettier --write \"src/**/*.ts\" package.json"
+  },
+  "dependencies": {
+    "@ckb-lumos/base": "^0.14.2-rc6",
+    "ckb-js-toolkit": "^0.9.3"
+  }
+}

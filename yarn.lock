@@ -30,6 +30,16 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
+"@ckb-lumos/base@^0.14.2-rc6":
+  version "0.14.2-rc6"
+  resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.14.2-rc6.tgz#adb7706e26960289e2ddf7073fe5b5befef53bee"
+  integrity sha512-orY665bhK8DFRJIWQYWNQpzZNPYvRkFbsqg56iRgnhXDBsJ1NNZbEG7QNmY7YlA+6QXoTat9E+Q2rmTVTfpyqQ==
+  dependencies:
+    blake2b "^2.1.3"
+    ckb-js-toolkit "^0.9.2"
+    immutable "^4.0.0-rc.12"
+    js-xxhash "^1.0.4"
+
 "@ckb-lumos/base@^0.16.0":
   version "0.16.0"
   resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.16.0.tgz#e235bf39840bdc08e29e2ccb875d7761c9cde7bf"
@@ -761,6 +771,14 @@ ckb-js-toolkit@^0.10.2:
   version "0.10.2"
   resolved "https://registry.yarnpkg.com/ckb-js-toolkit/-/ckb-js-toolkit-0.10.2.tgz#d616eaef315babe797ea9ee7a271c51f82fe5a80"
   integrity sha512-hVfIH5OBYibAssTag68zVhuUdqB4Iu3EqbCJrOsePpW+TryvqdmvGca2RQyGm0h6fhVK6RuNuKQ8rSdq/cjgUg==
+  dependencies:
+    cross-fetch "^3.0.6"
+    jsbi "^3.1.2"
+
+ckb-js-toolkit@^0.9.2, ckb-js-toolkit@^0.9.3:
+  version "0.9.3"
+  resolved "https://registry.yarnpkg.com/ckb-js-toolkit/-/ckb-js-toolkit-0.9.3.tgz#a0e71a3b8098915ba677b7f7215435878a5f1d98"
+  integrity sha512-P/j+0e98alJmulLFJNzcVFAlWu7OqoAjgAbW86Zywh0tU7UQGmTBnv0pEmAmWLFoq7jYmIp/aabf+XfC4kFrtw==
   dependencies:
     cross-fetch "^3.0.6"
     jsbi "^3.1.2"

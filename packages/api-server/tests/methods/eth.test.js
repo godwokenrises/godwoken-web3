@@ -543,17 +543,17 @@ test.cb('eth_blockNumber', (t) => {
 //   );
 // });
 
-// test.cb('eth_getCode', (t) => {
-//   client.request(
-//     'eth_getCode',
-//     ['0x010000000200000002000000', 'latest'],
-//     function (err, response) {
-//       if (err) throw err;
-//       t.is(response.result, SimpleStorageCodeBin);
-//       t.end();
-//     }
-//   );
-// });
+test.cb('eth_getCode', (t) => {
+  client.request(
+    'eth_getCode',
+    ['0x010000000200000002000000', 'latest'],
+    function (err, response) {
+      if (err) throw err;
+      t.is(response.result, SimpleStorageCodeBin);
+      t.end();
+    }
+  );
+});
 
 // test.cb('eth_getTransactionCount', (t) => {
 //   client.request(
@@ -585,15 +585,19 @@ test.cb('eth_call', (t) => {
     [
       '0x3db4a5310fe102430eb457c257e695795985fd73',
       '0x010000000200000002000000',
-      '0x2710',
-      '0x1',
+      '0x' + BigInt(21000),
+      '0x' + BigInt(1).toString(16),
       '0x0',
-      '0x60fe47b10000000000000000000000000000000000000000000000000000000000000002',
+      // '0x60fe47b10000000000000000000000000000000000000000000000000000000000000002',
+      '0x6d4ce63c',
       'latest'
     ],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '');
+      t.is(
+        response.result,
+        '0x000000000000000000000000000000000000000000000000000000000000007b'
+      );
       t.end();
     }
   );
