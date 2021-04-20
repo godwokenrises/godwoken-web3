@@ -1,4 +1,4 @@
-import { INVALID_PARAMS } from "./error-code";
+import { INVALID_PARAMS } from './error-code';
 
 /**
  * middleware for parameters validation
@@ -15,7 +15,7 @@ export function middleware(
     if (params.length < requiredParamsCount) {
       const err = {
         code: INVALID_PARAMS,
-        message: `missing value for required argument ${params.length}`,
+        message: `missing value for required argument ${params.length}`
       };
       return cb(err);
     }
@@ -39,17 +39,17 @@ export const validators = {
    */
   hex(params: any[], index: number): any {
     let err;
-    if (typeof params[index] !== "string") {
+    if (typeof params[index] !== 'string') {
       return {
         code: INVALID_PARAMS,
-        message: `invalid argument ${index}: argument must be a hex string`,
+        message: `invalid argument ${index}: argument must be a hex string`
       };
     }
 
-    if (params[index].substr(0, 2) !== "0x") {
+    if (params[index].substr(0, 2) !== '0x') {
       err = {
         code: INVALID_PARAMS,
-        message: `invalid argument ${index}: hex string without 0x prefix`,
+        message: `invalid argument ${index}: hex string without 0x prefix`
       };
     }
 
@@ -64,10 +64,10 @@ export const validators = {
   blockHash(params: any[], index: number): any {
     let err;
 
-    if (typeof params[index] !== "string") {
+    if (typeof params[index] !== 'string') {
       return {
         code: INVALID_PARAMS,
-        message: `invalid argument ${index}: argument must be a hex string`,
+        message: `invalid argument ${index}: argument must be a hex string`
       };
     }
 
@@ -76,7 +76,7 @@ export const validators = {
     if (!/^[0-9a-fA-F]+$/.test(blockHash) || blockHash.length !== 64) {
       err = {
         code: INVALID_PARAMS,
-        message: `invalid argument ${index}: invalid block hash`,
+        message: `invalid argument ${index}: invalid block hash`
       };
     }
 
@@ -90,12 +90,12 @@ export const validators = {
    */
   bool(params: any[], index: number): any {
     let err;
-    if (typeof params[index] !== "boolean") {
+    if (typeof params[index] !== 'boolean') {
       err = {
         code: INVALID_PARAMS,
-        message: `invalid argument ${index}: argument is not boolean`,
+        message: `invalid argument ${index}: argument is not boolean`
       };
     }
     return err;
-  },
+  }
 };

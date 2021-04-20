@@ -1,7 +1,7 @@
-import { Callback } from "../types";
-import { middleware } from "../validator";
-const server = require("../../../bin/www");
-const Config = require("../../../config/eth.json");
+import { Callback } from '../types';
+import { middleware } from '../validator';
+const server = require('../../../bin/www');
+const Config = require('../../../config/eth.json');
 
 export class Net {
   constructor() {}

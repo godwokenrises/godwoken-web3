@@ -1,7 +1,7 @@
-import { Callback } from "../types";
-import { getClientVersion } from "../../util";
-import { addHexPrefix, keccak, toBuffer } from "ethereumjs-util";
-import { middleware, validators } from "../validator";
+import { Callback } from '../types';
+import { getClientVersion } from '../../util';
+import { addHexPrefix, keccak, toBuffer } from 'ethereumjs-util';
+import { middleware, validators } from '../validator';
 
 export class Web3 {
   constructor() {
@@ -27,7 +27,7 @@ export class Web3 {
   sha3(args: string[], callback: Callback) {
     try {
       const rawDigest = keccak(toBuffer(args[0]));
-      const hexEncodedDigest = addHexPrefix(rawDigest.toString("hex"));
+      const hexEncodedDigest = addHexPrefix(rawDigest.toString('hex'));
       callback(null, hexEncodedDigest);
     } catch (err) {
       console.log(err);

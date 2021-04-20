@@ -1,20 +1,20 @@
-import { Callback } from "../types";
-import * as Knex from "knex";
-const Config = require("../../../config/eth.json");
-import { middleware, validators } from "../validator";
-import { FilterManager } from "../../cache/index";
-import { FilterObject, FilterType } from "../../cache/types";
-import { camelToSnake, toHex, handleBlockParamter } from "../../util";
-require("dotenv").config({ path: "./.env" });
+import { Callback } from '../types';
+import * as Knex from 'knex';
+const Config = require('../../../config/eth.json');
+import { middleware, validators } from '../validator';
+import { FilterManager } from '../../cache/index';
+import { FilterObject, FilterType } from '../../cache/types';
+import { camelToSnake, toHex, handleBlockParamter } from '../../util';
+require('dotenv').config({ path: './.env' });
 
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
 
   constructor() {
-    this.knex = require("knex")({
-      client: "postgresql",
-      connection: process.env.DATABASE_URL,
+    this.knex = require('knex')({
+      client: 'postgresql',
+      connection: process.env.DATABASE_URL
     });
 
     this.filterManager = new FilterManager();
@@ -46,7 +46,7 @@ export class Eth {
    * 20 bytes 0 hex string as the second argument.
    */
   coinbase(args: [], callback: Callback) {
-    callback(null, "0x" + "0".repeat(40));
+    callback(null, '0x' + '0'.repeat(40));
   }
 
   /**
@@ -66,7 +66,7 @@ export class Eth {
    * 0x0 as the second argument.
    */
   hashrate(args: [], callback: Callback) {
-    callback(null, "0x0");
+    callback(null, '0x0');
   }
 
   gasPrice(args: [], callback: Callback) {}
@@ -88,11 +88,11 @@ export class Eth {
   async getBlockByHash(args: [string], callback: Callback) {
     const blockData = await this.knex
       .select()
-      .table("blocks")
+      .table('blocks')
       .where({ hash: args[0] });
     const transactionData = await this.knex
-      .select("hash")
-      .table("transactions")
+      .select('hash')
+      .table('transactions')
       .where({ block_hash: args[0] });
     if (blockData.length === 1) {
       const txHashes = transactionData.map((item) => item.hash);
@@ -108,12 +108,12 @@ export class Eth {
     // TODO handle "earliest", "latest" or "pending"
     const blockData = await this.knex
       .select()
-      .table("blocks")
+      .table('blocks')
       .where({ number: BigInt(args[0]) });
     if (blockData.length === 1) {
       const transactionData = await this.knex
-        .select("hash")
-        .table("transactions")
+        .select('hash')
+        .table('transactions')
         .where({ block_number: BigInt(args[0]) });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
@@ -127,10 +127,10 @@ export class Eth {
   async getBlockTransactionCountByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .count()
-      .table("transactions")
+      .table('transactions')
       .where({ block_hash: args[0] });
     if (transactionData.length === 1) {
-      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
+      callback(null, '0x' + BigInt(transactionData[0].count).toString(16));
     } else {
       callback(null, null);
     }
@@ -139,10 +139,10 @@ export class Eth {
   async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .count()
-      .table("transactions")
+      .table('transactions')
       .where({ block_number: BigInt(args[0]) });
     if (transactionData.length === 1) {
-      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
+      callback(null, '0x' + BigInt(transactionData[0].count).toString(16));
     } else {
       callback(null, null);
     }
@@ -151,7 +151,7 @@ export class Eth {
   async getTransactionByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .select()
-      .table("transactions")
+      .table('transactions')
       .where({ hash: args[0] });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -167,7 +167,7 @@ export class Eth {
   ) {
     const transactionData = await this.knex
       .select()
-      .table("transactions")
+      .table('transactions')
       .where({ block_hash: args[0], transaction_index: BigInt(args[1]) });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -183,10 +183,10 @@ export class Eth {
   ) {
     const transactionData = await this.knex
       .select()
-      .table("transactions")
+      .table('transactions')
       .where({
         block_number: BigInt(args[0]),
-        transaction_index: BigInt(args[1]),
+        transaction_index: BigInt(args[1])
       });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -199,12 +199,12 @@ export class Eth {
   async getTransactionReceipt(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .select()
-      .table("transactions")
+      .table('transactions')
       .where({ hash: args[0] });
     if (transactionData.length === 1) {
       const logsData = await this.knex
         .select()
-        .table("logs")
+        .table('logs')
         .where({ transaction_hash: args[0] });
       const logs = logsData.map((item) => dbLogToApiLog(item));
       let transactionReceipt = dbTransactionToApiTransactionReceipt(
@@ -248,7 +248,7 @@ export class Eth {
 
     if (filter === 1) {
       // block filter
-      const blocks = await this.knex.select().table("blocks").where({});
+      const blocks = await this.knex.select().table('blocks').where({});
       const block_hashes = blocks.map((block) => block.hash);
       return callback(null, block_hashes);
     }
@@ -274,9 +274,9 @@ export class Eth {
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.knex
         .select()
-        .table("blocks")
-        .where("number", ">", BigInt(last_poll_block_number).toString())
-        .orderBy("number", "desc");
+        .table('blocks')
+        .where('number', '>', BigInt(last_poll_block_number).toString())
+        .orderBy('number', 'desc');
 
       if (blocks.length === 0) return callback(null, []);
 
@@ -298,25 +298,25 @@ export class Eth {
     // filter non-empty query params
     const params = [
       {
-        name: "address",
-        value: filter?.address,
+        name: 'address',
+        value: filter?.address
       },
       {
-        name: "blockHash",
-        value: filter?.blockHash,
+        name: 'blockHash',
+        value: filter?.blockHash
       },
       {
-        name: "fromBlock",
-        value: filter?.fromBlock,
+        name: 'fromBlock',
+        value: filter?.fromBlock
       },
       {
-        name: "toBlock",
-        value: filter?.toBlock,
+        name: 'toBlock',
+        value: filter?.toBlock
       },
       {
-        name: "topics",
-        value: filter?.topics,
-      },
+        name: 'topics',
+        value: filter?.topics
+      }
     ]
       .filter((p) => p.value !== undefined)
       .map((p) => {
@@ -328,10 +328,10 @@ export class Eth {
     //@ts-ignore
     const topics: [] = query.topics ? query.topics : [];
     const from_block = handleBlockParamter(
-      filter.fromBlock ? filter.fromBlock : "earliest"
+      filter.fromBlock ? filter.fromBlock : 'earliest'
     );
     const to_block = handleBlockParamter(
-      filter.toBlock ? filter.toBlock : "latest"
+      filter.toBlock ? filter.toBlock : 'latest'
     );
 
     // we will pass query object dirrectly to knex where method.
@@ -344,11 +344,11 @@ export class Eth {
     if (filter.blockHash) {
       const logsData = await this.knex
         .select()
-        .table("logs")
+        .table('logs')
         .where(camelToSnake(query))
-        .where("topics", "@>", topics)
+        .where('topics', '@>', topics)
         // select the recent whose log_id is greater than lastPollCache's log_id
-        .where("id", ">", last_poll_log_id!.toString());
+        .where('id', '>', last_poll_log_id!.toString());
 
       if (logsData.length === 0) return callback(null, []);
 
@@ -362,7 +362,7 @@ export class Eth {
 
     const logsData = await this.knex
       .select()
-      .table("logs")
+      .table('logs')
       .where(camelToSnake(query))
       /*
           todo: incomplete topics query. (currently only impl a simple topic query method)
@@ -382,11 +382,11 @@ export class Eth {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
         */
-      .where("topics", "@>", topics)
-      .where("block_number", ">", from_block?.toString())
-      .where("block_number", "<", to_block?.toString())
+      .where('topics', '@>', topics)
+      .where('block_number', '>', from_block?.toString())
+      .where('block_number', '<', to_block?.toString())
       // select the recent whose log_id is greater than lastPollCache's log_id
-      .where("id", ">", last_poll_log_id!.toString());
+      .where('id', '>', last_poll_log_id!.toString());
 
     if (logsData.length === 0) return callback(null, []);
 
@@ -404,10 +404,10 @@ export class Eth {
     //@ts-ignore
     const topics: [] = filter.topics ? filter.topics : [];
     const from_block = handleBlockParamter(
-      filter.fromBlock ? filter.fromBlock : "earliest"
+      filter.fromBlock ? filter.fromBlock : 'earliest'
     );
     const to_block = handleBlockParamter(
-      filter.toBlock ? filter.toBlock : "latest"
+      filter.toBlock ? filter.toBlock : 'latest'
     );
 
     delete filter.fromBlock;
@@ -418,16 +418,16 @@ export class Eth {
     if (filter.blockHash) {
       const logsData = await this.knex
         .select()
-        .table("logs")
+        .table('logs')
         .where(camelToSnake(filter))
-        .where("topics", "@>", topics);
+        .where('topics', '@>', topics);
       const logs = logsData.map((log) => dbLogToApiLog(log));
       return callback(null, logs);
     }
 
     const logsData = await this.knex
       .select()
-      .table("logs")
+      .table('logs')
       .where(camelToSnake(filter))
       /*
           todo: incomplete topics matching. (currently only impl a simple topic query method)
@@ -447,9 +447,9 @@ export class Eth {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
         */
-      .where("topics", "@>", topics)
-      .where("block_number", ">", from_block?.toString())
-      .where("block_number", "<", to_block?.toString());
+      .where('topics', '@>', topics)
+      .where('block_number', '>', from_block?.toString())
+      .where('block_number', '<', to_block?.toString());
     const logs = logsData.map((log) => dbLogToApiLog(log));
     return callback(null, logs);
   }
@@ -458,26 +458,26 @@ export class Eth {
 
 function dbBlockToApiBlock(block: any) {
   return {
-    number: "0x" + BigInt(block.number).toString(16),
+    number: '0x' + BigInt(block.number).toString(16),
     hash: block.hash,
     parentHash: block.parent_hash,
-    gasLimit: "0x" + BigInt(block.gas_limit).toString(16),
-    gasLrice: "0x" + BigInt(block.gas_used).toString(16),
+    gasLimit: '0x' + BigInt(block.gas_limit).toString(16),
+    gasLrice: '0x' + BigInt(block.gas_used).toString(16),
     miner: block.miner,
-    size: "0x" + BigInt(block.size).toString(16),
+    size: '0x' + BigInt(block.size).toString(16),
     logsBloom: block.logs_bloom,
     transactions: [],
     timestamp: new Date(block.timestamp).getTime() / 1000,
     // use default value
-    mixHash: "0x" + "0".repeat(64),
-    nonce: "0x" + "0".repeat(16),
-    stateRoot: "0x" + "0".repeat(64),
-    sha3Uncles: "0x" + "0".repeat(64),
-    receiptsRoot: "0x" + "0".repeat(64),
-    transactionsRoot: "0x" + "0".repeat(64),
+    mixHash: '0x' + '0'.repeat(64),
+    nonce: '0x' + '0'.repeat(16),
+    stateRoot: '0x' + '0'.repeat(64),
+    sha3Uncles: '0x' + '0'.repeat(64),
+    receiptsRoot: '0x' + '0'.repeat(64),
+    transactionsRoot: '0x' + '0'.repeat(64),
     uncles: [],
-    totalDifficulty: "0x0",
-    extraData: "0x",
+    totalDifficulty: '0x0',
+    extraData: '0x'
   };
 }
 
@@ -485,18 +485,18 @@ function dbTransactionToApiTransaction(transaction: any) {
   return {
     hash: transaction.hash,
     blockHash: transaction.block_hash,
-    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
+    blockNumber: '0x' + BigInt(transaction.block_number).toString(16),
+    transactionIndex: '0x' + BigInt(transaction.transaction_index).toString(16),
     from: transaction.from_address,
     to: transaction.to_address,
-    gas: "0x" + BigInt(transaction.gas_limit).toString(16),
-    gasPrice: "0x" + BigInt(transaction.gas_price).toString(16),
+    gas: '0x' + BigInt(transaction.gas_limit).toString(16),
+    gasPrice: '0x' + BigInt(transaction.gas_price).toString(16),
     input: transaction.input,
-    nonce: "0x" + BigInt(transaction.nonce).toString(16),
-    value: "0x" + BigInt(transaction.value).toString(16),
+    nonce: '0x' + BigInt(transaction.nonce).toString(16),
+    value: '0x' + BigInt(transaction.value).toString(16),
     v: transaction.v,
     r: transaction.r,
-    s: transaction.s,
+    s: transaction.s
   };
 }
 
@@ -504,15 +504,15 @@ function dbTransactionToApiTransactionReceipt(transaction: any) {
   return {
     transactionHash: transaction.hash,
     blockHash: transaction.block_hash,
-    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
-    gasUsed: "0x" + BigInt(transaction.gas_used).toString(16),
+    blockNumber: '0x' + BigInt(transaction.block_number).toString(16),
+    transactionIndex: '0x' + BigInt(transaction.transaction_index).toString(16),
+    gasUsed: '0x' + BigInt(transaction.gas_used).toString(16),
     cumulativeGasUsed:
-      "0x" + BigInt(transaction.cumulative_gas_used).toString(16),
+      '0x' + BigInt(transaction.cumulative_gas_used).toString(16),
     logsBloom: transaction.logs_bloom,
     logs: [],
     contractAddress: transaction.contract_address,
-    status: transaction.status ? "0x1" : "0x0",
+    status: transaction.status ? '0x1' : '0x0'
   };
 }
 
@@ -520,12 +520,12 @@ function dbLogToApiLog(log: any) {
   return {
     address: log.address,
     blockHash: log.block_hash,
-    blockNumber: "0x" + BigInt(log.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(log.transaction_index).toString(16),
+    blockNumber: '0x' + BigInt(log.block_number).toString(16),
+    transactionIndex: '0x' + BigInt(log.transaction_index).toString(16),
     transactionHash: log.transaction_hash,
     data: log.data,
-    logIndex: "0x" + BigInt(log.transaction_index).toString(16),
+    logIndex: '0x' + BigInt(log.transaction_index).toString(16),
     topics: log.topics,
-    removed: false,
+    removed: false
   };
 }
