@@ -331,9 +331,11 @@ test.serial.cb('eth_getLogs_for_filterWithoutBlockHash', (t) => {
     function (err, response) {
       if (err) throw err;
       t.true(
-        response.result[0].topics.includes(filter_without_blockHash.topics[0]))
+        response.result[0].topics.includes(filter_without_blockHash.topics[0])
+      );
+    }
+  );
 });
-  
 
 test.cb('eth_coinbase', (t) => {
   client.request('eth_coinbase', [], function (err, response) {
@@ -351,12 +353,73 @@ test.cb('eth_mining', (t) => {
   });
 });
 
+test.serial.cb('eth_getFilterLogs_for_newBlockFilter_after_uninstall', (t) => {
+  client.request('eth_getFilterLogs', ['0x2'], function (err, response) {
+    if (err) throw err;
+    t.deepEqual(response.result, []);
+  });
+});
+
+test.cb('eth_blockNumber', (t) => {
+  client.request('eth_blockNumber', [], function (err, response) {
+    if (err) throw err;
+    t.is(response.result, '0xb71b00');
+    t.end();
+  });
+});
+
+// if you want to test the below cache-test case,
+// remember to change the filter's TTL(cache time, default is 5 minutes)
+// to a much shorter one (like 3000 milseconds) for convience.
+
+test.serial.cb('eth_filter_cache', (t) => {
+  setTimeout(() => {
+    client.request('eth_getFilterLogs', ['0x4'], function (err, response) {
+      if (err) throw err;
+      t.deepEqual(response.result, []);
+      t.end();
+    });
+  }, 6000);
+});
+
+test.serial.cb('eth_getLogs_for_filterWithPending', (t) => {
+  client.request(
+    'eth_getLogs',
+    [filter_with_pending],
+    function (err, response) {
+      if (err) throw err;
+      t.deepEqual(response.result, []);
+    }
+  );
+});
+
+test.serial.cb('eth_uninstallFilter', (t) => {
+  client.request('eth_uninstallFilter', ['0x2'], function (err, response) {
+    if (err) throw err;
+    t.true(response.result);
+  });
+});
+
+/* #endregion */
+
 test.cb('eth_hashrate', (t) => {
   client.request('eth_hashrate', [], function (err, response) {
     if (err) throw err;
     t.is(response.result, '0x0');
     t.end();
   });
+});
+
+test.cb('eth_getBlockByNumber', (t) => {
+  client.request(
+    'eth_getBlockByNumber',
+    ['0xb71b00'],
+    function (err, response) {
+      if (err) throw err;
+      t.is(response.result.number, '0xb71b00');
+      t.end();
+    }
+  );
 });
 
 test.cb('eth_accounts', (t) => {
@@ -382,29 +445,6 @@ test.cb('eth_getBlockByHash', (t) => {
   );
 });
 
-test.serial.cb('eth_getLogs_for_filterWithPending', (t) => {
-  client.request(
-    'eth_getLogs',
-    [filter_with_pending],
-    function (err, response) {
-      if (err) throw err;
-      t.deepEqual(response.result, []);
-test.cb('eth_getBlockByNumber', (t) => {
-  client.request(
-    'eth_getBlockByNumber',
-    ['0xb71b00'],
-    function (err, response) {
-      if (err) throw err;
-      t.is(response.result.number, '0xb71b00');
-      t.end();
-    }
-  );
-});
-
-test.serial.cb('eth_uninstallFilter', (t) => {
-  client.request('eth_uninstallFilter', ['0x2'], function (err, response) {
-    if (err) throw err;
-    t.true(response.result);
 test.cb('eth_getBlockTransactionCountByHash', (t) => {
   client.request(
     'eth_getBlockTransactionCountByHash',
@@ -500,37 +540,8 @@ test.cb('eth_syncing', (t) => {
   });
 });
 
-test.serial.cb('eth_getFilterLogs_for_newBlockFilter_after_uninstall', (t) => {
-  client.request('eth_getFilterLogs', ['0x2'], function (err, response) {
-    if (err) throw err;
-    t.deepEqual(response.result, []);
-test.cb('eth_blockNumber', (t) => {
-  client.request('eth_blockNumber', [], function (err, response) {
-    if (err) throw err;
-    t.is(response.result, '0xb71b00');
-    t.end();
-  });
-});
+// L2 Chain State related test case, need to setup a synced godwoken instance.
 
-// if you want to test the below cache-test case,
-// remember to change the filter's TTL(cache time, default is 5 minutes)
-// to a much shorter one (like 3000 milseconds) for convience.
-//
-// test.serial.cb('eth_filter_cache', t => {
-//     setTimeout(() => {
-//         client.request(
-//             "eth_getFilterLogs",
-//             ['0x4'],
-//             function (err, response) {
-//               if (err) throw err;
-//               t.deepEqual(response.result, []);
-//               t.end();
-//             }
-//         )
-//     }, 6000);
-// });
-
-/* #endregion */
 // test.cb('eth_getStorageAt', (t) => {
 //   client.request(
 //     'eth_getStorageAt',
@@ -543,29 +554,29 @@ test.cb('eth_blockNumber', (t) => {
 //   );
 // });
 
-test.cb('eth_getCode', (t) => {
-  client.request(
-    'eth_getCode',
-    ['0x010000000200000002000000', 'latest'],
-    function (err, response) {
-      if (err) throw err;
-      t.is(response.result, SimpleStorageCodeBin);
-      t.end();
-    }
-  );
-});
-
-// test.cb('eth_getTransactionCount', (t) => {
+// test.cb('eth_getCode', (t) => {
 //   client.request(
-//     'eth_getTransactionCount',
-//     ['0x3db4a5310fe102430eb457c257e695795985fd73', 'latest'],
+//     'eth_getCode',
+//     ['0x010000000200000002000000', 'latest'],
 //     function (err, response) {
 //       if (err) throw err;
-//       t.is(response.result, '');
+//       t.is(response.result, SimpleStorageCodeBin);
 //       t.end();
 //     }
 //   );
 // });
+
+test.cb('eth_getTransactionCount', (t) => {
+  client.request(
+    'eth_getTransactionCount',
+    ['0x3db4a5310fe102430eb457c257e695795985fd73', 'latest'],
+    function (err, response) {
+      if (err) throw err;
+      t.is(response.result, '');
+      t.end();
+    }
+  );
+});
 
 // test.cb('eth_getBalance', (t) => {
 //   client.request(
@@ -579,26 +590,26 @@ test.cb('eth_getCode', (t) => {
 //   );
 // });
 
-test.cb('eth_call', (t) => {
-  client.request(
-    'eth_call',
-    [
-      '0x3db4a5310fe102430eb457c257e695795985fd73',
-      '0x010000000200000002000000',
-      '0x' + BigInt(21000),
-      '0x' + BigInt(1).toString(16),
-      '0x0',
-      // '0x60fe47b10000000000000000000000000000000000000000000000000000000000000002',
-      '0x6d4ce63c',
-      'latest'
-    ],
-    function (err, response) {
-      if (err) throw err;
-      t.is(
-        response.result,
-        '0x000000000000000000000000000000000000000000000000000000000000007b'
-      );
-      t.end();
-    }
-  );
-});
+// test.cb('eth_call', (t) => {
+//   client.request(
+//     'eth_call',
+//     [
+//       '0x3db4a5310fe102430eb457c257e695795985fd73',
+//       '0x010000000200000002000000',
+//       '0x' + BigInt(21000),
+//       '0x' + BigInt(1).toString(16),
+//       '0x0',
+//       // '0x60fe47b10000000000000000000000000000000000000000000000000000000000000002',
+//       '0x6d4ce63c',
+//       'latest'
+//     ],
+//     function (err, response) {
+//       if (err) throw err;
+//       t.is(
+//         response.result,
+//         '0x000000000000000000000000000000000000000000000000000000000000007b'
+//       );
+//       t.end();
+//     }
+//   );
+// });
