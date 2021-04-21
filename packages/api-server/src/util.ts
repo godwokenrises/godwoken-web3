@@ -67,3 +67,11 @@ export function toHex (i: number) {
     
     return '0x' + BigInt(i).toString(16);
 }
+
+export function validateHexString(hex: string): boolean {
+    return /^0x([0-9a-fA-F][0-9a-fA-F])*$/.test(hex)
+}
+
+export function validateHexNumber(hex: string): boolean {
+    return /^0x(0|[0-9a-fA-F]+)$/.test(hex)
+}

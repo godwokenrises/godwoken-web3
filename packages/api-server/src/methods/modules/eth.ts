@@ -38,6 +38,12 @@ export class Eth {
     this.filterManager = new FilterManager();
     console.log('node_rpc', process.env.GODWOKEN_JSON_RPC);
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
+
+    this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [validators.hexNumber])
+    // TODO: required 2 arguments
+    this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [validators.blockHash])
+    // TODO: required 2 arguments
+    this.getBalance = middleware(this.getBalance.bind(this), 1, [validators.address])
   }
 
   /**
@@ -136,6 +142,7 @@ export class Eth {
     }
   }
 
+  // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
     // TODO validate address
     const address = args[0];
@@ -219,6 +226,16 @@ export class Eth {
     callback(null, runResult.return_data);
   }
 
+  async gw_executeL2Tranaction(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_executeL2Tranaction(...args);
+    callback(null, result);
+  }
+
+  async gw_submitL2Transaction(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_submitL2Transaction(...args);
+    callback(null, result);
+  }
+
   async estimateGas(
     args: [string, string, string, string, string, string, string],
     callback: Callback
@@ -265,6 +282,7 @@ export class Eth {
     callback(null, runResult.return_data);
   }
 
+  // TODO: second argument
   async getBlockByHash(args: [string], callback: Callback) {
     const blockData = await this.knex
       .select()

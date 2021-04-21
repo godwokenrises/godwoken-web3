@@ -1,4 +1,5 @@
 import { INVALID_PARAMS } from './error-code';
+import { validateHexNumber, validateHexString } from "../util";
 
 /**
  * middleware for parameters validation
@@ -37,23 +38,89 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  hex(params: any[], index: number): any {
-    let err;
-    if (typeof params[index] !== 'string') {
+  // hex(params: any[], index: number): any {
+  //   let err;
+  //   if (typeof params[index] !== 'string') {
+  //     return {
+  //       code: INVALID_PARAMS,
+  //       message: `invalid argument ${index}: argument must be a hex string`
+  //     };
+  //   }
+
+  //   if (params[index].substr(0, 2) !== '0x') {
+  //     err = {
+  //       code: INVALID_PARAMS,
+  //       message: `invalid argument ${index}: hex string without 0x prefix`
+  //     };
+  //   }
+
+  //   return err;
+  // },
+
+  /**
+   * hex string validator
+   * @param {any[]} params parameters of method
+   * @param {number} index index of parameter
+   */
+  hexString(params: any[], index: number): any {
+    const targetParam = params[index];
+
+    if (typeof targetParam !== 'string') {
       return {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: argument must be a hex string`
       };
     }
 
-    if (params[index].substr(0, 2) !== '0x') {
-      err = {
+    if (!targetParam.startsWith("0x")) {
+      return {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: hex string without 0x prefix`
       };
     }
 
-    return err;
+    if (!validateHexString(targetParam)) {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: invalid hex string`
+      };
+    }
+
+    return undefined
+  },
+
+  hexNumber(params: any[], index: number): any {
+    let targetParam = params[index];
+
+    if (typeof targetParam !== 'string') {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: argument must be a hex string`
+      };
+    }
+
+    if (!targetParam.startsWith("0x")) {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: hex string without 0x prefix`
+      };
+    }
+
+    if (targetParam.startsWith("0x0")) {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: hex number with leading zero digits`
+      };
+    }
+
+    if (!validateHexNumber(targetParam)) {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: invalid hex number`
+      };
+    }
+
+    return undefined;
   },
 
   /**
@@ -77,6 +144,32 @@ export const validators = {
       err = {
         code: INVALID_PARAMS,
         message: `invalid argument ${index}: invalid block hash`
+      };
+    }
+
+    return err;
+  },
+
+  /**
+ * hex validator to validate block hash
+ * @param {any[]} params parameters of method
+ * @param {number} index index of parameter
+ */
+  address(params: any[], index: number): any {
+    const targetParam = params[index];
+
+    let err;
+    if (typeof targetParam !== 'string') {
+      return {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: argument must be a hex string`
+      };
+    }
+
+    if (!/^0x[0-9a-fA-F]+$/.test(targetParam) || targetParam.length !== 42) {
+      err = {
+        code: INVALID_PARAMS,
+        message: `invalid argument ${index}: invalid address`
       };
     }
 
