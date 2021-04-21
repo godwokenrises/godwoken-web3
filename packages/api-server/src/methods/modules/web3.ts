@@ -5,7 +5,7 @@ import { middleware, validators } from '../validator';
 
 export class Web3 {
   constructor() {
-    this.sha3 = middleware(this.sha3.bind(this), 1, [validators.hex]);
+    this.sha3 = middleware(this.sha3.bind(this), 1, [validators.hexString]);
   }
 
   /**

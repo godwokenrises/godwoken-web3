@@ -8,6 +8,7 @@
 ```
 $ cat > ./packages/api-server/.env <<EOF
 DATABASE_URL=postgres://username:password@localhost:5432/your_db
+GODWOKEN_JSON_RPC=<godwoken rpc>
 EOF
 $ yarn
 $ yarn workspace @godwoken-web3/api-server reset_database
@@ -16,6 +17,7 @@ $ yarn workspace @godwoken-web3/api-server reset_database
 ### Start API server
 
 ```
+yarn workspace @godwoken-web3/godwoken tsc
 yarn workspace @godwoken-web3/api-server start
 ```
 
