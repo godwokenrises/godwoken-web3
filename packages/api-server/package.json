@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server PORT=5000 nodemon ./bin/www\"",
-    "test": "PORT=5000 ava",
+    "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/www\"",
+    "test": "ava",
     "fmt": "prettier --write \"{migrations,tests}/**/*.js\" app.js src/methods/* package.json",
     "reset_database": "knex migrate:down && knex migrate:up && knex seed:run"
   },
