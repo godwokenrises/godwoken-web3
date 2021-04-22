@@ -257,6 +257,16 @@ export class Eth {
     callback(null, result);
   }
 
+  async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_getAccountIdByScriptHash(...args);
+    callback(null, result);
+  }
+
+  async gw_getNonce(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_getNonce(...args);
+    callback(null, result);
+  }
+
   // TODO: no estimateGas now
   // TODO: verify parameters
   async estimateGas(
