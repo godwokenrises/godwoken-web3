@@ -161,7 +161,7 @@ export class Eth {
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    const balance = await this.rpc.gw_getBalance(accountId, SUDT_ID);
+    const balance = await this.rpc.get_balance(accountId, SUDT_ID);
     const balanceHex = "0x" + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
@@ -171,7 +171,7 @@ export class Eth {
     const accountId = ethContractAddressToAccountId(address);
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.gw_getStorageAt(accountId, key);
+    const value = await this.rpc.get_storage_at(accountId, key);
     callback(null, value);
   }
 
@@ -183,7 +183,7 @@ export class Eth {
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address)
-    const nonce = await this.rpc.gw_getNonce(accountId);
+    const nonce = await this.rpc.get_nonce(accountId);
     const transactionCount = "0x" + BigInt(nonce).toString(16);
     callback(null, transactionCount);
   }
@@ -192,13 +192,12 @@ export class Eth {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.gw_getStorageAt(accountId, contractCodeKey);
-    const data = await this.rpc.gw_getData(dataHash);
+    const dataHash = await this.rpc.get_storage_at(accountId, contractCodeKey);
+    const data = await this.rpc.get_data(dataHash);
     callback(null, data);
   }
 
   // TODO: no eth_call now
-  // TODO: verify parameters
   async call(
     args: [any],
     callback: Callback
@@ -248,12 +247,12 @@ export class Eth {
   }
 
   async gw_executeL2Tranaction(args: any[], callback: Callback) {
-    const result = await this.rpc.gw_executeL2Tranaction(...args);
+    const result = await this.rpc.execute_l2transaction(...args);
     callback(null, result);
   }
 
   async gw_submitL2Transaction(args: any[], callback: Callback) {
-    const result = await this.rpc.gw_submitL2Transaction(...args);
+    const result = await this.rpc.submit_l2transaction(...args);
     callback(null, result);
   }
 
