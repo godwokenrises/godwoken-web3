@@ -164,11 +164,12 @@ export class Eth {
     const scriptHash = ethAddressToScriptHash(address);
     const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
     if (accountId === null || accountId === undefined) {
-      callback(null, 0);
+      callback(null, "0x0");
       return;
     }
     const balance = await this.rpc.gw_getBalance(accountId, SUDT_ID);
-    callback(null, balance);
+    const balanceHex = "0x" + BigInt(balance).toString(16);
+    callback(null, balanceHex);
     // TODO handle error
   }
 
