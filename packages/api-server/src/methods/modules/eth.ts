@@ -44,6 +44,21 @@ export class Eth {
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [validators.blockHash])
     // TODO: required 2 arguments
     this.getBalance = middleware(this.getBalance.bind(this), 1, [validators.address])
+    this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [validators.address, validators.hexNumber])
+    this.getTransactionCount = middleware(this.getTransactionCount.bind(this), 1, [validators.address])
+    this.getBlockTransactionCountByHash = middleware(this.getBlockTransactionCountByHash.bind(this), 1, [validators.blockHash])
+    this.getBlockTransactionCountByNumber = middleware(this.getBlockTransactionCountByNumber.bind(this), 1, [validators.hexNumberOrTag])
+    this.getUncleCountByBlockHash = middleware(this.getUncleCountByBlockHash.bind(this), 1, [validators.blockHash])
+    this.getCode = middleware(this.getCode.bind(this), 1, [validators.address]);
+    this.getTransactionByHash = middleware(this.getTransactionByHash.bind(this), 1, [validators.txHash]);
+    this.getTransactionByBlockHashAndIndex = middleware(this.getTransactionByBlockHashAndIndex.bind(this), 2, [validators.blockHash, validators.hexNumber]);
+    this.getTransactionByBlockNumberAndIndex = middleware(this.getTransactionByBlockNumberAndIndex.bind(this), 2, [validators.hexNumber, validators.hexNumber]);
+    this.getTransactionReceipt = middleware(this.getTransactionReceipt.bind(this), 1, [validators.txHash]);
+    this.getUncleByBlockHashAndIndex = middleware(this.getUncleByBlockHashAndIndex.bind(this), 2, [validators.blockHash, validators.hexNumber]);
+    this.getUncleByBlockNumberAndIndex = middleware(this.getUncleByBlockNumberAndIndex.bind(this), 2, [validators.hexNumber, validators.hexNumber]);
+    this.call = middleware(this.call.bind(this), 1, [validators.ethCallParams]);
+    this.estimateGas = middleware(this.estimateGas.bind(this), 1, [validators.ethCallParams]);
+    this.newFilter = middleware(this.newFilter.bind(this), 1, [validators.newFilterParams]);
   }
 
   /**
@@ -144,86 +159,92 @@ export class Eth {
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
-    // TODO validate address
     const address = args[0];
-    const scriptHash = ethAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
     const balance = await this.rpc.gw_getBalance(accountId, SUDT_ID);
-    callback(null, balance);
-    // TODO handle error
+    const balanceHex = "0x" + BigInt(balance).toString(16);
+    callback(null, balanceHex);
   }
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
-    const scriptHash = ethContractAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const accountId = ethContractAddressToAccountId(address);
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
     const value = await this.rpc.gw_getStorageAt(accountId, key);
     callback(null, value);
   }
 
+  /**
+   * 
+   * @param args [address, QUANTITY|TAG]
+   * @param callback 
+   */
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
-    const scriptHash = ethAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const accountId = await allTypeEthAddressToAccountId(this.rpc, address)
     const nonce = await this.rpc.gw_getNonce(accountId);
-    callback(null, '0x' + BigInt(nonce).toString(16));
+    const transactionCount = "0x" + BigInt(nonce).toString(16);
+    callback(null, transactionCount);
   }
 
   async getCode(args: [string, string], callback: Callback) {
     const address = args[0];
-    const scriptHash = ethContractAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
+    const accountId = ethContractAddressToAccountId(address);
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
     const dataHash = await this.rpc.gw_getStorageAt(accountId, contractCodeKey);
     const data = await this.rpc.gw_getData(dataHash);
     callback(null, data);
   }
 
+  // TODO: no eth_call now
+  // TODO: verify parameters
   async call(
-    args: [string, string, string, string, string, string, string],
+    args: [any],
     callback: Callback
   ) {
-    const fromAddress = args[0];
-    const toAddress = args[1];
-    const gas = BigInt(args[2]);
-    const gasPrice = BigInt(args[3]);
-    const value = BigInt(args[4]);
-    const data = args[5];
-    const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-      fromScriptHash
-    );
-    const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    const toScriptHash = ethContractAddressToScriptHash(toAddress);
-    const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-      toScriptHash
-    );
-    const polyjuiceArgs = buildPolyjuiceArgs(
-      toAccountId,
-      gas,
-      gasPrice,
-      value,
-      data
-    );
-    const rawL2Transaction = buildRawL2Transaction(
-      fromAccountId,
-      toAccountId,
-      nonce,
-      polyjuiceArgs
-    );
-    console.log(rawL2Transaction);
-    const rawL2TransactionHex = new Reader(
-      schemas.SerializeRawL2Transaction(
-        types.NormalizeRawL2Transaction(rawL2Transaction)
-      )
-    ).serializeJson();
-    const runResult = await this.rpc.gw_executeRawL2Transaction(
-      rawL2TransactionHex
-    );
-    console.log('RunResult:', runResult);
-    callback(null, runResult.return_data);
+    callback(null, "0x");
+    
+    // const fromAddress = args[0];
+    // const toAddress = args[1];
+    // const gas = BigInt(args[2]);
+    // const gasPrice = BigInt(args[3]);
+    // const value = BigInt(args[4]);
+    // const data = args[5];
+    // const fromScriptHash = ethAddressToScriptHash(fromAddress);
+    // const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+    //   fromScriptHash
+    // );
+    // const nonce = await this.rpc.gw_getNonce(fromAccountId);
+    // // const toScriptHash = ethContractAddressToScriptHash(toAddress);
+    // // const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+    // //   toScriptHash
+    // // );
+    // const toAccountId = ethContractAddressToAccountId(toAddress);
+    // const polyjuiceArgs = buildPolyjuiceArgs(
+    //   toAccountId,
+    //   gas,
+    //   gasPrice,
+    //   value,
+    //   data
+    // );
+    // const rawL2Transaction = buildRawL2Transaction(
+    //   fromAccountId,
+    //   toAccountId,
+    //   nonce,
+    //   polyjuiceArgs
+    // );
+    // console.log(rawL2Transaction);
+    // const rawL2TransactionHex = new Reader(
+    //   schemas.SerializeRawL2Transaction(
+    //     types.NormalizeRawL2Transaction(rawL2Transaction)
+    //   )
+    // ).serializeJson();
+    // const runResult = await this.rpc.gw_executeRawL2Transaction(
+    //   rawL2TransactionHex
+    // );
+    // console.log('RunResult:', runResult);
+    // callback(null, runResult.return_data);
   }
 
   async gw_executeL2Tranaction(args: any[], callback: Callback) {
@@ -236,50 +257,74 @@ export class Eth {
     callback(null, result);
   }
 
+  async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_getAccountIdByScriptHash(...args);
+    callback(null, result);
+  }
+
+  async gw_getNonce(args: any[], callback: Callback) {
+    const result = await this.rpc.gw_getNonce(...args);
+    callback(null, result);
+  }
+
+  // TODO: no estimateGas now
+  // TODO: verify parameters
   async estimateGas(
-    args: [string, string, string, string, string, string, string],
+    args: [any],
     callback: Callback
   ) {
-    const fromAddress = args[0];
-    const toAddress = args[1];
-    const gas = BigInt(args[2]);
-    const gasPrice = BigInt(args[3]);
-    const value = BigInt(args[4]);
-    const data = args[5];
-    const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-      fromScriptHash
-    );
-    const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    const toScriptHash = ethContractAddressToScriptHash(toAddress);
-    const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-      toScriptHash
-    );
-    const polyjuiceArgs = buildPolyjuiceArgs(
-      toAccountId,
-      gas,
-      gasPrice,
-      value,
-      data
-    );
-    const rawL2Transaction = buildRawL2Transaction(
-      fromAccountId,
-      toAccountId,
-      nonce,
-      polyjuiceArgs
-    );
-    console.log(rawL2Transaction);
-    const rawL2TransactionHex = new Reader(
-      schemas.SerializeRawL2Transaction(
-        types.NormalizeRawL2Transaction(rawL2Transaction)
-      )
-    ).serializeJson();
-    const runResult = await this.rpc.gw_executeRawL2Transaction(
-      rawL2TransactionHex
-    );
-    console.log('RunResult:', runResult);
-    // TODO gas used info
-    callback(null, runResult.return_data);
+    callback(null ,"0x0");
+
+    // const fromAddress = args[0];
+    // const toAddress = args[1];
+    // const gas = BigInt(args[2]);
+    // const gasPrice = BigInt(args[3]);
+    // const value = BigInt(args[4]);
+    // const data = args[5];
+
+    // const obj = args[0];
+    // const fromAddress = obj.from;
+    // const toAddress = obj.to;
+    // const gas = obj.gas;
+    // const gasPrice = obj.gasPrice;
+    // const value = obj.value;
+    // const data = obj.data;
+
+    // const fromScriptHash = ethAddressToScriptHash(fromAddress);
+    // const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+    //   fromScriptHash
+    // );
+    // const nonce = await this.rpc.gw_getNonce(fromAccountId);
+    // // const toScriptHash = ethContractAddressToScriptHash(toAddress);
+    // // const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
+    // //   toScriptHash
+    // // );
+    // const toAccountId = ethContractAddressToAccountId(toAddress);
+    // const polyjuiceArgs = buildPolyjuiceArgs(
+    //   toAccountId,
+    //   gas,
+    //   gasPrice,
+    //   value,
+    //   data
+    // );
+    // const rawL2Transaction = buildRawL2Transaction(
+    //   fromAccountId,
+    //   toAccountId,
+    //   nonce,
+    //   polyjuiceArgs
+    // );
+    // console.log(rawL2Transaction);
+    // const rawL2TransactionHex = new Reader(
+    //   schemas.SerializeRawL2Transaction(
+    //     types.NormalizeRawL2Transaction(rawL2Transaction)
+    //   )
+    // ).serializeJson();
+    // const runResult = await this.rpc.gw_executeRawL2Transaction(
+    //   rawL2TransactionHex
+    // );
+    // console.log('RunResult:', runResult);
+    // // TODO gas used info
+    // callback(null, runResult.return_data);
   }
 
   // TODO: second argument
@@ -322,6 +367,11 @@ export class Eth {
     }
   }
 
+  /**
+   * 
+   * @param args [blockHash]
+   * @param callback 
+   */
   async getBlockTransactionCountByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .count()
@@ -334,16 +384,45 @@ export class Eth {
     }
   }
 
+  /**
+   * 
+   * @param args [blockNumber]
+   * @param callback 
+   */
   async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
+    const blockNumber = await this.getBlockNumberOrLatest(args[0]);
+
     const transactionData = await this.knex
       .count()
       .table('transactions')
-      .where({ block_number: BigInt(args[0]) });
+      .where({ block_number: BigInt(blockNumber) });
+
     if (transactionData.length === 1) {
       callback(null, '0x' + BigInt(transactionData[0].count).toString(16));
     } else {
       callback(null, null);
     }
+  }
+
+  async getUncleByBlockHashAndIndex(args: [string, string], callback: Callback) {
+    callback(null, null);
+  }
+
+  async getUncleByBlockNumberAndIndex(args: [string, string], callback: Callback) {
+    callback(null, null);
+  }
+
+  /**
+   * 
+   * @param args [blockHash]
+   * @param callback 
+   */
+  async getUncleCountByBlockHash(args: [string], callback: Callback) {
+    callback(null, "0x0");
+  }
+
+  async getCompilers(args: [], callback: Callback) {
+    callback(null, []);
   }
 
   async getTransactionByHash(args: [string], callback: Callback) {
@@ -359,6 +438,11 @@ export class Eth {
     }
   }
 
+  /**
+   * 
+   * @param args [blockHash, index]
+   * @param callback 
+   */
   async getTransactionByBlockHashAndIndex(
     args: [string, string],
     callback: Callback
@@ -652,6 +736,21 @@ export class Eth {
     return callback(null, logs);
   }
   /* #endregion */
+
+  private async getTipNumber(): Promise<string> {
+    const result = await this.knex
+      .table("blocks")
+      .max('number', { as: "tipNumber" });
+    const tipNumber = result[0].tipNumber;
+    return tipNumber;
+  }
+
+  private async getBlockNumberOrLatest(num: string): Promise<string> {
+    if (num === "latest") {
+      return await this.getTipNumber();
+    }
+    return num;
+  }
 }
 
 function dbBlockToApiBlock(block: any) {
@@ -741,18 +840,22 @@ function ethAddressToScriptHash(address: string) {
   return scriptHash;
 }
 
-function ethContractAddressToScriptHash(address: string) {
-  const script = {
-    code_hash: POLYJUICE_VALIDATOR_CODE_HASH,
-    hash_type: 'data',
-    args: address
-  };
-  console.log('script: ', script);
-  const scriptHash = utils
-    .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
-    .serializeJson();
-  return scriptHash;
+function ethContractAddressToAccountId(address: string): number{
+  return +address;
 }
+
+// function ethContractAddressToScriptHash(address: string) {
+//   const script = {
+//     code_hash: POLYJUICE_VALIDATOR_CODE_HASH,
+//     hash_type: 'data',
+//     args: address
+//   };
+//   console.log('script: ', script);
+//   const scriptHash = utils
+//     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
+//     .serializeJson();
+//   return scriptHash;
+// }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
   const buffer = Buffer.from(CKB_PERSONALIZATION);
@@ -852,4 +955,13 @@ function buildStorageKey(storagePosition: string) {
   // const buf = Buffer.from(key, "hex");
   // return new Uint8Array(buf);
   return '0x' + key;
+}
+
+async function allTypeEthAddressToAccountId(rpc: RPC, address: string): Promise<number> {
+  const scriptHash = ethAddressToScriptHash(address);
+  let accountId = await rpc.gw_getAccountIdByScriptHash(scriptHash);
+  if (accountId === null || accountId === undefined) {
+    accountId = ethContractAddressToAccountId(address);
+  }
+  return accountId;
 }
