@@ -159,18 +159,11 @@ export class Eth {
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
-    // TODO validate address
     const address = args[0];
-    const scriptHash = ethAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
-    if (accountId === null || accountId === undefined) {
-      callback(null, "0x0");
-      return;
-    }
+    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
     const balance = await this.rpc.gw_getBalance(accountId, SUDT_ID);
     const balanceHex = "0x" + BigInt(balance).toString(16);
     callback(null, balanceHex);
-    // TODO handle error
   }
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
@@ -189,12 +182,7 @@ export class Eth {
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
-    const scriptHash = ethAddressToScriptHash(address);
-    const accountId = await this.rpc.gw_getAccountIdByScriptHash(scriptHash);
-    if (accountId === null || accountId === undefined) {
-      callback(null, 0);
-      return;
-    }
+    const accountId = await allTypeEthAddressToAccountId(this.rpc, address)
     const nonce = await this.rpc.gw_getNonce(accountId);
     const transactionCount = "0x" + BigInt(nonce).toString(16);
     callback(null, transactionCount);
@@ -957,4 +945,13 @@ function buildStorageKey(storagePosition: string) {
   // const buf = Buffer.from(key, "hex");
   // return new Uint8Array(buf);
   return '0x' + key;
+}
+
+async function allTypeEthAddressToAccountId(rpc: RPC, address: string): Promise<number> {
+  const scriptHash = ethAddressToScriptHash(address);
+  let accountId = await rpc.gw_getAccountIdByScriptHash(scriptHash);
+  if (accountId === null || accountId === undefined) {
+    accountId = ethContractAddressToAccountId(address);
+  }
+  return accountId;
 }
