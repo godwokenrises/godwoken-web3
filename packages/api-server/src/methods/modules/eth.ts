@@ -257,12 +257,12 @@ export class Eth {
   }
 
   async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
-    const result = await this.rpc.gw_getAccountIdByScriptHash(...args);
+    const result = await this.rpc.get_account_id_by_script_hash(...args);
     callback(null, result);
   }
 
   async gw_getNonce(args: any[], callback: Callback) {
-    const result = await this.rpc.gw_getNonce(...args);
+    const result = await this.rpc.get_nonce(...args);
     callback(null, result);
   }
 
