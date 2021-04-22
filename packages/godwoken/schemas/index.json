@@ -58,6 +58,10 @@
       "name": "GlobalState",
       "fields": [
         {
+          "name": "rollup_config_hash",
+          "type": "Byte32"
+        },
+        {
           "name": "account",
           "type": "AccountMerkleState"
         },
@@ -70,12 +74,78 @@
           "type": "Byte32"
         },
         {
+          "name": "tip_block_hash",
+          "type": "Byte32"
+        },
+        {
           "name": "last_finalized_block_number",
           "type": "Uint64"
         },
         {
           "name": "status",
           "type": "byte"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "RollupConfig",
+      "fields": [
+        {
+          "name": "l1_sudt_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "custodian_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "deposition_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "withdrawal_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "challenge_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "stake_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "l2_sudt_validator_script_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "burn_lock_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "required_staking_capacity",
+          "type": "Uint64"
+        },
+        {
+          "name": "challenge_maturity_blocks",
+          "type": "Uint64"
+        },
+        {
+          "name": "finality_blocks",
+          "type": "Uint64"
+        },
+        {
+          "name": "reward_burn_rate",
+          "type": "byte"
+        },
+        {
+          "name": "allowed_eoa_type_hashes",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "allowed_contract_type_hashes",
+          "type": "Byte32Vec"
         }
       ]
     },
@@ -122,6 +192,42 @@
     },
     {
       "type": "table",
+      "name": "SubmitTransactions",
+      "fields": [
+        {
+          "name": "tx_witness_root",
+          "type": "Byte32"
+        },
+        {
+          "name": "tx_count",
+          "type": "Uint32"
+        },
+        {
+          "name": "compacted_prev_root_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "compacted_post_root_list",
+          "type": "Byte32Vec"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "SubmitWithdrawals",
+      "fields": [
+        {
+          "name": "withdrawal_witness_root",
+          "type": "Byte32"
+        },
+        {
+          "name": "withdrawal_count",
+          "type": "Uint32"
+        }
+      ]
+    },
+    {
+      "type": "table",
       "name": "RawL2Block",
       "fields": [
         {
@@ -129,8 +235,12 @@
           "type": "Uint64"
         },
         {
-          "name": "aggregator_id",
+          "name": "block_producer_id",
           "type": "Uint32"
+        },
+        {
+          "name": "parent_block_hash",
+          "type": "Byte32"
         },
         {
           "name": "stake_cell_owner_lock_hash",
@@ -153,10 +263,15 @@
           "type": "SubmitTransactions"
         },
         {
-          "name": "withdrawal_requests_root",
-          "type": "Byte32"
+          "name": "submit_withdrawals",
+          "type": "SubmitWithdrawals"
         }
       ]
+    },
+    {
+      "type": "dynvec",
+      "name": "RawL2BlockVec",
+      "item": "RawL2Block"
     },
     {
       "type": "table",
@@ -165,10 +280,6 @@
         {
           "name": "raw",
           "type": "RawL2Block"
-        },
-        {
-          "name": "signature",
-          "type": "Signature"
         },
         {
           "name": "kv_state",
@@ -187,7 +298,7 @@
           "type": "Bytes"
         },
         {
-          "name": "withdrawal_requests",
+          "name": "withdrawals",
           "type": "WithdrawalRequestVec"
         }
       ]
@@ -213,6 +324,11 @@
           "type": "Script"
         }
       ]
+    },
+    {
+      "type": "dynvec",
+      "name": "DepositionRequestVec",
+      "item": "DepositionRequest"
     },
     {
       "type": "struct",
@@ -277,24 +393,6 @@
     },
     {
       "type": "table",
-      "name": "SubmitTransactions",
-      "fields": [
-        {
-          "name": "tx_witness_root",
-          "type": "Byte32"
-        },
-        {
-          "name": "tx_count",
-          "type": "Uint32"
-        },
-        {
-          "name": "compacted_post_root_list",
-          "type": "Byte32Vec"
-        }
-      ]
-    },
-    {
-      "type": "table",
       "name": "KVPair",
       "fields": [
         {
@@ -317,7 +415,7 @@
       "name": "BlockInfo",
       "fields": [
         {
-          "name": "aggregator_id",
+          "name": "block_producer_id",
           "type": "Uint32"
         },
         {
@@ -367,13 +465,9 @@
       ]
     },
     {
-      "type": "table",
-      "name": "UnlockCustodianViaRevert",
+      "type": "struct",
+      "name": "UnlockCustodianViaRevertWitness",
       "fields": [
-        {
-          "name": "block_proof",
-          "type": "Bytes"
-        },
         {
           "name": "deposition_lock_hash",
           "type": "Byte32"
@@ -385,12 +479,8 @@
       "name": "WithdrawalLockArgs",
       "fields": [
         {
-          "name": "deposition_block_hash",
+          "name": "account_script_hash",
           "type": "Byte32"
-        },
-        {
-          "name": "deposition_block_number",
-          "type": "Uint64"
         },
         {
           "name": "withdrawal_block_hash",
@@ -424,7 +514,7 @@
     },
     {
       "type": "union",
-      "name": "UnlockWithdrawal",
+      "name": "UnlockWithdrawalWitness",
       "items": [
         "UnlockWithdrawalViaFinalize",
         "UnlockWithdrawalViaRevert",
@@ -434,21 +524,12 @@
     {
       "type": "table",
       "name": "UnlockWithdrawalViaFinalize",
-      "fields": [
-        {
-          "name": "block_proof",
-          "type": "Bytes"
-        }
-      ]
+      "fields": []
     },
     {
-      "type": "table",
+      "type": "struct",
       "name": "UnlockWithdrawalViaRevert",
       "fields": [
-        {
-          "name": "block_proof",
-          "type": "Bytes"
-        },
         {
           "name": "custodian_lock_hash",
           "type": "Byte32"
@@ -534,21 +615,39 @@
     },
     {
       "type": "struct",
-      "name": "StartChallenge",
+      "name": "ChallengeTarget",
       "fields": [
         {
           "name": "block_hash",
           "type": "Byte32"
         },
         {
-          "name": "tx_index",
+          "name": "target_index",
           "type": "Uint32"
+        },
+        {
+          "name": "target_type",
+          "type": "byte"
         }
       ]
     },
     {
       "type": "table",
-      "name": "StartChallengeWitness",
+      "name": "ChallengeLockArgs",
+      "fields": [
+        {
+          "name": "target",
+          "type": "ChallengeTarget"
+        },
+        {
+          "name": "rewards_receiver_lock",
+          "type": "Script"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "ChallengeWitness",
       "fields": [
         {
           "name": "raw_l2block",
@@ -566,8 +665,27 @@
       "item": "Script"
     },
     {
+      "type": "struct",
+      "name": "BlockHashEntry",
+      "fields": [
+        {
+          "name": "number",
+          "type": "Uint64"
+        },
+        {
+          "name": "hash",
+          "type": "Byte32"
+        }
+      ]
+    },
+    {
+      "type": "fixvec",
+      "name": "BlockHashEntryVec",
+      "item": "BlockHashEntry"
+    },
+    {
       "type": "table",
-      "name": "CancelChallenge",
+      "name": "VerifyTransactionWitness",
       "fields": [
         {
           "name": "raw_l2block",
@@ -600,35 +718,98 @@
         {
           "name": "account_count",
           "type": "Uint32"
+        },
+        {
+          "name": "block_hashes",
+          "type": "BlockHashEntryVec"
+        },
+        {
+          "name": "block_hashes_proof",
+          "type": "Bytes"
         }
       ]
     },
     {
-      "type": "struct",
-      "name": "UnlockAccount",
+      "type": "table",
+      "name": "VerifyWithdrawalWitness",
       "fields": [
         {
-          "name": "message",
-          "type": "Byte32"
+          "name": "raw_l2block",
+          "type": "RawL2Block"
         },
         {
-          "name": "signature",
-          "type": "Signature"
+          "name": "account_script",
+          "type": "Script"
+        },
+        {
+          "name": "withdrawal_request",
+          "type": "WithdrawalRequest"
+        },
+        {
+          "name": "withdrawal_proof",
+          "type": "Bytes"
         }
       ]
     },
     {
-      "type": "struct",
-      "name": "HeaderInfo",
+      "type": "table",
+      "name": "RollupSubmitBlock",
       "fields": [
         {
-          "name": "number",
-          "type": "Uint64"
+          "name": "block",
+          "type": "L2Block"
         },
         {
-          "name": "block_hash",
-          "type": "Byte32"
+          "name": "reverted_block_hashes",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "reverted_block_proof",
+          "type": "Bytes"
         }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "RollupEnterChallenge",
+      "fields": [
+        {
+          "name": "witness",
+          "type": "ChallengeWitness"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "RollupCancelChallenge",
+      "fields": []
+    },
+    {
+      "type": "table",
+      "name": "RollupRevert",
+      "fields": [
+        {
+          "name": "reverted_blocks",
+          "type": "RawL2BlockVec"
+        },
+        {
+          "name": "block_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "reverted_block_proof",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "union",
+      "name": "RollupAction",
+      "items": [
+        "RollupSubmitBlock",
+        "RollupEnterChallenge",
+        "RollupCancelChallenge",
+        "RollupRevert"
       ]
     },
     {
