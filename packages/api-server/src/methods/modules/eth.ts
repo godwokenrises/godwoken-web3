@@ -156,6 +156,11 @@ export class Eth {
       this.gw_getNonce.bind(this),
       0
     )
+
+    this.gw_getTransactionReceipt = middleware(
+      this.gw_getTransactionReceipt.bind(this),
+      0
+    )
   }
 
   /**
@@ -377,6 +382,11 @@ export class Eth {
 
   async gw_getNonce(args: any[], callback: Callback) {
     const result = await this.rpc.get_nonce(...args);
+    callback(null, result);
+  }
+
+  async gw_getTransactionReceipt(args: Hash[], callback: Callback){
+    const result = await this.rpc.get_transaction_receipt(...args);
     callback(null, result);
   }
 
