@@ -13,16 +13,14 @@ const { blake2bInit, blake2bUpdate, blake2bFinal } = require('blakejs');
 const blake2b = require('blake2b');
 require('dotenv').config({ path: './.env' });
 
-const POLYJUICE_ACCOUNT_CODE_HASH =
-  '0x0000000000000000000000000000000000000000000000000000000000000001';
-const POLYJUICE_VALIDATOR_CODE_HASH =
-  '0x4b83dd9158e7f3407bbc3fefbcac5dfeecf40221ea28706eb97fd653d375e00c';
+const ETH_ACCOUNT_LOCK_HASH = process.env.ETH_ACCOUNT_LOCK_HASH;
+const ROLLUP_TYPE_HASH = process.env.ROLLUP_TYPE_HASH;
 const POLYJUICE_SYSTEM_PREFIX = 255;
 const POLYJUICE_CONTRACT_CODE = 1;
 const POLYJUICE_DESTRUCTED = 2;
 const GW_KEY_BYTES = 32;
 const GW_ACCOUNT_KV = 0;
-const SUDT_ID = 1;
+const CKB_SUDT_ID = "0x1";
 const CKB_PERSONALIZATION = 'ckb-default-hash';
 export class Eth {
   knex: Knex;
@@ -214,7 +212,7 @@ export class Eth {
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    const balance = await this.rpc.get_balance(accountId, SUDT_ID);
+    const balance = await this.rpc.get_balance(accountId, CKB_SUDT_ID);
     const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
@@ -881,11 +879,11 @@ function dbLogToApiLog(log: any) {
 
 function ethAddressToScriptHash(address: string) {
   const script = {
-    code_hash: POLYJUICE_ACCOUNT_CODE_HASH,
-    hash_type: 'data',
-    args: address
+    code_hash: ETH_ACCOUNT_LOCK_HASH,
+    hash_type: 'type',
+    args: ROLLUP_TYPE_HASH + address.slice(2),
   };
-  console.log('script: ', script);
+  console.log(`eth address: ${address}, script: ${script}`);
   const scriptHash = utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
@@ -895,19 +893,6 @@ function ethAddressToScriptHash(address: string) {
 function ethContractAddressToAccountId(address: string): number {
   return +address;
 }
-
-// function ethContractAddressToScriptHash(address: string) {
-//   const script = {
-//     code_hash: POLYJUICE_VALIDATOR_CODE_HASH,
-//     hash_type: 'data',
-//     args: address
-//   };
-//   console.log('script: ', script);
-//   const scriptHash = utils
-//     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
-//     .serializeJson();
-//   return scriptHash;
-// }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
   const buffer = Buffer.from(CKB_PERSONALIZATION);

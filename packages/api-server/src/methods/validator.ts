@@ -28,7 +28,11 @@ export function middleware(
       if (err) return cb(err);
     }
 
-    method(params, cb);
+    try {
+      return method(params, cb);
+    } catch(err) {
+      return cb(err);
+    }
   };
 }
 
