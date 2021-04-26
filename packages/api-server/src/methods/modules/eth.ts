@@ -265,9 +265,12 @@ export class Eth {
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
+    if (accountId === undefined || accountId === null) {
+      return callback(null, "0x0000000000000000000000000000000000000000000000000000000000000000");
+    }
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.get_storage_at(accountId, key);
+    const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
     callback(null, value);
   }
 
@@ -283,7 +286,7 @@ export class Eth {
       callback(null, "0x0");
       return;
     }
-    const nonce = await this.rpc.get_nonce(accountId);
+    const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
     const transactionCount = '0x' + BigInt(nonce).toString(16);
     callback(null, transactionCount);
   }
@@ -296,7 +299,7 @@ export class Eth {
       return;
     }
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.get_storage_at(accountId, contractCodeKey);
+    const dataHash = await this.rpc.get_storage_at(toHexNumber(accountId), contractCodeKey);
     const data = await this.rpc.get_data(dataHash);
     callback(null, data);
   }
@@ -1064,5 +1067,8 @@ async function allTypeEthAddressToAccountId(
 
 
 function toHexNumber(num: number | bigint | HexNumber): HexNumber {
+  if (num === "latest" || num === "earliest" || num === "pending") {
+    return num;
+  }
   return "0x" + BigInt(num).toString(16);
 }
