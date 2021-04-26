@@ -147,6 +147,11 @@ export class Eth {
       0
     )
 
+    this.gw_getScriptHashByAccountId = middleware(
+      this.gw_getScriptHashByAccountId.bind(this),
+      0
+    )
+
     this.gw_getNonce = middleware(
       this.gw_getNonce.bind(this),
       0
@@ -362,6 +367,11 @@ export class Eth {
 
   async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
     const result = await this.rpc.get_account_id_by_script_hash(...args);
+    callback(null, result);
+  }
+
+  async gw_getScriptHashByAccountId(args: any[], callback: Callback) {
+    const result = await this.rpc.get_script_hash(...args);
     callback(null, result);
   }
 

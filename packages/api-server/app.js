@@ -3,11 +3,19 @@ const express = require('express');
 const logger = require('morgan');
 const jaysonMiddleware = require('./middlewares/jayson');
 const knex = require('knex');
+var cors = require('cors');
 
 const app = express();
 
+const corsOptions = {
+  origin: "*",
+  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  credentials: true
+}
+
 app.use(logger('dev'));
 app.use(express.json());
+app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false }));
 
 app.use('/', jaysonMiddleware);
