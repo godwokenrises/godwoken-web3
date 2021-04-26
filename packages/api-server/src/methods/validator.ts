@@ -1,6 +1,10 @@
 import { INVALID_PARAMS } from './error-code';
 import { validateHexNumber, validateHexString } from '../util';
 
+function defaultLogger(level: string, ...messages: any[]) {
+  console.log(`[${level}] `, ...messages);
+}
+
 /**
  * middleware for parameters validation
  * @param {Function} method            function to add middleware
@@ -12,7 +16,7 @@ export function middleware(
   requiredParamsCount: number,
   validators: any[] = []
 ): any {
-  return function (params: any[] = [], cb: (err: any, val?: any) => void) {
+  return async function (params: any[] = [], cb: (err: any, val?: any) => void) {
     if (params.length < requiredParamsCount) {
       const err = {
         code: INVALID_PARAMS,
@@ -29,8 +33,9 @@ export function middleware(
     }
 
     try {
-      return method(params, cb);
+      return await method(params, cb)
     } catch(err) {
+      defaultLogger("error", `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`);
       return cb(err);
     }
   };

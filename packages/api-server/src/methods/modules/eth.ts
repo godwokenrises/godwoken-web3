@@ -5,7 +5,7 @@ import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
-import { core, utils, Script } from '@ckb-lumos/base';
+import { core, utils, Script, HexNumber } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 const Config = require('../../../config/eth.json');
@@ -110,6 +110,47 @@ export class Eth {
     this.newFilter = middleware(this.newFilter.bind(this), 1, [
       validators.newFilterParams
     ]);
+
+    //
+    this.syncing = middleware(
+      this.syncing.bind(this),
+      0,
+    )
+
+    this.coinbase = middleware(
+      this.coinbase.bind(this),
+      0,
+    )
+
+    this.mining = middleware(
+      this.mining.bind(this),
+      0,
+    )
+
+    this.blockNumber = middleware(
+      this.blockNumber.bind(this),
+      0,
+    )
+
+    this.gw_executeL2Tranaction = middleware(
+      this.gw_executeL2Tranaction.bind(this),
+      0
+    )
+
+    this.gw_submitL2Transaction = middleware(
+      this.gw_submitL2Transaction.bind(this),
+      0
+    )
+
+    this.gw_getAccountIdByScriptHash = middleware(
+      this.gw_getAccountIdByScriptHash.bind(this),
+      0
+    )
+
+    this.gw_getNonce = middleware(
+      this.gw_getNonce.bind(this),
+      0
+    )
   }
 
   /**
@@ -212,7 +253,11 @@ export class Eth {
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    const balance = await this.rpc.get_balance(accountId, CKB_SUDT_ID);
+    if (accountId === undefined || accountId === null) {
+      callback(null, "0x0");
+      return;
+    }
+    const balance = await this.rpc.get_balance(toHexNumber(accountId), toHexNumber(CKB_SUDT_ID));
     const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
@@ -220,9 +265,12 @@ export class Eth {
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
+    if (accountId === undefined || accountId === null) {
+      return callback(null, "0x0000000000000000000000000000000000000000000000000000000000000000");
+    }
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.get_storage_at(accountId, key);
+    const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
     callback(null, value);
   }
 
@@ -233,8 +281,12 @@ export class Eth {
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    const nonce = await this.rpc.get_nonce(accountId);
+    const accountId: number | null = await allTypeEthAddressToAccountId(this.rpc, address);
+    if (accountId === undefined || accountId === null) {
+      callback(null, "0x0");
+      return;
+    }
+    const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
     const transactionCount = '0x' + BigInt(nonce).toString(16);
     callback(null, transactionCount);
   }
@@ -242,8 +294,12 @@ export class Eth {
   async getCode(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
+    if (accountId === undefined || accountId === null) {
+      callback(null, "0x0");
+      return;
+    }
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.get_storage_at(accountId, contractCodeKey);
+    const dataHash = await this.rpc.get_storage_at(toHexNumber(accountId), contractCodeKey);
     const data = await this.rpc.get_data(dataHash);
     callback(null, data);
   }
@@ -883,14 +939,17 @@ function ethAddressToScriptHash(address: string) {
     hash_type: 'type',
     args: ROLLUP_TYPE_HASH + address.slice(2),
   };
-  console.log(`eth address: ${address}, script: ${script}`);
+  console.log(`eth address: ${address}, script: ${JSON.stringify(script, null, 2)}`);
   const scriptHash = utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
   return scriptHash;
 }
 
-function ethContractAddressToAccountId(address: string): number {
+function ethContractAddressToAccountId(address: string): number | null {
+  if (BigInt(address) >= BigInt(2) ** BigInt(32)) {
+    return null;
+  }
   return +address;
 }
 
@@ -997,11 +1056,19 @@ function buildStorageKey(storagePosition: string) {
 async function allTypeEthAddressToAccountId(
   rpc: RPC,
   address: string
-): Promise<number> {
+): Promise<number | null> {
   const scriptHash = ethAddressToScriptHash(address);
-  let accountId = await rpc.gw_getAccountIdByScriptHash(scriptHash);
+  let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
   if (accountId === null || accountId === undefined) {
     accountId = ethContractAddressToAccountId(address);
   }
   return accountId;
+}
+
+
+function toHexNumber(num: number | bigint | HexNumber): HexNumber {
+  if (num === "latest" || num === "earliest" || num === "pending") {
+    return num;
+  }
+  return "0x" + BigInt(num).toString(16);
 }
