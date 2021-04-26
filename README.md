@@ -118,11 +118,12 @@ Example:
 // Request
 curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getTransactionReceipt", "params": ["0xbb9d52bb10e36205cb4e7af8c4ac573f609a0f209d095e53f0f66c81b497169b"], "id": 1}'
 
+// Response
+{"jsonrpc":"2.0","id":1,"result":{"transactionHash":"0xbb9d52bb10e36205cb4e7af8c4ac573f609a0f209d095e53f0f66c81b497169b","blockHash":"0xb22bb8fd026613ea7674b181261248d38d190419a7870986b6528d4a6622ba0a","blockNumber":"0xde","transactionIndex":"0x0","gasUsed":"0x0","cumulativeGasUsed":"0x0","logsBloom":"0x","logs":[],"contractAddress":null,"status":"0x1"}}
 ```
 
 ### eth_getTransactionCount
 
-Example:
 ```
 // Request
 curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getTransactionCount", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
@@ -150,8 +151,22 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x746a5287f6"}
 ```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getBalance", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x746a5287f6"}
 
 ### eth_getCode
+
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getCode", "params": ["0x0500000000000000000000000000000000000000"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x60806040526004361060295760003560e01c806360fe47b114602f5780636d4ce63c14605b576029565b60006000fd5b60596004803603602081101560445760006000fd5b81019080803590602001909291905050506084565b005b34801560675760006000fd5b50606e6094565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060a2565b9056fea2646970667358221220044daf4e34adffc61c3bb9e8f40061731972d32db5b8c2bc975123da9e988c3e64736f6c63430006060033"}
+
+```
 
 ### eth_call
 

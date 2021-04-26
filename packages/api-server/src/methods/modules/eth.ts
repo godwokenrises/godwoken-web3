@@ -946,11 +946,11 @@ function ethAddressToScriptHash(address: string) {
   return scriptHash;
 }
 
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
 function ethContractAddressToAccountId(address: string): number | null {
-  if (BigInt(address) >= BigInt(2) ** BigInt(32)) {
-    return null;
-  }
-  return +address;
+  let buf = Buffer.from(address.slice(2, 10), "hex");
+  console.log(buf.readUInt32LE());
+  return buf.readUInt32LE(0);
 }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
