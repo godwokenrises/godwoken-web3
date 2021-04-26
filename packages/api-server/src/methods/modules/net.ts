@@ -23,7 +23,7 @@ export class Net {
    * current peer nodes number as the second argument
    */
   peerCount(args: [], callback: Callback) {
-    callback(null, "0x0");
+    callback(null, '0x0');
   }
 
   /**

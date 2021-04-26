@@ -12,7 +12,7 @@ test.cb('net_version', (t) => {
 test.cb('net_peerCount', (t) => {
   return client.request('net_peerCount', [], function (err, response) {
     if (err) throw err;
-    t.is(response.result, 0);
+    t.is(response.result, '0x0');
     t.end();
   });
 });

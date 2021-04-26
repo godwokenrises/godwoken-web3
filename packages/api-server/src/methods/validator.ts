@@ -1,5 +1,5 @@
 import { INVALID_PARAMS } from './error-code';
-import { validateHexNumber, validateHexString } from "../util";
+import { validateHexNumber, validateHexString } from '../util';
 
 /**
  * middleware for parameters validation
@@ -54,9 +54,9 @@ export const validators = {
 
   /**
    * Hex number | "latest" | "earliest" | "pending"
-   * @param params 
-   * @param index 
-   * @returns 
+   * @param params
+   * @param index
+   * @returns
    */
   hexNumberOrTag(params: any[], index: number): any {
     return verifyHexNumberOrTag(params[index], index);
@@ -69,7 +69,7 @@ export const validators = {
    */
   blockHash(params: any[], index: number): any {
     if (typeof params[index] !== 'string') {
-      return invalidParamsError(index, `argument must be a hex string`)
+      return invalidParamsError(index, `argument must be a hex string`);
     }
 
     const blockHash = params[index].substring(2);
@@ -82,10 +82,10 @@ export const validators = {
   },
 
   /**
- * hex validator to validate transaction hash
- * @param {any[]} params parameters of method
- * @param {number} index index of parameter
- */
+   * hex validator to validate transaction hash
+   * @param {any[]} params parameters of method
+   * @param {number} index index of parameter
+   */
   txHash(params: any[], index: number): any {
     if (typeof params[index] !== 'string') {
       return invalidParamsError(index, `argument must be a hex string`);
@@ -101,10 +101,10 @@ export const validators = {
   },
 
   /**
- * hex validator to validate block hash
- * @param {any[]} params parameters of method
- * @param {number} index index of parameter
- */
+   * hex validator to validate block hash
+   * @param {any[]} params parameters of method
+   * @param {number} index index of parameter
+   */
   address(params: any[], index: number): any {
     return verifyAddress(params[index], index);
   },
@@ -123,7 +123,7 @@ export const validators = {
 
   ethCallParams(params: any[], index: number): any {
     const targetParam = params[index];
-    if (typeof targetParam !== "object") {
+    if (typeof targetParam !== 'object') {
       return invalidParamsError(index, `argument must be an object`);
     }
 
@@ -185,7 +185,7 @@ export const validators = {
 
   newFilterParams(params: any[], index: number): any {
     const targetParam = params[index];
-    if (typeof targetParam !== "object") {
+    if (typeof targetParam !== 'object') {
       return invalidParamsError(index, `argument must be an object`);
     }
 
@@ -209,7 +209,6 @@ export const validators = {
         return toBlockErr;
       }
     }
-
 
     // validate `address`
     if (address !== undefined && address !== null) {
@@ -251,11 +250,11 @@ function verifyHexNumber(hexNumber: string, index: number) {
     return invalidParamsError(index, `argument must be a hex string`);
   }
 
-  if (!hexNumber.startsWith("0x")) {
-    return invalidParamsError(index, `hex string without 0x prefix`)
+  if (!hexNumber.startsWith('0x')) {
+    return invalidParamsError(index, `hex string without 0x prefix`);
   }
 
-  if (hexNumber.startsWith("0x0") && hexNumber !== "0x0") {
+  if (hexNumber.startsWith('0x0') && hexNumber !== '0x0') {
     return invalidParamsError(index, `hex number with leading zero digits`);
   }
 
@@ -268,16 +267,19 @@ function verifyHexNumber(hexNumber: string, index: number) {
 
 function verifyHexNumberOrTag(hexNumber: any, index: number): any {
   // TODO: only support "latest" now
-  if (hexNumber === "latest") {
-    return undefined
+  if (hexNumber === 'latest') {
+    return undefined;
   }
 
   if (
     typeof hexNumber !== 'string' ||
-    hexNumber === "earliest" ||
-    hexNumber === "pending"
+    hexNumber === 'earliest' ||
+    hexNumber === 'pending'
   ) {
-    return invalidParamsError(index, `argument must be a hex string or "latest"`);
+    return invalidParamsError(
+      index,
+      `argument must be a hex string or "latest"`
+    );
   }
 
   return verifyHexNumber(hexNumber, index);
@@ -288,24 +290,24 @@ function verifyHexString(hexString: any, index: number): any {
     return invalidParamsError(index, `argument must be a hex string`);
   }
 
-  if (!hexString.startsWith("0x")) {
-    return invalidParamsError(index, `hex string without 0x prefix`)
+  if (!hexString.startsWith('0x')) {
+    return invalidParamsError(index, `hex string without 0x prefix`);
   }
 
   if (!validateHexString(hexString)) {
     return invalidParamsError(index, `invalid hex string`);
   }
 
-  return undefined
+  return undefined;
 }
 
-function validateAddress(address: string): boolean  {
-  return /^0x[0-9a-fA-F]+$/.test(address) && address.length === 42
+function validateAddress(address: string): boolean {
+  return /^0x[0-9a-fA-F]+$/.test(address) && address.length === 42;
 }
 
 function invalidParamsError(index: number, message: string) {
   return {
     code: INVALID_PARAMS,
-    message: `invalid arguments ${index}: ${message}`
-  }
+    message: `invalid argument ${index}: ${message}`
+  };
 }

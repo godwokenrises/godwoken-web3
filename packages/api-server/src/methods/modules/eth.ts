@@ -39,26 +39,79 @@ export class Eth {
     console.log('node_rpc', process.env.GODWOKEN_JSON_RPC);
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
-    this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [validators.hexNumber])
+    this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
+      validators.hexNumber
+    ]);
     // TODO: required 2 arguments
-    this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [validators.blockHash])
+    this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
+      validators.blockHash
+    ]);
     // TODO: required 2 arguments
-    this.getBalance = middleware(this.getBalance.bind(this), 1, [validators.address])
-    this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [validators.address, validators.hexNumber])
-    this.getTransactionCount = middleware(this.getTransactionCount.bind(this), 1, [validators.address])
-    this.getBlockTransactionCountByHash = middleware(this.getBlockTransactionCountByHash.bind(this), 1, [validators.blockHash])
-    this.getBlockTransactionCountByNumber = middleware(this.getBlockTransactionCountByNumber.bind(this), 1, [validators.hexNumberOrTag])
-    this.getUncleCountByBlockHash = middleware(this.getUncleCountByBlockHash.bind(this), 1, [validators.blockHash])
+    this.getBalance = middleware(this.getBalance.bind(this), 1, [
+      validators.address
+    ]);
+    this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [
+      validators.address,
+      validators.hexNumber
+    ]);
+    this.getTransactionCount = middleware(
+      this.getTransactionCount.bind(this),
+      1,
+      [validators.address]
+    );
+    this.getBlockTransactionCountByHash = middleware(
+      this.getBlockTransactionCountByHash.bind(this),
+      1,
+      [validators.blockHash]
+    );
+    this.getBlockTransactionCountByNumber = middleware(
+      this.getBlockTransactionCountByNumber.bind(this),
+      1,
+      [validators.hexNumberOrTag]
+    );
+    this.getUncleCountByBlockHash = middleware(
+      this.getUncleCountByBlockHash.bind(this),
+      1,
+      [validators.blockHash]
+    );
     this.getCode = middleware(this.getCode.bind(this), 1, [validators.address]);
-    this.getTransactionByHash = middleware(this.getTransactionByHash.bind(this), 1, [validators.txHash]);
-    this.getTransactionByBlockHashAndIndex = middleware(this.getTransactionByBlockHashAndIndex.bind(this), 2, [validators.blockHash, validators.hexNumber]);
-    this.getTransactionByBlockNumberAndIndex = middleware(this.getTransactionByBlockNumberAndIndex.bind(this), 2, [validators.hexNumber, validators.hexNumber]);
-    this.getTransactionReceipt = middleware(this.getTransactionReceipt.bind(this), 1, [validators.txHash]);
-    this.getUncleByBlockHashAndIndex = middleware(this.getUncleByBlockHashAndIndex.bind(this), 2, [validators.blockHash, validators.hexNumber]);
-    this.getUncleByBlockNumberAndIndex = middleware(this.getUncleByBlockNumberAndIndex.bind(this), 2, [validators.hexNumber, validators.hexNumber]);
+    this.getTransactionByHash = middleware(
+      this.getTransactionByHash.bind(this),
+      1,
+      [validators.txHash]
+    );
+    this.getTransactionByBlockHashAndIndex = middleware(
+      this.getTransactionByBlockHashAndIndex.bind(this),
+      2,
+      [validators.blockHash, validators.hexNumber]
+    );
+    this.getTransactionByBlockNumberAndIndex = middleware(
+      this.getTransactionByBlockNumberAndIndex.bind(this),
+      2,
+      [validators.hexNumber, validators.hexNumber]
+    );
+    this.getTransactionReceipt = middleware(
+      this.getTransactionReceipt.bind(this),
+      1,
+      [validators.txHash]
+    );
+    this.getUncleByBlockHashAndIndex = middleware(
+      this.getUncleByBlockHashAndIndex.bind(this),
+      2,
+      [validators.blockHash, validators.hexNumber]
+    );
+    this.getUncleByBlockNumberAndIndex = middleware(
+      this.getUncleByBlockNumberAndIndex.bind(this),
+      2,
+      [validators.hexNumber, validators.hexNumber]
+    );
     this.call = middleware(this.call.bind(this), 1, [validators.ethCallParams]);
-    this.estimateGas = middleware(this.estimateGas.bind(this), 1, [validators.ethCallParams]);
-    this.newFilter = middleware(this.newFilter.bind(this), 1, [validators.newFilterParams]);
+    this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
+      validators.ethCallParams
+    ]);
+    this.newFilter = middleware(this.newFilter.bind(this), 1, [
+      validators.newFilterParams
+    ]);
   }
 
   /**
@@ -162,7 +215,7 @@ export class Eth {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
     const balance = await this.rpc.get_balance(accountId, SUDT_ID);
-    const balanceHex = "0x" + BigInt(balance).toString(16);
+    const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
 
@@ -176,15 +229,15 @@ export class Eth {
   }
 
   /**
-   * 
+   *
    * @param args [address, QUANTITY|TAG]
-   * @param callback 
+   * @param callback
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId = await allTypeEthAddressToAccountId(this.rpc, address)
+    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
     const nonce = await this.rpc.get_nonce(accountId);
-    const transactionCount = "0x" + BigInt(nonce).toString(16);
+    const transactionCount = '0x' + BigInt(nonce).toString(16);
     callback(null, transactionCount);
   }
 
@@ -198,12 +251,9 @@ export class Eth {
   }
 
   // TODO: no eth_call now
-  async call(
-    args: [any],
-    callback: Callback
-  ) {
-    callback(null, "0x");
-    
+  async call(args: [any], callback: Callback) {
+    callback(null, '0x');
+
     // const fromAddress = args[0];
     // const toAddress = args[1];
     // const gas = BigInt(args[2]);
@@ -268,11 +318,8 @@ export class Eth {
 
   // TODO: no estimateGas now
   // TODO: verify parameters
-  async estimateGas(
-    args: [any],
-    callback: Callback
-  ) {
-    callback(null ,"0x0");
+  async estimateGas(args: [any], callback: Callback) {
+    callback(null, '0x0');
 
     // const fromAddress = args[0];
     // const toAddress = args[1];
@@ -367,9 +414,9 @@ export class Eth {
   }
 
   /**
-   * 
+   *
    * @param args [blockHash]
-   * @param callback 
+   * @param callback
    */
   async getBlockTransactionCountByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
@@ -384,9 +431,9 @@ export class Eth {
   }
 
   /**
-   * 
+   *
    * @param args [blockNumber]
-   * @param callback 
+   * @param callback
    */
   async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
     const blockNumber = await this.getBlockNumberOrLatest(args[0]);
@@ -403,21 +450,27 @@ export class Eth {
     }
   }
 
-  async getUncleByBlockHashAndIndex(args: [string, string], callback: Callback) {
+  async getUncleByBlockHashAndIndex(
+    args: [string, string],
+    callback: Callback
+  ) {
     callback(null, null);
   }
 
-  async getUncleByBlockNumberAndIndex(args: [string, string], callback: Callback) {
+  async getUncleByBlockNumberAndIndex(
+    args: [string, string],
+    callback: Callback
+  ) {
     callback(null, null);
   }
 
   /**
-   * 
+   *
    * @param args [blockHash]
-   * @param callback 
+   * @param callback
    */
   async getUncleCountByBlockHash(args: [string], callback: Callback) {
-    callback(null, "0x0");
+    callback(null, '0x0');
   }
 
   async getCompilers(args: [], callback: Callback) {
@@ -438,9 +491,9 @@ export class Eth {
   }
 
   /**
-   * 
+   *
    * @param args [blockHash, index]
-   * @param callback 
+   * @param callback
    */
   async getTransactionByBlockHashAndIndex(
     args: [string, string],
@@ -738,14 +791,14 @@ export class Eth {
 
   private async getTipNumber(): Promise<string> {
     const result = await this.knex
-      .table("blocks")
-      .max('number', { as: "tipNumber" });
+      .table('blocks')
+      .max('number', { as: 'tipNumber' });
     const tipNumber = result[0].tipNumber;
     return tipNumber;
   }
 
   private async getBlockNumberOrLatest(num: string): Promise<string> {
-    if (num === "latest") {
+    if (num === 'latest') {
       return await this.getTipNumber();
     }
     return num;
@@ -839,7 +892,7 @@ function ethAddressToScriptHash(address: string) {
   return scriptHash;
 }
 
-function ethContractAddressToAccountId(address: string): number{
+function ethContractAddressToAccountId(address: string): number {
   return +address;
 }
 
@@ -956,7 +1009,10 @@ function buildStorageKey(storagePosition: string) {
   return '0x' + key;
 }
 
-async function allTypeEthAddressToAccountId(rpc: RPC, address: string): Promise<number> {
+async function allTypeEthAddressToAccountId(
+  rpc: RPC,
+  address: string
+): Promise<number> {
   const scriptHash = ethAddressToScriptHash(address);
   let accountId = await rpc.gw_getAccountIdByScriptHash(scriptHash);
   if (accountId === null || accountId === undefined) {
