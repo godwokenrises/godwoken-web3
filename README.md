@@ -1,6 +1,6 @@
 # Godwoken Web3 API
 
-A Web3 RPC compaitible layer build upon Godwoken/Polyjuice.
+A Web3 RPC compatible layer build upon Godwoken/Polyjuice.
 
 ## Development
 
@@ -113,7 +113,6 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 
 ### eth_getTransactionReceipt
-Example:
 ```
 // Request
 curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getTransactionReceipt", "params": ["0xbb9d52bb10e36205cb4e7af8c4ac573f609a0f209d095e53f0f66c81b497169b"], "id": 1}'
@@ -143,19 +142,14 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ### eth_getBalance
 
-Example:
 ```
 // Request
 curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getBalance", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x746a5287f6"}
-```
-// Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getBalance", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
 
-// Response
-{"jsonrpc":"2.0","id":1,"result":"0x746a5287f6"}
+```
 
 ### eth_getCode
 
