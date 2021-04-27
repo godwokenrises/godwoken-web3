@@ -5,7 +5,7 @@ import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
 import { FilterObject, FilterType } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
-import { core, utils, Script, HexNumber } from '@ckb-lumos/base';
+import { core, utils, Script, HexNumber, Hash } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 const Config = require('../../../config/eth.json');
