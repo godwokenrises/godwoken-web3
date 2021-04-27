@@ -969,7 +969,7 @@ function ethAddressToScriptHash(address: string) {
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
 function ethContractAddressToAccountId(address: string): number | null {
   let buf = Buffer.from(address.slice(2, 10), "hex");
-  console.log(buf.readUInt32LE());
+  console.log(`eth contract address: ${address}, account id: ${buf.readUInt32LE()}`);
   return buf.readUInt32LE(0);
 }
 
@@ -1068,8 +1068,7 @@ function buildStorageKey(storagePosition: string) {
   if (key.length < 64) {
     key = '0'.repeat(64 - key.length) + key;
   }
-  // const buf = Buffer.from(key, "hex");
-  // return new Uint8Array(buf);
+  console.log("storage position:", key);
   return '0x' + key;
 }
 

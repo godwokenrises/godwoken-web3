@@ -162,6 +162,16 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ```
 
+### eth_getStorageAt
+
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getStorageAt", "params": ["0x0c00000000000000000000000000000000000000","0x0"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x0000000000000000000000000000000000000000000000000000000000000d10"}
+```
+
 ### eth_call
 
 ### eth_estimateGas
