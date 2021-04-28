@@ -1,4 +1,4 @@
-import { Callback } from '../types';
+import { Callback, TransactionCallObject } from '../types';
 import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
 import { middleware, validators } from '../validator';
@@ -314,50 +314,48 @@ export class Eth {
     callback(null, data);
   }
 
-  // TODO: no eth_call now
-  async call(args: [any], callback: Callback) {
-    callback(null, '0x');
-
-    // const fromAddress = args[0];
-    // const toAddress = args[1];
-    // const gas = BigInt(args[2]);
-    // const gasPrice = BigInt(args[3]);
-    // const value = BigInt(args[4]);
-    // const data = args[5];
-    // const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    // const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    //   fromScriptHash
-    // );
-    // const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    // // const toScriptHash = ethContractAddressToScriptHash(toAddress);
-    // // const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    // //   toScriptHash
-    // // );
-    // const toAccountId = ethContractAddressToAccountId(toAddress);
-    // const polyjuiceArgs = buildPolyjuiceArgs(
-    //   toAccountId,
-    //   gas,
-    //   gasPrice,
-    //   value,
-    //   data
-    // );
-    // const rawL2Transaction = buildRawL2Transaction(
-    //   fromAccountId,
-    //   toAccountId,
-    //   nonce,
-    //   polyjuiceArgs
-    // );
-    // console.log(rawL2Transaction);
-    // const rawL2TransactionHex = new Reader(
-    //   schemas.SerializeRawL2Transaction(
-    //     types.NormalizeRawL2Transaction(rawL2Transaction)
-    //   )
-    // ).serializeJson();
-    // const runResult = await this.rpc.gw_executeRawL2Transaction(
-    //   rawL2TransactionHex
-    // );
-    // console.log('RunResult:', runResult);
-    // callback(null, runResult.return_data);
+  async call(args: [TransactionCallObject], callback: Callback) {
+    const txCallObj = args[0];
+    const fromAddress = txCallObj.from;
+    const toAddress = txCallObj.to;
+    const gas = txCallObj.gas || "0x0";
+    const gasPrice = txCallObj.gasPrice || "0x0";
+    const value = txCallObj.value || "0x0";
+    const data = txCallObj.data || "0x0";
+    let fromId: number = 0;
+    if ( fromAddress != null && fromAddress != undefined && typeof fromAddress === "string") {
+      const fromScriptHash = ethAddressToScriptHash(fromAddress);
+      fromId= await this.rpc.get_account_id_by_script_hash(
+        fromScriptHash
+      );
+      console.log(`fromId: ${fromId}`);
+    }
+    const toId = ethContractAddressToAccountId(toAddress);
+    const nonce = 0;
+    const polyjuiceArgs = buildPolyjuiceArgs(
+      toId,
+      BigInt(gas),
+      BigInt(gasPrice),
+      BigInt(value),
+      data
+    );
+    const rawL2Transaction = buildRawL2Transaction(
+      fromId,
+      toId,
+      nonce,
+      polyjuiceArgs
+    );
+    console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
+    const rawL2TransactionHex = new Reader(
+      schemas.SerializeRawL2Transaction(
+        types.NormalizeRawL2Transaction(rawL2Transaction)
+      )
+    ).serializeJson();
+    const runResult = await this.rpc.execute_raw_l2transaction(
+      rawL2TransactionHex
+    );
+    console.log('RunResult:', runResult);
+    callback(null, runResult.return_data);
   }
 
   async gw_executeL2Tranaction(args: any[], callback: Callback) {
@@ -967,7 +965,7 @@ function ethAddressToScriptHash(address: string) {
 }
 
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
-function ethContractAddressToAccountId(address: string): number | null {
+function ethContractAddressToAccountId(address: string): number {
   let buf = Buffer.from(address.slice(2, 10), "hex");
   console.log(`eth contract address: ${address}, account id: ${buf.readUInt32LE()}`);
   return buf.readUInt32LE(0);
@@ -1055,9 +1053,9 @@ function buildRawL2Transaction(
   args: string
 ) {
   const rawL2Transaction = {
-    from_id: fromId,
-    to_id: toId,
-    nonce: nonce,
+    from_id: "0x" + BigInt(fromId).toString(16),
+    to_id: "0x" + BigInt(toId).toString(16),
+    nonce: "0x" + BigInt(nonce).toString(16),
     args: args
   };
   return rawL2Transaction;

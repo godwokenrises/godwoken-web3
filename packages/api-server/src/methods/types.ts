@@ -1,3 +1,4 @@
+
 export type Error = {
   message: string;
 } | null;
@@ -15,3 +16,12 @@ export type Response = number | string | boolean | SyningStatus | Array<string>;
 export type Callback = (err: Error, res?: any | Response) => void;
 
 export type BlockParameter = string | 'latest' | 'earliest' | 'pending';
+
+export interface TransactionCallObject {
+  from?: string,
+  to: string,
+  gas?: string,
+  gasPrice?: string,
+  value?: string,
+  data?: string,
+}
