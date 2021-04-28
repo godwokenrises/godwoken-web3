@@ -132,6 +132,12 @@ export class Eth {
 
     this.blockNumber = middleware(this.blockNumber.bind(this), 0);
 
+    this.sign = middleware(this.sign.bind(this), 0);
+
+    this.signTransaction = middleware(this.signTransaction.bind(this), 0);
+
+    this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
+
     this.gw_executeL2Tranaction = middleware(
       this.gw_executeL2Tranaction.bind(this),
       0
@@ -254,6 +260,18 @@ export class Eth {
     } else {
       callback(null, null);
     }
+  }
+
+  async sign(_args: any[], callback: Callback) {
+    callback(null, 'eth_sign is not supported!');
+  }
+
+  async signTransaction(_args: any[], callback: Callback) {
+    callback(null, 'eth_signTransaction is not supported!');
+  }
+
+  async sendTransaction(_args: any[], callback: Callback) {
+    callback(null, 'eth_sendTransaction is not supported!');
   }
 
   // TODO: second arguments
