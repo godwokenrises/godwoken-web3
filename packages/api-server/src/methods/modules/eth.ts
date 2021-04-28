@@ -1144,10 +1144,32 @@ function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
 
 // TODO parse polyjuice user log
 function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
-  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  const buf = Buffer.from(logItem.data.slice(2), 'hex');
+  let offset = 0;
+  const address = buf.slice(offset, offset + 20);
+  offset += 20;
+  const dataSize = buf.readUInt32LE(offset);
+  offset += 4;
+  const logData = buf.slice(offset, offset + dataSize);
+  offset += dataSize;
+  const topics_count = buf.readUInt32LE(offset);
+  offset += 4;
+  let topics = [];
+  for (let i = 0; i < topics_count; i++) {
+    const topic = buf.slice(offset, offset + 32);
+    offset += 32;
+    topics.push('0x' + topic.toString('hex'));
+  }
+
+  if (offset != buf.length) {
+    throw new Error(
+      `Too many bytes for polyjuice user log data: offset=${offset}, data.len()=${buf.length}`
+    );
+  }
+
   return {
-    address: '0x',
-    data: '0x',
-    topics: ['0x']
+    address: '0x' + address.toString('hex'),
+    data: '0x' + logData.toString('hex'),
+    topics: topics
   };
 }
