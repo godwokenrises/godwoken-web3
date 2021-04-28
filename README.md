@@ -188,3 +188,10 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 
 ### eth_estimateGas
+```
+// Call SimpleStorage:set
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_estimateGas", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x"}
+```

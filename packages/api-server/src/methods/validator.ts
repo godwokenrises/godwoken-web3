@@ -16,7 +16,10 @@ export function middleware(
   requiredParamsCount: number,
   validators: any[] = []
 ): any {
-  return async function (params: any[] = [], cb: (err: any, val?: any) => void) {
+  return async function (
+    params: any[] = [],
+    cb: (err: any, val?: any) => void
+  ) {
     if (params.length < requiredParamsCount) {
       const err = {
         code: INVALID_PARAMS,
@@ -33,9 +36,12 @@ export function middleware(
     }
 
     try {
-      return await method(params, cb)
-    } catch(err) {
-      defaultLogger("error", `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`);
+      return await method(params, cb);
+    } catch (err) {
+      defaultLogger(
+        'error',
+        `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
+      );
       return cb(err);
     }
   };
