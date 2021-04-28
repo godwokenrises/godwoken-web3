@@ -8,10 +8,10 @@ var cors = require('cors');
 const app = express();
 
 const corsOptions = {
-  origin: "*",
+  origin: '*',
   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
   credentials: true
-}
+};
 
 app.use(logger('dev'));
 app.use(express.json());

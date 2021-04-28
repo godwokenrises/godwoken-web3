@@ -1,4 +1,12 @@
-import { Callback } from '../types';
+import {
+  Callback,
+  GodwokenLog,
+  LogItem,
+  SudtOperationLog,
+  PolyjuiceSystemLog,
+  PolyjuiceUserLog,
+  TransactionCallObject
+} from '../types';
 import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
 import { middleware, validators } from '../validator';
@@ -20,8 +28,12 @@ const POLYJUICE_CONTRACT_CODE = 1;
 const POLYJUICE_DESTRUCTED = 2;
 const GW_KEY_BYTES = 32;
 const GW_ACCOUNT_KV = 0;
-const CKB_SUDT_ID = "0x1";
+const CKB_SUDT_ID = '0x1';
 const CKB_PERSONALIZATION = 'ckb-default-hash';
+const SUDT_OPERATION_LOG_FLGA = '0x0';
+const POLYJUICE_SYSTEM_LOG_FLAG = '0x1';
+const POLYJUICE_USER_LOG_FLAG = '0x2';
+const SUDT_OPERATION_TRANSFER = 0;
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
@@ -112,55 +124,40 @@ export class Eth {
     ]);
 
     //
-    this.syncing = middleware(
-      this.syncing.bind(this),
-      0,
-    )
+    this.syncing = middleware(this.syncing.bind(this), 0);
 
-    this.coinbase = middleware(
-      this.coinbase.bind(this),
-      0,
-    )
+    this.coinbase = middleware(this.coinbase.bind(this), 0);
 
-    this.mining = middleware(
-      this.mining.bind(this),
-      0,
-    )
+    this.mining = middleware(this.mining.bind(this), 0);
 
-    this.blockNumber = middleware(
-      this.blockNumber.bind(this),
-      0,
-    )
+    this.blockNumber = middleware(this.blockNumber.bind(this), 0);
 
     this.gw_executeL2Tranaction = middleware(
       this.gw_executeL2Tranaction.bind(this),
       0
-    )
+    );
 
     this.gw_submitL2Transaction = middleware(
       this.gw_submitL2Transaction.bind(this),
       0
-    )
+    );
 
     this.gw_getAccountIdByScriptHash = middleware(
       this.gw_getAccountIdByScriptHash.bind(this),
       0
-    )
+    );
 
     this.gw_getScriptHashByAccountId = middleware(
       this.gw_getScriptHashByAccountId.bind(this),
       0
-    )
+    );
 
-    this.gw_getNonce = middleware(
-      this.gw_getNonce.bind(this),
-      0
-    )
+    this.gw_getNonce = middleware(this.gw_getNonce.bind(this), 0);
 
     this.gw_getTransactionReceipt = middleware(
       this.gw_getTransactionReceipt.bind(this),
       0
-    )
+    );
   }
 
   /**
@@ -264,10 +261,13 @@ export class Eth {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
     if (accountId === undefined || accountId === null) {
-      callback(null, "0x0");
+      callback(null, '0x0');
       return;
     }
-    const balance = await this.rpc.get_balance(toHexNumber(accountId), toHexNumber(CKB_SUDT_ID));
+    const balance = await this.rpc.get_balance(
+      toHexNumber(accountId),
+      toHexNumber(CKB_SUDT_ID)
+    );
     const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
@@ -276,7 +276,10 @@ export class Eth {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
     if (accountId === undefined || accountId === null) {
-      return callback(null, "0x0000000000000000000000000000000000000000000000000000000000000000");
+      return callback(
+        null,
+        '0x0000000000000000000000000000000000000000000000000000000000000000'
+      );
     }
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
@@ -291,9 +294,12 @@ export class Eth {
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId: number | null = await allTypeEthAddressToAccountId(this.rpc, address);
+    const accountId: number | null = await allTypeEthAddressToAccountId(
+      this.rpc,
+      address
+    );
     if (accountId === undefined || accountId === null) {
-      callback(null, "0x0");
+      callback(null, '0x0');
       return;
     }
     const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
@@ -305,59 +311,37 @@ export class Eth {
     const address = args[0];
     const accountId = ethContractAddressToAccountId(address);
     if (accountId === undefined || accountId === null) {
-      callback(null, "0x0");
+      callback(null, '0x0');
       return;
     }
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.get_storage_at(toHexNumber(accountId), contractCodeKey);
+    const dataHash = await this.rpc.get_storage_at(
+      toHexNumber(accountId),
+      contractCodeKey
+    );
     const data = await this.rpc.get_data(dataHash);
     callback(null, data);
   }
 
-  // TODO: no eth_call now
-  async call(args: [any], callback: Callback) {
-    callback(null, '0x');
+  async call(args: [TransactionCallObject], callback: Callback) {
+    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+    const runResult = await this.rpc.execute_raw_l2transaction(
+      rawL2TransactionHex
+    );
+    console.log('RunResult:', runResult);
+    callback(null, runResult.return_data);
+  }
 
-    // const fromAddress = args[0];
-    // const toAddress = args[1];
-    // const gas = BigInt(args[2]);
-    // const gasPrice = BigInt(args[3]);
-    // const value = BigInt(args[4]);
-    // const data = args[5];
-    // const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    // const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    //   fromScriptHash
-    // );
-    // const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    // // const toScriptHash = ethContractAddressToScriptHash(toAddress);
-    // // const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    // //   toScriptHash
-    // // );
-    // const toAccountId = ethContractAddressToAccountId(toAddress);
-    // const polyjuiceArgs = buildPolyjuiceArgs(
-    //   toAccountId,
-    //   gas,
-    //   gasPrice,
-    //   value,
-    //   data
-    // );
-    // const rawL2Transaction = buildRawL2Transaction(
-    //   fromAccountId,
-    //   toAccountId,
-    //   nonce,
-    //   polyjuiceArgs
-    // );
-    // console.log(rawL2Transaction);
-    // const rawL2TransactionHex = new Reader(
-    //   schemas.SerializeRawL2Transaction(
-    //     types.NormalizeRawL2Transaction(rawL2Transaction)
-    //   )
-    // ).serializeJson();
-    // const runResult = await this.rpc.gw_executeRawL2Transaction(
-    //   rawL2TransactionHex
-    // );
-    // console.log('RunResult:', runResult);
-    // callback(null, runResult.return_data);
+  async estimateGas(args: [TransactionCallObject], callback: Callback) {
+    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+    const runResult = await this.rpc.execute_raw_l2transaction(
+      rawL2TransactionHex
+    );
+    console.log('eth_estimateGas RunResult:', runResult);
+    const polyjuiceSystemLog = extractPolyjuiceSystemLog(
+      runResult.logs
+    ) as PolyjuiceSystemLog;
+    callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
   }
 
   async gw_executeL2Tranaction(args: any[], callback: Callback) {
@@ -385,66 +369,9 @@ export class Eth {
     callback(null, result);
   }
 
-  async gw_getTransactionReceipt(args: Hash[], callback: Callback){
+  async gw_getTransactionReceipt(args: Hash[], callback: Callback) {
     const result = await this.rpc.get_transaction_receipt(...args);
     callback(null, result);
-  }
-
-  // TODO: no estimateGas now
-  // TODO: verify parameters
-  async estimateGas(args: [any], callback: Callback) {
-    callback(null, '0x0');
-
-    // const fromAddress = args[0];
-    // const toAddress = args[1];
-    // const gas = BigInt(args[2]);
-    // const gasPrice = BigInt(args[3]);
-    // const value = BigInt(args[4]);
-    // const data = args[5];
-
-    // const obj = args[0];
-    // const fromAddress = obj.from;
-    // const toAddress = obj.to;
-    // const gas = obj.gas;
-    // const gasPrice = obj.gasPrice;
-    // const value = obj.value;
-    // const data = obj.data;
-
-    // const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    // const fromAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    //   fromScriptHash
-    // );
-    // const nonce = await this.rpc.gw_getNonce(fromAccountId);
-    // // const toScriptHash = ethContractAddressToScriptHash(toAddress);
-    // // const toAccountId = await this.rpc.gw_getAccountIdByScriptHash(
-    // //   toScriptHash
-    // // );
-    // const toAccountId = ethContractAddressToAccountId(toAddress);
-    // const polyjuiceArgs = buildPolyjuiceArgs(
-    //   toAccountId,
-    //   gas,
-    //   gasPrice,
-    //   value,
-    //   data
-    // );
-    // const rawL2Transaction = buildRawL2Transaction(
-    //   fromAccountId,
-    //   toAccountId,
-    //   nonce,
-    //   polyjuiceArgs
-    // );
-    // console.log(rawL2Transaction);
-    // const rawL2TransactionHex = new Reader(
-    //   schemas.SerializeRawL2Transaction(
-    //     types.NormalizeRawL2Transaction(rawL2Transaction)
-    //   )
-    // ).serializeJson();
-    // const runResult = await this.rpc.gw_executeRawL2Transaction(
-    //   rawL2TransactionHex
-    // );
-    // console.log('RunResult:', runResult);
-    // // TODO gas used info
-    // callback(null, runResult.return_data);
   }
 
   // TODO: second argument
@@ -957,9 +884,11 @@ function ethAddressToScriptHash(address: string) {
   const script = {
     code_hash: ETH_ACCOUNT_LOCK_HASH,
     hash_type: 'type',
-    args: ROLLUP_TYPE_HASH + address.slice(2),
+    args: ROLLUP_TYPE_HASH + address.slice(2)
   };
-  console.log(`eth address: ${address}, script: ${JSON.stringify(script, null, 2)}`);
+  console.log(
+    `eth address: ${address}, script: ${JSON.stringify(script, null, 2)}`
+  );
   const scriptHash = utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
@@ -967,9 +896,11 @@ function ethAddressToScriptHash(address: string) {
 }
 
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
-function ethContractAddressToAccountId(address: string): number | null {
-  let buf = Buffer.from(address.slice(2, 10), "hex");
-  console.log(`eth contract address: ${address}, account id: ${buf.readUInt32LE()}`);
+function ethContractAddressToAccountId(address: string): number {
+  let buf = Buffer.from(address.slice(2, 10), 'hex');
+  console.log(
+    `eth contract address: ${address}, account id: ${buf.readUInt32LE()}`
+  );
   return buf.readUInt32LE(0);
 }
 
@@ -1055,9 +986,9 @@ function buildRawL2Transaction(
   args: string
 ) {
   const rawL2Transaction = {
-    from_id: fromId,
-    to_id: toId,
-    nonce: nonce,
+    from_id: '0x' + BigInt(fromId).toString(16),
+    to_id: '0x' + BigInt(toId).toString(16),
+    nonce: '0x' + BigInt(nonce).toString(16),
     args: args
   };
   return rawL2Transaction;
@@ -1068,7 +999,7 @@ function buildStorageKey(storagePosition: string) {
   if (key.length < 64) {
     key = '0'.repeat(64 - key.length) + key;
   }
-  console.log("storage position:", key);
+  console.log('storage position:', key);
   return '0x' + key;
 }
 
@@ -1084,10 +1015,121 @@ async function allTypeEthAddressToAccountId(
   return accountId;
 }
 
-
 function toHexNumber(num: number | bigint | HexNumber): HexNumber {
-  if (num === "latest" || num === "earliest" || num === "pending") {
+  if (num === 'latest' || num === 'earliest' || num === 'pending') {
     return num;
   }
-  return "0x" + BigInt(num).toString(16);
+  return '0x' + BigInt(num).toString(16);
+}
+
+async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
+  const fromAddress = txCallObj.from;
+  const toAddress = txCallObj.to;
+  const gas = txCallObj.gas || '0x0';
+  const gasPrice = txCallObj.gasPrice || '0x0';
+  const value = txCallObj.value || '0x0';
+  const data = txCallObj.data || '0x0';
+  let fromId: number = 0;
+  if (
+    fromAddress != null &&
+    fromAddress != undefined &&
+    typeof fromAddress === 'string'
+  ) {
+    const fromScriptHash = ethAddressToScriptHash(fromAddress);
+    fromId = await rpc.get_account_id_by_script_hash(fromScriptHash);
+    console.log(`fromId: ${fromId}`);
+  }
+  const toId = ethContractAddressToAccountId(toAddress);
+  const nonce = 0;
+  const polyjuiceArgs = buildPolyjuiceArgs(
+    toId,
+    BigInt(gas),
+    BigInt(gasPrice),
+    BigInt(value),
+    data
+  );
+  const rawL2Transaction = buildRawL2Transaction(
+    fromId,
+    toId,
+    nonce,
+    polyjuiceArgs
+  );
+  console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
+  const rawL2TransactionHex = new Reader(
+    schemas.SerializeRawL2Transaction(
+      types.NormalizeRawL2Transaction(rawL2Transaction)
+    )
+  ).serializeJson();
+  return rawL2TransactionHex;
+}
+
+function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
+  for (const logItem of logItems) {
+    if (logItem.service_flag === '0x1') {
+      return parseLog(logItem);
+    }
+  }
+  throw new Error(
+    `Can't found PolyjuiceSystemLog, logItems: ${JSON.stringify(logItems)}`
+  );
+}
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.4.0-rc1/polyjuice-tests/src/helper.rs#L341
+function parseLog(logItem: LogItem): GodwokenLog {
+  switch (logItem.service_flag) {
+    case SUDT_OPERATION_LOG_FLGA:
+      return parseSudtOperationLog(logItem);
+    case POLYJUICE_SYSTEM_LOG_FLAG:
+      return parsePolyjuiceSystemLog(logItem);
+    case POLYJUICE_USER_LOG_FLAG:
+      return parsePolyjuiceUserLog(logItem);
+    default:
+      throw new Error(`Can't parse logItem: ${logItem}`);
+  }
+}
+function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
+  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  if (buf[0] != SUDT_OPERATION_TRANSFER) {
+    throw new Error(`Not a sudt transfer prefix: ${buf[0]}`);
+  }
+  if (buf.length != 1 + 4 + 4 + 16) {
+    throw new Error(
+      `invalid sudt operation log raw data length: ${buf.length}`
+    );
+  }
+  const fromId = buf.readUInt32LE(1);
+  const toId = buf.readUInt32LE(5);
+  const amount = buf.readBigUInt64LE(9);
+  return {
+    sudtId: +logItem.account_id,
+    fromId: fromId,
+    toId: toId,
+    amount: amount
+  };
+}
+
+function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
+  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  if (buf.length != 8 + 8 + 4 + 4 + 4) {
+    throw new Error(`invalid system log raw data length: ${buf.length}`);
+  }
+  const gasUsed = buf.readBigUInt64LE(0);
+  const cumulativeGasUsed = buf.readBigUInt64LE(8);
+  const createdId = buf.readUInt32LE(16);
+  const statusCode = buf.readUInt32LE(20);
+  return {
+    gasUsed: gasUsed,
+    cumulativeGasUsed: cumulativeGasUsed,
+    createdId: createdId,
+    statusCode: statusCode
+  };
+}
+
+// TODO parse polyjuice user log
+function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
+  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  return {
+    address: '0x',
+    data: '0x',
+    topics: ['0x']
+  };
 }
