@@ -195,3 +195,15 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x5c43"}
 ```
+
+### eth_sign | eth_signTransaction | eth_sendTransaction
+
+These API are not supported by a web3 rpc layer.
+
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_sign", "params": [], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"eth_sign is not supported!"}
+```
