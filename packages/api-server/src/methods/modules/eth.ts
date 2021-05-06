@@ -296,7 +296,7 @@ export class Eth {
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
-    const accountId = ethContractAddressToAccountId(address);
+    const accountId = await ethContractAddressToAccountId(address, this.rpc);
     if (accountId === undefined || accountId === null) {
       return callback(
         null,
@@ -331,7 +331,7 @@ export class Eth {
 
   async getCode(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId = ethContractAddressToAccountId(address);
+    const accountId = await ethContractAddressToAccountId(address, this.rpc);
     if (accountId === undefined || accountId === null) {
       callback(null, '0x0');
       return;
@@ -915,28 +915,41 @@ function dbLogToApiLog(log: any) {
   };
 }
 
+
 function ethAddressToScriptHash(address: string) {
   const script = {
     code_hash: ETH_ACCOUNT_LOCK_HASH,
     hash_type: 'type',
     args: ROLLUP_TYPE_HASH + address.slice(2)
   };
-  console.log(
-    `eth address: ${address}, script: ${JSON.stringify(script, null, 2)}`
-  );
   const scriptHash = utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
   return scriptHash;
 }
 
-// https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
-function ethContractAddressToAccountId(address: string): number {
-  let buf = Buffer.from(address.slice(2, 10), 'hex');
-  console.log(
-    `eth contract address: ${address}, account id: ${buf.readUInt32LE()}`
-  );
-  return buf.readUInt32LE(0);
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/7a04c9274c559e91b677ff3ea2198b58ba0003e7/polyjuice-tests/src/helper.rs#L239
+async function ethContractAddressToAccountId(
+  address: string,
+  rpc: RPC
+): Promise<number> {
+  if (address.length != 42) {
+    throw new Error(`Invalid eth address length: ${address.length}`);
+  }
+  if (address === '0x0000000000000000000000000000000000000000') {
+    return 0;
+  }
+  const accountScriptHash = address.slice(0, 34);
+  const accountIdBuf = Buffer.from(address.slice(34, 42), 'hex');
+  const accountId = accountIdBuf.readUInt32LE();
+  const scriptHash = await rpc.get_script_hash(accountId);
+  if (scriptHash !== accountScriptHash) {
+    throw new Error(
+      `eth address first 16 bytes not match account script hash: expected=${accountScriptHash}, got=${scriptHash}`
+    );
+  }
+  console.log(`eth contract address: ${address}, account id: ${accountId}`);
+  return accountId;
 }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
@@ -991,25 +1004,37 @@ function buildPolyjuiceArgs(
   value: bigint,
   data: string
 ) {
+  const argsHeaderBuf = Buffer.from([
+    0xff,
+    0xff,
+    0xff,
+    'P'.charCodeAt(0),
+    'O'.charCodeAt(0),
+    'L'.charCodeAt(0),
+    'Y'.charCodeAt(0)
+  ]);
   const callKind = toId > 0 ? 0 : 3;
   const gasLimitBuf = Buffer.alloc(8);
+  gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
-  const valueBuf = Buffer.alloc(32);
+  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  gasPriceBuf.writeBigUInt64LE(gasPrice >> BigInt(64), 8);
+  const valueBuf = Buffer.alloc(16);
+  valueBuf.writeBigUInt64LE(value & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
   const dataSizeBuf = Buffer.alloc(4);
   const dataBuf = Buffer.from(data.slice(2), 'hex');
-  gasLimitBuf.writeBigUInt64LE(gas);
-  gasPriceBuf.writeBigUInt64LE(gasPrice);
-  valueBuf.writeBigUInt64BE(value);
   dataSizeBuf.writeUInt32LE(dataBuf.length);
-  const argsLength = 1 + 1 + 8 + 16 + 32 + 4 + dataBuf.length;
+
+  const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
   const argsBuf = Buffer.alloc(argsLength);
-  argsBuf[0] = callKind;
-  argsBuf[1] = 0;
-  gasLimitBuf.copy(argsBuf, 2);
-  gasPriceBuf.copy(argsBuf, 10);
-  valueBuf.copy(argsBuf, 26);
-  dataSizeBuf.copy(argsBuf, 58);
-  dataBuf.copy(argsBuf, 62);
+  argsHeaderBuf.copy(argsBuf, 0);
+  argsBuf[7] = callKind;
+  gasLimitBuf.copy(argsBuf, 8);
+  gasPriceBuf.copy(argsBuf, 16);
+  valueBuf.copy(argsBuf, 32);
+  dataSizeBuf.copy(argsBuf, 48);
+  dataBuf.copy(argsBuf, 52);
   const argsHex = '0x' + argsBuf.toString('hex');
   return argsHex;
 }
@@ -1045,7 +1070,7 @@ async function allTypeEthAddressToAccountId(
   const scriptHash = ethAddressToScriptHash(address);
   let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
   if (accountId === null || accountId === undefined) {
-    accountId = ethContractAddressToAccountId(address);
+    accountId = await ethContractAddressToAccountId(address, rpc);
   }
   return accountId;
 }
@@ -1074,7 +1099,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
     fromId = await rpc.get_account_id_by_script_hash(fromScriptHash);
     console.log(`fromId: ${fromId}`);
   }
-  const toId = ethContractAddressToAccountId(toAddress);
+  const toId = await ethContractAddressToAccountId(toAddress, rpc);
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
     toId,
