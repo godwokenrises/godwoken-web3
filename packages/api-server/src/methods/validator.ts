@@ -151,9 +151,11 @@ export const validators = {
     const data = targetParam.data;
 
     // validate `to`
-    const toErr = verifyAddress(to, index);
-    if (toErr !== undefined) {
-      return toErr;
+    if (to !== undefined && to !== null) {
+      const toErr = verifyAddress(to, index);
+      if (toErr !== undefined) {
+        return toErr;
+      }
     }
 
     // validate `from`
