@@ -37,6 +37,13 @@ export interface SudtOperationLog {
   amount: bigint;
 }
 
+export interface SudtPayFeeLog {
+  sudtId: number;
+  fromId: number;
+  blockProducerId: number;
+  amount: bigint;
+}
+
 export interface PolyjuiceSystemLog {
   gasUsed: bigint;
   cumulativeGasUsed: bigint;
@@ -52,5 +59,6 @@ export interface PolyjuiceUserLog {
 
 export type GodwokenLog =
   | SudtOperationLog
+  | SudtPayFeeLog
   | PolyjuiceSystemLog
   | PolyjuiceUserLog;

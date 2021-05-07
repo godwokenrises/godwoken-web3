@@ -5,7 +5,8 @@ import {
   SudtOperationLog,
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
-  TransactionCallObject
+  TransactionCallObject,
+  SudtPayFeeLog
 } from '../types';
 import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
@@ -31,9 +32,9 @@ const GW_ACCOUNT_KV = 0;
 const CKB_SUDT_ID = '0x1';
 const CKB_PERSONALIZATION = 'ckb-default-hash';
 const SUDT_OPERATION_LOG_FLGA = '0x0';
-const POLYJUICE_SYSTEM_LOG_FLAG = '0x1';
-const POLYJUICE_USER_LOG_FLAG = '0x2';
-const SUDT_OPERATION_TRANSFER = 0;
+const SUDT_PAY_FEE_LOG_FLAG = '0x1';
+const POLYJUICE_SYSTEM_LOG_FLAG = '0x2';
+const POLYJUICE_USER_LOG_FLAG = '0x3';
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
@@ -167,7 +168,7 @@ export class Eth {
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16))
+    callback(null, '0x' + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16));
   }
 
   /**
@@ -296,7 +297,7 @@ export class Eth {
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
     const address = args[0];
-    const accountId = ethContractAddressToAccountId(address);
+    const accountId = await ethContractAddressToAccountId(address, this.rpc);
     if (accountId === undefined || accountId === null) {
       return callback(
         null,
@@ -331,7 +332,7 @@ export class Eth {
 
   async getCode(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId = ethContractAddressToAccountId(address);
+    const accountId = await ethContractAddressToAccountId(address, this.rpc);
     if (accountId === undefined || accountId === null) {
       callback(null, '0x0');
       return;
@@ -812,16 +813,14 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    const data = args[0]
+    const data = args[0];
     const rawTx = await generateRawTransaction(data, this.rpc);
     const moleculeTx = new Reader(
-      schemas.SerializeL2Transaction(
-        types.NormalizeL2Transaction(rawTx)
-      )
+      schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
     ).serializeJson();
     const result = await this.rpc.submit_l2transaction(moleculeTx);
-    console.log("sendRawTransaction hash:", result);
-    callback(null, result)
+    console.log('sendRawTransaction hash:', result);
+    callback(null, result);
   }
   /* #endregion */
 
@@ -921,22 +920,37 @@ function ethAddressToScriptHash(address: string) {
     hash_type: 'type',
     args: ROLLUP_TYPE_HASH + address.slice(2)
   };
-  console.log(
-    `eth address: ${address}, script: ${JSON.stringify(script, null, 2)}`
-  );
   const scriptHash = utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
   return scriptHash;
 }
 
-// https://github.com/nervosnetwork/godwoken-polyjuice/blob/4c9f13d7b89c4e6b833fd90ca68e972d2a7b60f0/polyjuice-tests/src/helper.rs#L116-L126
-function ethContractAddressToAccountId(address: string): number {
-  let buf = Buffer.from(address.slice(2, 10), 'hex');
-  console.log(
-    `eth contract address: ${address}, account id: ${buf.readUInt32LE()}`
-  );
-  return buf.readUInt32LE(0);
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/7a04c9274c559e91b677ff3ea2198b58ba0003e7/polyjuice-tests/src/helper.rs#L239
+async function ethContractAddressToAccountId(
+  address: string,
+  rpc: RPC
+): Promise<number> {
+  if (address.length != 42) {
+    throw new Error(`Invalid eth address length: ${address.length}`);
+  }
+  if (address === '0x0000000000000000000000000000000000000000') {
+    return 0;
+  }
+  const accountScriptHash = address.slice(0, 34);
+  const accountIdBuf = Buffer.from(address.slice(34, 42), 'hex');
+  const accountId = accountIdBuf.readUInt32LE();
+  const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
+  if (scriptHash.slice(0, 34) !== accountScriptHash) {
+    throw new Error(
+      `eth address first 16 bytes not match account script hash: expected=${accountScriptHash}, got=${scriptHash.slice(
+        0,
+        34
+      )}`
+    );
+  }
+  console.log(`eth contract address: ${address}, account id: ${accountId}`);
+  return accountId;
 }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
@@ -991,25 +1005,37 @@ function buildPolyjuiceArgs(
   value: bigint,
   data: string
 ) {
+  const argsHeaderBuf = Buffer.from([
+    0xff,
+    0xff,
+    0xff,
+    'P'.charCodeAt(0),
+    'O'.charCodeAt(0),
+    'L'.charCodeAt(0),
+    'Y'.charCodeAt(0)
+  ]);
   const callKind = toId > 0 ? 0 : 3;
   const gasLimitBuf = Buffer.alloc(8);
+  gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
-  const valueBuf = Buffer.alloc(32);
+  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  gasPriceBuf.writeBigUInt64LE(gasPrice >> BigInt(64), 8);
+  const valueBuf = Buffer.alloc(16);
+  valueBuf.writeBigUInt64LE(value & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
   const dataSizeBuf = Buffer.alloc(4);
   const dataBuf = Buffer.from(data.slice(2), 'hex');
-  gasLimitBuf.writeBigUInt64LE(gas);
-  gasPriceBuf.writeBigUInt64LE(gasPrice);
-  valueBuf.writeBigUInt64BE(value);
   dataSizeBuf.writeUInt32LE(dataBuf.length);
-  const argsLength = 1 + 1 + 8 + 16 + 32 + 4 + dataBuf.length;
+
+  const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
   const argsBuf = Buffer.alloc(argsLength);
-  argsBuf[0] = callKind;
-  argsBuf[1] = 0;
-  gasLimitBuf.copy(argsBuf, 2);
-  gasPriceBuf.copy(argsBuf, 10);
-  valueBuf.copy(argsBuf, 26);
-  dataSizeBuf.copy(argsBuf, 58);
-  dataBuf.copy(argsBuf, 62);
+  argsHeaderBuf.copy(argsBuf, 0);
+  argsBuf[7] = callKind;
+  gasLimitBuf.copy(argsBuf, 8);
+  gasPriceBuf.copy(argsBuf, 16);
+  valueBuf.copy(argsBuf, 32);
+  dataSizeBuf.copy(argsBuf, 48);
+  dataBuf.copy(argsBuf, 52);
   const argsHex = '0x' + argsBuf.toString('hex');
   return argsHex;
 }
@@ -1045,7 +1071,7 @@ async function allTypeEthAddressToAccountId(
   const scriptHash = ethAddressToScriptHash(address);
   let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
   if (accountId === null || accountId === undefined) {
-    accountId = ethContractAddressToAccountId(address);
+    accountId = await ethContractAddressToAccountId(address, rpc);
   }
   return accountId;
 }
@@ -1074,7 +1100,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
     fromId = await rpc.get_account_id_by_script_hash(fromScriptHash);
     console.log(`fromId: ${fromId}`);
   }
-  const toId = ethContractAddressToAccountId(toAddress);
+  const toId = await ethContractAddressToAccountId(toAddress, rpc);
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
     toId,
@@ -1108,11 +1134,14 @@ function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
     `Can't found PolyjuiceSystemLog, logItems: ${JSON.stringify(logItems)}`
   );
 }
-// https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.4.0-rc1/polyjuice-tests/src/helper.rs#L341
+
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.6.0-rc1/polyjuice-tests/src/helper.rs#L122
 function parseLog(logItem: LogItem): GodwokenLog {
   switch (logItem.service_flag) {
     case SUDT_OPERATION_LOG_FLGA:
       return parseSudtOperationLog(logItem);
+    case SUDT_PAY_FEE_LOG_FLAG:
+      return parseSudtPayFeeLog(logItem);
     case POLYJUICE_SYSTEM_LOG_FLAG:
       return parsePolyjuiceSystemLog(logItem);
     case POLYJUICE_USER_LOG_FLAG:
@@ -1123,21 +1152,36 @@ function parseLog(logItem: LogItem): GodwokenLog {
 }
 function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
   let buf = Buffer.from(logItem.data.slice(2), 'hex');
-  if (buf[0] != SUDT_OPERATION_TRANSFER) {
-    throw new Error(`Not a sudt transfer prefix: ${buf[0]}`);
-  }
-  if (buf.length != 1 + 4 + 4 + 16) {
+  if (buf.length != 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
     );
   }
-  const fromId = buf.readUInt32LE(1);
-  const toId = buf.readUInt32LE(5);
-  const amount = buf.readBigUInt64LE(9);
+  const fromId = buf.readUInt32LE(0);
+  const toId = buf.readUInt32LE(4);
+  const amount = buf.readBigUInt64LE(8);
   return {
     sudtId: +logItem.account_id,
     fromId: fromId,
     toId: toId,
+    amount: amount
+  };
+}
+
+function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
+  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  if (buf.length != 4 + 4 + 16) {
+    throw new Error(
+      `invalid sudt operation log raw data length: ${buf.length}`
+    );
+  }
+  const fromId = buf.readUInt32LE(0);
+  const blockProducerId = buf.readUInt32LE(4);
+  const amount = buf.readBigUInt64LE(8);
+  return {
+    sudtId: +logItem.account_id,
+    fromId: fromId,
+    blockProducerId: blockProducerId,
     amount: amount
   };
 }
@@ -1159,7 +1203,6 @@ function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   };
 }
 
-// TODO parse polyjuice user log
 function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
   const buf = Buffer.from(logItem.data.slice(2), 'hex');
   let offset = 0;
