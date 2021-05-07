@@ -5,7 +5,8 @@ import {
   SudtOperationLog,
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
-  TransactionCallObject
+  TransactionCallObject,
+  SudtPayFeeLog
 } from '../types';
 import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
@@ -31,8 +32,9 @@ const GW_ACCOUNT_KV = 0;
 const CKB_SUDT_ID = '0x1';
 const CKB_PERSONALIZATION = 'ckb-default-hash';
 const SUDT_OPERATION_LOG_FLGA = '0x0';
-const POLYJUICE_SYSTEM_LOG_FLAG = '0x1';
-const POLYJUICE_USER_LOG_FLAG = '0x2';
+const SUDT_PAY_FEE_LOG_FLAG = '0x1';
+const POLYJUICE_SYSTEM_LOG_FLAG = '0x2';
+const POLYJUICE_USER_LOG_FLAG = '0x3';
 const SUDT_OPERATION_TRANSFER = 0;
 export class Eth {
   knex: Knex;
@@ -915,7 +917,6 @@ function dbLogToApiLog(log: any) {
   };
 }
 
-
 function ethAddressToScriptHash(address: string) {
   const script = {
     code_hash: ETH_ACCOUNT_LOCK_HASH,
@@ -1133,11 +1134,14 @@ function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
     `Can't found PolyjuiceSystemLog, logItems: ${JSON.stringify(logItems)}`
   );
 }
-// https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.4.0-rc1/polyjuice-tests/src/helper.rs#L341
+
+// https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.6.0-rc1/polyjuice-tests/src/helper.rs#L122
 function parseLog(logItem: LogItem): GodwokenLog {
   switch (logItem.service_flag) {
     case SUDT_OPERATION_LOG_FLGA:
       return parseSudtOperationLog(logItem);
+    case SUDT_PAY_FEE_LOG_FLAG:
+      return parseSudtPayFeeLog(logItem);
     case POLYJUICE_SYSTEM_LOG_FLAG:
       return parsePolyjuiceSystemLog(logItem);
     case POLYJUICE_USER_LOG_FLAG:
@@ -1148,21 +1152,36 @@ function parseLog(logItem: LogItem): GodwokenLog {
 }
 function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
   let buf = Buffer.from(logItem.data.slice(2), 'hex');
-  if (buf[0] != SUDT_OPERATION_TRANSFER) {
-    throw new Error(`Not a sudt transfer prefix: ${buf[0]}`);
-  }
-  if (buf.length != 1 + 4 + 4 + 16) {
+  if (buf.length != 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
     );
   }
-  const fromId = buf.readUInt32LE(1);
-  const toId = buf.readUInt32LE(5);
-  const amount = buf.readBigUInt64LE(9);
+  const fromId = buf.readUInt32LE(0);
+  const toId = buf.readUInt32LE(4);
+  const amount = buf.readBigUInt64LE(8);
   return {
     sudtId: +logItem.account_id,
     fromId: fromId,
     toId: toId,
+    amount: amount
+  };
+}
+
+function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
+  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  if (buf.length != 4 + 4 + 16) {
+    throw new Error(
+      `invalid sudt operation log raw data length: ${buf.length}`
+    );
+  }
+  const fromId = buf.readUInt32LE(0);
+  const blockProducerId = buf.readUInt32LE(4);
+  const amount = buf.readBigUInt64LE(8);
+  return {
+    sudtId: +logItem.account_id,
+    fromId: fromId,
+    blockProducerId: blockProducerId,
     amount: amount
   };
 }
@@ -1184,7 +1203,6 @@ function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   };
 }
 
-// TODO parse polyjuice user log
 function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
   const buf = Buffer.from(logItem.data.slice(2), 'hex');
   let offset = 0;
