@@ -35,7 +35,6 @@ const SUDT_OPERATION_LOG_FLGA = '0x0';
 const SUDT_PAY_FEE_LOG_FLAG = '0x1';
 const POLYJUICE_SYSTEM_LOG_FLAG = '0x2';
 const POLYJUICE_USER_LOG_FLAG = '0x3';
-const SUDT_OPERATION_TRANSFER = 0;
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
@@ -169,7 +168,7 @@ export class Eth {
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16))
+    callback(null, '0x' + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16));
   }
 
   /**
@@ -814,16 +813,14 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    const data = args[0]
+    const data = args[0];
     const rawTx = await generateRawTransaction(data, this.rpc);
     const moleculeTx = new Reader(
-      schemas.SerializeL2Transaction(
-        types.NormalizeL2Transaction(rawTx)
-      )
+      schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
     ).serializeJson();
     const result = await this.rpc.submit_l2transaction(moleculeTx);
-    console.log("sendRawTransaction hash:", result);
-    callback(null, result)
+    console.log('sendRawTransaction hash:', result);
+    callback(null, result);
   }
   /* #endregion */
 
@@ -943,10 +940,13 @@ async function ethContractAddressToAccountId(
   const accountScriptHash = address.slice(0, 34);
   const accountIdBuf = Buffer.from(address.slice(34, 42), 'hex');
   const accountId = accountIdBuf.readUInt32LE();
-  const scriptHash = await rpc.get_script_hash(accountId);
-  if (scriptHash !== accountScriptHash) {
+  const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
+  if (scriptHash.slice(0, 34) !== accountScriptHash) {
     throw new Error(
-      `eth address first 16 bytes not match account script hash: expected=${accountScriptHash}, got=${scriptHash}`
+      `eth address first 16 bytes not match account script hash: expected=${accountScriptHash}, got=${scriptHash.slice(
+        0,
+        34
+      )}`
     );
   }
   console.log(`eth contract address: ${address}, account id: ${accountId}`);
