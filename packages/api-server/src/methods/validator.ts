@@ -136,6 +136,7 @@ export const validators = {
     return undefined;
   },
 
+  //TODO: estimateGas `to` is optional
   ethCallParams(params: any[], index: number): any {
     const targetParam = params[index];
     if (typeof targetParam !== 'object') {
@@ -155,7 +156,7 @@ export const validators = {
       return toErr;
     }
 
-    // validate `from`
+     // validate `from`
     if (from !== undefined && from !== null) {
       const fromErr = verifyAddress(from, index);
       if (fromErr !== undefined) {

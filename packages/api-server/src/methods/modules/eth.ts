@@ -11,13 +11,13 @@ import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
 import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
-import { FilterObject, FilterType } from '../../cache/types';
+import { FilterObject } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
-import { core, utils, Script, HexNumber, Hash } from '@ckb-lumos/base';
+import { core, utils, HexNumber, Hash } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
+import { generateRawTransaction } from '../../convert-tx';
 const Config = require('../../../config/eth.json');
-const { blake2bInit, blake2bUpdate, blake2bFinal } = require('blakejs');
 const blake2b = require('blake2b');
 require('dotenv').config({ path: './.env' });
 
@@ -164,6 +164,10 @@ export class Eth {
       this.gw_getTransactionReceipt.bind(this),
       0
     );
+  }
+
+  chainId(args: [], callback: Callback) {
+    callback(null, "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16))
   }
 
   /**
@@ -805,6 +809,19 @@ export class Eth {
       .where('block_number', '<', to_block?.toString());
     const logs = logsData.map((log) => dbLogToApiLog(log));
     return callback(null, logs);
+  }
+
+  async sendRawTransaction(args: [string], callback: Callback) {
+    const data = args[0]
+    const rawTx = await generateRawTransaction(data, this.rpc);
+    const moleculeTx = new Reader(
+      schemas.SerializeL2Transaction(
+        types.NormalizeL2Transaction(rawTx)
+      )
+    ).serializeJson();
+    const result = await this.rpc.submit_l2transaction(moleculeTx);
+    console.log("sendRawTransaction hash:", result);
+    callback(null, result)
   }
   /* #endregion */
 

@@ -23,11 +23,17 @@
     "http-errors": "~1.6.3",
     "immutable": "^4.0.0-rc.12",
     "jayson": "~3.4.4",
+    "keccak256": "^1.0.2",
     "knex": "^0.21.19",
     "morgan": "~1.9.1",
     "nodemon": "^2.0.7",
     "pg": "^8.5.1",
+    "rlp": "^2.2.6",
+    "secp256k1": "^4.0.2",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/secp256k1": "^4.0.2"
   }
 }
