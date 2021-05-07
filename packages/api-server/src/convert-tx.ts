@@ -190,7 +190,7 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const godwokenRawL2Tx: GodwokenRawL2Transaction = {
     from_id: fromId,
     to_id: toId,
-    nonce: numberToRlpEncode(nonce),
+    nonce: nonce === "0x" ? "0x0" : nonce,
     args
   };
 

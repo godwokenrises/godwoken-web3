@@ -935,15 +935,14 @@ async function ethContractAddressToAccountId(
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
   if (address === '0x0000000000000000000000000000000000000000') {
-    return 0;
+    return +(process.env.CREATOR_ACCOUNT_ID as string)
   }
-  const accountScriptHash = address.slice(0, 34);
-  const accountIdBuf = Buffer.from(address.slice(34, 42), 'hex');
+  const accountIdBuf = Buffer.from(address.slice(-8), 'hex');
   const accountId = accountIdBuf.readUInt32LE();
   const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
-  if (scriptHash.slice(0, 34) !== accountScriptHash) {
+  if (scriptHash.slice(0, 34) !== address.slice(0, 34)) {
     throw new Error(
-      `eth address first 16 bytes not match account script hash: expected=${accountScriptHash}, got=${scriptHash.slice(
+      `eth address first 16 bytes not match account script hash: expected=${address.slice(0, 34)}, got=${scriptHash.slice(
         0,
         34
       )}`
@@ -1014,7 +1013,7 @@ function buildPolyjuiceArgs(
     'L'.charCodeAt(0),
     'Y'.charCodeAt(0)
   ]);
-  const callKind = toId > 0 ? 0 : 3;
+  const callKind = toId === +(process.env.CREATOR_ACCOUNT_ID as string) ? 3 : 0;
   const gasLimitBuf = Buffer.alloc(8);
   gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
@@ -1030,7 +1029,7 @@ function buildPolyjuiceArgs(
   const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
   const argsBuf = Buffer.alloc(argsLength);
   argsHeaderBuf.copy(argsBuf, 0);
-  argsBuf[7] = callKind;
+  argsBuf[7] = callKind
   gasLimitBuf.copy(argsBuf, 8);
   gasPriceBuf.copy(argsBuf, 16);
   valueBuf.copy(argsBuf, 32);
@@ -1085,9 +1084,9 @@ function toHexNumber(num: number | bigint | HexNumber): HexNumber {
 
 async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
   const fromAddress = txCallObj.from;
-  const toAddress = txCallObj.to;
-  const gas = txCallObj.gas || '0x0';
-  const gasPrice = txCallObj.gasPrice || '0x0';
+  const toAddress = txCallObj.to || ("0x" + "00".repeat(20));
+  const gas = txCallObj.gas || '0x1000000';
+  const gasPrice = txCallObj.gasPrice || '0x1';
   const value = txCallObj.value || '0x0';
   const data = txCallObj.data || '0x0';
   let fromId: number = 0;
@@ -1126,7 +1125,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
   for (const logItem of logItems) {
-    if (logItem.service_flag === '0x1') {
+    if (logItem.service_flag === '0x2') {
       return parseLog(logItem);
     }
   }
