@@ -41,7 +41,7 @@ function logger(level: string, ...messages: any[]) {
 }
 
 function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === "true") {
+  if (process.env.DEBUG_LOG === 'true') {
     logger('debug', '@convert-tx:', ...messages);
   }
 }
@@ -202,7 +202,6 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   return godwokenL2Tx;
 }
 
-// TODO: check
 export async function ethAddressToGodwokenAddress(
   ethAddress: HexString,
   rpc: RPC
@@ -218,7 +217,6 @@ export async function ethAddressToGodwokenAddress(
   return toAddress;
 }
 
-// TODO: check
 export async function godwokenAddressToEthAddress(
   godwokenAddress: HexString,
   rpc: RPC
@@ -228,7 +226,7 @@ export async function godwokenAddressToEthAddress(
   }
   const accountIdLe = '0x' + godwokenAddress.slice(-8);
   const accountId = LeBytesToUInt32(accountIdLe);
-  const scriptHash = await rpc.get_script_hash(accountId);
+  const scriptHash = await rpc.get_script_hash('0x' + accountId.toString(16));
   const script = await rpc.get_script(scriptHash);
   const ethAddress = '0x' + script.args.slice(-40);
   return ethAddress;
