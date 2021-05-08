@@ -53,7 +53,7 @@ export async function generateRawTransaction(
   debugLogger('origin data:', data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
   debugLogger('decoded polyjuice tx:', polyjuiceTx);
-  const godwokenTx = parseRawTransactionData(polyjuiceTx, rpc);
+  const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
 
