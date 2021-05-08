@@ -202,7 +202,7 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   return godwokenL2Tx;
 }
 
-export async function ethAddressToGodwokenAddress(
+export async function ethAddressToPolyjuiceAddress(
   ethAddress: HexString,
   rpc: RPC
 ): Promise<HexString> {
@@ -217,14 +217,14 @@ export async function ethAddressToGodwokenAddress(
   return toAddress;
 }
 
-export async function godwokenAddressToEthAddress(
-  godwokenAddress: HexString,
+export async function polyjuiceAddressToEthAddress(
+  polyjuiceAddress: HexString,
   rpc: RPC
 ): Promise<HexString> {
-  if (godwokenAddress === EMPTY_ETH_ADDRESS) {
+  if (polyjuiceAddress === EMPTY_ETH_ADDRESS) {
     return EMPTY_ETH_ADDRESS;
   }
-  const accountIdLe = '0x' + godwokenAddress.slice(-8);
+  const accountIdLe = '0x' + polyjuiceAddress.slice(-8);
   const accountId = LeBytesToUInt32(accountIdLe);
   const scriptHash = await rpc.get_script_hash('0x' + accountId.toString(16));
   const script = await rpc.get_script(scriptHash);
