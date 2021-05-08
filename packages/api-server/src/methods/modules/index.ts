@@ -1,4 +1,4 @@
-export const list = ['Eth', 'Web3', 'Net', "Gw"];
+export const list = ['Eth', 'Web3', 'Net', 'Gw'];
 
 export * from './eth';
 export * from './web3';

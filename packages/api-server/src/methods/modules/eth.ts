@@ -934,22 +934,22 @@ async function ethContractAddressToAccountId(
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
   if (address === '0x0000000000000000000000000000000000000000') {
-    return +(process.env.CREATOR_ACCOUNT_ID as string)
+    return +(process.env.CREATOR_ACCOUNT_ID as string);
   }
   const accountIdBuf = Buffer.from(address.slice(-8), 'hex');
   const accountId = accountIdBuf.readUInt32LE();
   const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
 
-  if (scriptHash === "0x" + "00".repeat(32)) {
+  if (scriptHash === '0x' + '00'.repeat(32)) {
     return undefined;
   }
 
   if (scriptHash.slice(0, 34) !== address.slice(0, 34)) {
     throw new Error(
-      `eth address first 16 bytes not match account script hash: expected=${address.slice(0, 34)}, got=${scriptHash.slice(
+      `eth address first 16 bytes not match account script hash: expected=${address.slice(
         0,
         34
-      )}`
+      )}, got=${scriptHash.slice(0, 34)}`
     );
   }
   console.log(`eth contract address: ${address}, account id: ${accountId}`);
@@ -1033,7 +1033,7 @@ function buildPolyjuiceArgs(
   const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
   const argsBuf = Buffer.alloc(argsLength);
   argsHeaderBuf.copy(argsBuf, 0);
-  argsBuf[7] = callKind
+  argsBuf[7] = callKind;
   gasLimitBuf.copy(argsBuf, 8);
   gasPriceBuf.copy(argsBuf, 16);
   valueBuf.copy(argsBuf, 32);
@@ -1088,7 +1088,7 @@ function toHexNumber(num: number | bigint | HexNumber): HexNumber {
 
 async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
   const fromAddress = txCallObj.from;
-  const toAddress = txCallObj.to || ("0x" + "00".repeat(20));
+  const toAddress = txCallObj.to || '0x' + '00'.repeat(20);
   const gas = txCallObj.gas || '0x1000000';
   const gasPrice = txCallObj.gasPrice || '0x1';
   const value = txCallObj.value || '0x0';
@@ -1105,7 +1105,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
   }
   const toId = await ethContractAddressToAccountId(toAddress, rpc);
   if (toId === undefined || toId === null) {
-    throw new Error("to id missing!")
+    throw new Error('to id missing!');
   }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
