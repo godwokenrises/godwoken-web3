@@ -1,6 +1,6 @@
 import {
-  ethAddressToGodwokenAddress,
-  godwokenAddressToEthAddress
+  ethAddressToPolyjuiceAddress,
+  polyjuiceAddressToEthAddress
 } from '../../convert-tx';
 import { RPC } from 'ckb-js-toolkit';
 import { Callback } from '../types';
@@ -11,32 +11,32 @@ export class Poly {
   constructor() {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
-    this.ethAddressToGodwokenAddress = middleware(
-      this.ethAddressToGodwokenAddress.bind(this),
+    this.ethAddressToPolyjuiceAddress = middleware(
+      this.ethAddressToPolyjuiceAddress.bind(this),
       1,
       [validators.address]
     );
 
-    this.godwokenAddressToEthAddress = middleware(
-      this.godwokenAddressToEthAddress.bind(this),
+    this.polyjuiceAddressToEthAddress = middleware(
+      this.polyjuiceAddressToEthAddress.bind(this),
       1,
       [validators.address]
     );
   }
 
-  async ethAddressToGodwokenAddress(args: [string], callback: Callback) {
+  async ethAddressToPolyjuiceAddress(args: [string], callback: Callback) {
     const ethAddress = args[0];
-    const godwokenAddress = await ethAddressToGodwokenAddress(
+    const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
       ethAddress,
       this.rpc
     );
-    callback(null, godwokenAddress);
+    callback(null, polyjuiceAddress);
   }
 
-  async godwokenAddressToEthAddress(args: [string], callback: Callback) {
-    const godwokenAddress = args[0];
-    const ethAddress = await godwokenAddressToEthAddress(
-      godwokenAddress,
+  async polyjuiceAddressToEthAddress(args: [string], callback: Callback) {
+    const polyjuiceAddress = args[0];
+    const ethAddress = await polyjuiceAddressToEthAddress(
+      polyjuiceAddress,
       this.rpc
     );
     callback(null, ethAddress);

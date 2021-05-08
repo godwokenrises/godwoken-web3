@@ -26,6 +26,7 @@ function getMethods() {
       });
   });
 
+  console.log(methods);
   return methods;
 }
 
