@@ -29,8 +29,8 @@ export class Gw {
       this.get_transaction_receipt.bind(this),
       0
     );
-    this.execute_l2tranaction = middleware(
-      this.execute_l2tranaction.bind(this),
+    this.execute_l2transaction = middleware(
+      this.execute_l2transaction.bind(this),
       0
     );
     this.execute_raw_l2transaction = middleware(
@@ -112,7 +112,7 @@ export class Gw {
     callback(null, result);
   }
 
-  async execute_l2tranaction(args: any[], callback: Callback) {
+  async execute_l2transaction(args: any[], callback: Callback) {
     const result = await this.rpc.execute_l2transaction(...args);
     callback(null, result);
   }
