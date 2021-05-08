@@ -26,7 +26,90 @@ yarn workspace @godwoken-web3/godwoken tsc
 yarn workspace @godwoken-web3/api-server start
 ```
 
-## Web3 RPC
+## Web3 RPC Modules
+
+### net
+
+- net_version
+- net_peerCount
+- net_listening
+
+### web3
+
+- web3_sha3
+- web3_clientVersion
+
+### eth
+- eth_chainId
+- eth_protocolVersion
+- eth_syncing
+- eth_coinbase
+- eth_mining
+- eth_hashrate
+- eth_gasPrice
+- eth_accounts
+- eth_blockNumber
+- eth_sign
+- eth_signTransaction
+- eth_sendTransaction
+- eth_getBalance
+- eth_getStorageAt
+- eth_getTransactionCount
+- eth_getCode
+- eth_call
+- eth_estimateGas
+- eth_getBlockByHash
+- eth_getBlockByNumber
+- eth_getBlockTransactionCountByHash
+- eth_getBlockTransactionCountByNumber
+- eth_getUncleByBlockHashAndIndex
+- eth_getUncleByBlockNumberAndIndex
+- eth_getUncleCountByBlockHash
+- eth_getCompilers
+- eth_getTransactionByHash
+- eth_getTransactionByBlockHashAndIndex
+- eth_getTransactionByBlockNumberAndIndex
+- eth_getTransactionReceipt
+- eth_newFilter
+- eth_newBlockFilter
+- eth_newPendingTransactionFilter
+- eth_uninstallFilter
+- eth_getFilterLogs
+- eth_getFilterChanges
+- eth_getLogs
+- eth_sendRawTransaction
+- eth_getTipNumber
+- eth_gw_executeL2Tranaction
+- eth_gw_submitL2Transaction
+- eth_gw_getAccountIdByScriptHash
+- eth_gw_getScriptHashByAccountId
+- eth_gw_getNonce
+- eth_gw_getTransactionReceipt
+-
+### gw
+
+- gw_ping
+- gw_get_tip_block_hash
+- gw_get_block_hash
+- gw_get_block
+- gw_get_block_by_number
+- gw_get_balance
+- gw_get_storage_at
+- gw_get_account_id_by_script_hash
+- gw_get_nonce
+- gw_get_script
+- gw_get_script_hash
+- gw_get_data
+- gw_get_transaction_receipt
+- gw_execute_l2transaction
+- gw_execute_raw_l2transaction
+- gw_submit_l2transaction
+- gw_submit_withdrawal_request
+
+### poly
+- poly_ethAddressToPolyjuiceAddress
+- poly_polyjuiceAddressToEthAddress
+## Examples
 ### web3_clientVersion
 
 ```
@@ -207,4 +290,36 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"eth_sign is not supported!"}
+```
+
+### gw_get_script_hash
+
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_script_hash", "params": ["0x0"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0xdb5b85ffffb98bb103a8763a6be8c02d8442f232061e1e644b25beba4b1693c1"}
+
+```
+
+### gw_get_script
+
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_script", "params": ["0xdb5b85ffffb98bb103a8763a6be8c02d8442f232061e1e644b25beba4b1693c1"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":{"code_hash":"0x841f75a94dbac1b2b400f29d55c02e5535e8ccca38e26c4245022f31f3ff2e81","hash_type":"type","args":"0x599950fbd06d2592d2903633c740f2ad9578ab7aee45d6d0d9f0c07f093417a6"}}  
+
+```
+
+### gw_get_nonce
+```
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_nonce", "params": ["0x2"], "id": 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x1"}
+
 ```
