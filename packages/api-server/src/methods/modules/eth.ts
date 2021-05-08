@@ -18,6 +18,7 @@ import { core, utils, HexNumber, Hash } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { generateRawTransaction } from '../../convert-tx';
+import { Script } from '@ckb-lumos/base';
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
 require('dotenv').config({ path: './.env' });
@@ -915,14 +916,12 @@ function dbLogToApiLog(log: any) {
 }
 
 function ethAddressToScriptHash(address: string) {
-  const script = {
-    code_hash: ETH_ACCOUNT_LOCK_HASH,
+  const script: Script = {
+    code_hash: ETH_ACCOUNT_LOCK_HASH as string,
     hash_type: 'type',
     args: ROLLUP_TYPE_HASH + address.slice(2)
   };
-  const scriptHash = utils
-    .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
-    .serializeJson();
+  const scriptHash = utils.computeScriptHash(script);
   return scriptHash;
 }
 
@@ -930,7 +929,7 @@ function ethAddressToScriptHash(address: string) {
 async function ethContractAddressToAccountId(
   address: string,
   rpc: RPC
-): Promise<number> {
+): Promise<number | undefined> {
   if (address.length != 42) {
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
@@ -940,6 +939,11 @@ async function ethContractAddressToAccountId(
   const accountIdBuf = Buffer.from(address.slice(-8), 'hex');
   const accountId = accountIdBuf.readUInt32LE();
   const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
+
+  if (scriptHash === "0x" + "00".repeat(32)) {
+    return undefined;
+  }
+
   if (scriptHash.slice(0, 34) !== address.slice(0, 34)) {
     throw new Error(
       `eth address first 16 bytes not match account script hash: expected=${address.slice(0, 34)}, got=${scriptHash.slice(
@@ -1100,6 +1104,9 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
     console.log(`fromId: ${fromId}`);
   }
   const toId = await ethContractAddressToAccountId(toAddress, rpc);
+  if (toId === undefined || toId === null) {
+    throw new Error("to id missing!")
+  }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
     toId,
