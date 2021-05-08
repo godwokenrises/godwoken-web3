@@ -1,46 +1,50 @@
 import { RPC } from 'ckb-js-toolkit';
-import {
-  ethAddressToGodwokenAddress,
-  godwokenAddressToEthAddress
-} from '../../convert-tx';
 import { Callback } from '../types';
-import { middleware, validators } from '../validator';
+import { middleware } from '../validator';
 
 export class Gw {
   private rpc: RPC;
-
   constructor() {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
-    this.ethAddressToGodwokenAddress = middleware(
-      this.ethAddressToGodwokenAddress.bind(this),
-      1,
-      [validators.address]
+    this.ping = middleware(this.ping.bind(this), 0);
+    this.get_tip_block_hash = middleware(this.get_tip_block_hash.bind(this), 0);
+    this.get_block_hash = middleware(this.get_block_hash.bind(this), 0);
+    this.get_block = middleware(this.get_block.bind(this), 0);
+    this.get_block_by_number = middleware(
+      this.get_block_by_number.bind(this),
+      0
     );
-
-    this.godwokenAddressToEthAddress = middleware(
-      this.godwokenAddressToEthAddress.bind(this),
-      1,
-      [validators.address]
+    this.get_balance = middleware(this.get_balance.bind(this), 0);
+    this.get_storage_at = middleware(this.get_storage_at.bind(this), 0);
+    this.get_account_id_by_script_hash = middleware(
+      this.get_account_id_by_script_hash.bind(this),
+      0
     );
-  }
-
-  async ethAddressToGodwokenAddress(args: [string], callback: Callback) {
-    const ethAddress = args[0];
-    const godwokenAddress = await ethAddressToGodwokenAddress(
-      ethAddress,
-      this.rpc
+    this.get_nonce = middleware(this.get_nonce.bind(this), 0);
+    this.get_script = middleware(this.get_script.bind(this), 0);
+    this.get_script_hash = middleware(this.get_script_hash.bind(this), 0);
+    this.get_data = middleware(this.get_data.bind(this), 0);
+    this.get_transaction_receipt = middleware(
+      this.get_transaction_receipt.bind(this),
+      0
     );
-    callback(null, godwokenAddress);
-  }
-
-  async godwokenAddressToEthAddress(args: [string], callback: Callback) {
-    const godwokenAddress = args[0];
-    const ethAddress = await godwokenAddressToEthAddress(
-      godwokenAddress,
-      this.rpc
+    this.execute_l2tranaction = middleware(
+      this.execute_l2tranaction.bind(this),
+      0
     );
-    callback(null, ethAddress);
+    this.execute_raw_l2transaction = middleware(
+      this.execute_raw_l2transaction.bind(this),
+      0
+    );
+    this.submit_l2transaction = middleware(
+      this.submit_l2transaction.bind(this),
+      0
+    );
+    this.submit_withdrawal_request = middleware(
+      this.submit_withdrawal_request.bind(this),
+      0
+    );
   }
 
   async ping(args: any[], callback: Callback) {
