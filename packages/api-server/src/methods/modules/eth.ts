@@ -6,14 +6,15 @@ import {
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
   TransactionCallObject,
-  SudtPayFeeLog
+  SudtPayFeeLog,
+  BlockParameter
 } from '../types';
 import * as Knex from 'knex';
 import { RPC } from 'ckb-js-toolkit';
 import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
 import { FilterObject } from '../../cache/types';
-import { camelToSnake, toHex, handleBlockParamter } from '../../util';
+import { camelToSnake, toHex, handleBlockParameter } from '../../util';
 import { core, utils, HexNumber, Hash } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
@@ -58,35 +59,39 @@ export class Eth {
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
       validators.blockHash
     ]);
-    // TODO: required 2 arguments
-    this.getBalance = middleware(this.getBalance.bind(this), 1, [
-      validators.address
-    ]);
-    this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [
+    this.getBalance = middleware(this.getBalance.bind(this), 2, [
       validators.address,
-      validators.hexNumber
+      validators.blockParameter
+    ]);
+    this.getStorageAt = middleware(this.getStorageAt.bind(this), 3, [
+      validators.address,
+      validators.hexNumber,
+      validators.blockParameter
     ]);
     this.getTransactionCount = middleware(
       this.getTransactionCount.bind(this),
-      1,
-      [validators.address]
-    );
-    this.getBlockTransactionCountByHash = middleware(
-      this.getBlockTransactionCountByHash.bind(this),
-      1,
-      [validators.blockHash]
+      2,
+      [validators.address, validators.blockParameter]
     );
     this.getBlockTransactionCountByNumber = middleware(
       this.getBlockTransactionCountByNumber.bind(this),
       1,
-      [validators.hexNumberOrTag]
+      [validators.blockParameter]
+    );
+    this.getBlockTransactionCountByNumber = middleware(
+      this.getBlockTransactionCountByNumber.bind(this),
+      1,
+      [validators.blockParameter]
     );
     this.getUncleCountByBlockHash = middleware(
       this.getUncleCountByBlockHash.bind(this),
       1,
       [validators.blockHash]
     );
-    this.getCode = middleware(this.getCode.bind(this), 1, [validators.address]);
+    this.getCode = middleware(this.getCode.bind(this), 2, [
+      validators.address,
+      validators.blockParameter
+    ]);
     this.getTransactionByHash = middleware(
       this.getTransactionByHash.bind(this),
       1,
@@ -280,7 +285,6 @@ export class Eth {
     callback(null, 'eth_sendTransaction is not supported!');
   }
 
-  // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
     const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
@@ -288,9 +292,12 @@ export class Eth {
       callback(null, '0x0');
       return;
     }
+    const blockNumberHex = await this.blockParameterToBlockNumber(args[1]);
+    console.log(`blockParameterToBlockNumber result: ${blockNumberHex}`);
     const balance = await this.rpc.get_balance(
       toHexNumber(accountId),
-      toHexNumber(CKB_SUDT_ID)
+      toHexNumber(CKB_SUDT_ID),
+      blockNumberHex
     );
     const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
@@ -307,7 +314,13 @@ export class Eth {
     }
     const storagePosition = args[1];
     const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
+    const blockNumberHex = await this.blockParameterToBlockNumber(args[2]);
+    console.log(`blockParameterToBlockNumber result: ${blockNumberHex}`);
+    const value = await this.rpc.get_storage_at(
+      toHexNumber(accountId),
+      key,
+      blockNumberHex
+    );
     callback(null, value);
   }
 
@@ -326,7 +339,12 @@ export class Eth {
       callback(null, '0x0');
       return;
     }
-    const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
+    const blockNumberHex = await this.blockParameterToBlockNumber(args[1]);
+    console.log(`blockParameterToBlockNumber result: ${blockNumberHex}`);
+    const nonce = await this.rpc.get_nonce(
+      toHexNumber(accountId),
+      blockNumberHex
+    );
     const transactionCount = '0x' + BigInt(nonce).toString(16);
     callback(null, transactionCount);
   }
@@ -339,9 +357,12 @@ export class Eth {
       return;
     }
     const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
+    const blockNumberHex = await this.blockParameterToBlockNumber(args[1]);
+    console.log(`blockParameterToBlockNumber result: ${blockNumberHex}`);
     const dataHash = await this.rpc.get_storage_at(
       toHexNumber(accountId),
-      contractCodeKey
+      contractCodeKey,
+      blockNumberHex
     );
     const data = await this.rpc.get_data(dataHash);
     callback(null, data);
@@ -686,10 +707,10 @@ export class Eth {
 
     //@ts-ignore
     const topics: [] = query.topics ? query.topics : [];
-    const from_block = handleBlockParamter(
+    const from_block = handleBlockParameter(
       filter.fromBlock ? filter.fromBlock : 'earliest'
     );
-    const to_block = handleBlockParamter(
+    const to_block = handleBlockParameter(
       filter.toBlock ? filter.toBlock : 'latest'
     );
 
@@ -762,10 +783,10 @@ export class Eth {
 
     //@ts-ignore
     const topics: [] = filter.topics ? filter.topics : [];
-    const from_block = handleBlockParamter(
+    const from_block = handleBlockParameter(
       filter.fromBlock ? filter.fromBlock : 'earliest'
     );
-    const to_block = handleBlockParamter(
+    const to_block = handleBlockParameter(
       filter.toBlock ? filter.toBlock : 'latest'
     );
 
@@ -838,6 +859,27 @@ export class Eth {
       return await this.getTipNumber();
     }
     return num;
+  }
+  async blockParameterToBlockNumber(
+    blockParameter: BlockParameter
+  ): Promise<HexNumber> {
+    const tipNumber = await this.getTipNumber();
+    const tipNumberHex = '0x' + BigInt(tipNumber).toString(16);
+    switch (blockParameter) {
+      case 'latest':
+        return tipNumberHex;
+      case 'earliest':
+        return '0x0';
+      // It's supposed to be filtered in the validator, so throw an error if matched
+      case 'pending':
+        throw new Error('block parameter should not be pending.');
+      default:
+        if (BigInt(tipNumberHex) < BigInt(blockParameter)) {
+          return tipNumberHex;
+        } else {
+          return blockParameter;
+        }
+    }
   }
 }
 

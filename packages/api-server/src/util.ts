@@ -9,11 +9,11 @@ export function getClientVersion() {
     return `Godwoken/v${packageVersion}/${platform()}/node${version.substring(1)}`;
 }
 
-export function handleBlockParamter (block_paramter: BlockParameter): BigInt {
-    if(!block_paramter)
+export function handleBlockParameter (block_parameter: BlockParameter): BigInt {
+    if(!block_parameter)
         throw new Error("block_parameter is undefind!");
 
-    switch (block_paramter) {
+    switch (block_parameter) {
         case 'latest':
             return BigInt('1'+'0'.repeat(10)); // a very large number
         
@@ -25,7 +25,7 @@ export function handleBlockParamter (block_paramter: BlockParameter): BigInt {
             return BigInt('1'+'0'.repeat(10)); // treat it as 'latest'
 
         default:
-            return BigInt(block_paramter);
+            return BigInt(block_parameter);
     }
 }
 
