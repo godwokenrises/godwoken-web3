@@ -13,9 +13,8 @@ COPY packages/godwoken/package*.json ./packages/godwoken/
 COPY packages/api-server/package*.json ./packages/api-server/
 RUN yarn install
 
-COPY . ./
+COPY --chown=node . ./
 EXPOSE 8024
 
-# TODO: user non-root user
-# USER node
+USER node
 CMD ["node", "version"]
