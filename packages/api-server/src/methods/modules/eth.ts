@@ -122,7 +122,10 @@ export class Eth {
       2,
       [validators.hexNumber, validators.hexNumber]
     );
-    this.call = middleware(this.call.bind(this), 1, [validators.ethCallParams]);
+    this.call = middleware(this.call.bind(this), 2, [
+      validators.ethCallParams,
+      validators.blockParameter
+    ]);
     this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
       validators.ethCallParams
     ]);
@@ -130,7 +133,6 @@ export class Eth {
       validators.newFilterParams
     ]);
 
-    //
     this.syncing = middleware(this.syncing.bind(this), 0);
 
     this.coinbase = middleware(this.coinbase.bind(this), 0);
@@ -368,10 +370,16 @@ export class Eth {
     callback(null, data);
   }
 
-  async call(args: [TransactionCallObject], callback: Callback) {
+  async call(
+    args: [TransactionCallObject, BlockParameter],
+    callback: Callback
+  ) {
     const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+    const blockNumberHex = await this.blockParameterToBlockNumber(args[1]);
+    console.log(`blockParameterToBlockNumber result: ${blockNumberHex}`);
     const runResult = await this.rpc.execute_raw_l2transaction(
-      rawL2TransactionHex
+      rawL2TransactionHex,
+      blockNumberHex
     );
     console.log('RunResult:', runResult);
     callback(null, runResult.return_data);

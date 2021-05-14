@@ -260,13 +260,13 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 // Call SimpleStorage:set
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}, "latest"], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x"}
 
 // Call SimpleStorage:get 
 // Request
- curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x6d4ce63c"}], "id": 1}'
+ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x6d4ce63c"}, "latest"], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x000000000000000000000000000000000000000000000000000000000000007b"}
 ```
@@ -275,7 +275,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 // Call SimpleStorage:set
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_estimateGas", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_estimateGas", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x5c43"}
 ```
