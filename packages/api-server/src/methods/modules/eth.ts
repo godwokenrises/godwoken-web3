@@ -19,7 +19,7 @@ import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { generateRawTransaction } from '../../convert-tx';
 import { Script } from '@ckb-lumos/base';
-import { INTERNAL_ERROR } from '../error-code';
+import { INVALID_PARAMS } from '../error-code';
 
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
@@ -827,11 +827,8 @@ export class Eth {
       callback(null, result);
     } catch (error) {
       console.error(error);
-      callback({
-        // https://www.jsonrpc.org/specification | 5.1 Error object
-        code: INTERNAL_ERROR,
-        message: error.message
-      });
+      return callback({ code: INVALID_PARAMS, message: error.message });
+      // https://www.jsonrpc.org/specification | 5.1 Error object
     }
   }
   /* #endregion */
