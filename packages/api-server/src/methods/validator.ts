@@ -20,8 +20,6 @@ export function middleware(
     params: any[] = [],
     cb: (err: any, val?: any) => void
   ) {
-    console.log("[validator middleware] -", params);
-    
     if (params.length < requiredParamsCount) {
       const err = {
         code: INVALID_PARAMS,
