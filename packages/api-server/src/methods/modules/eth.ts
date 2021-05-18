@@ -19,6 +19,8 @@ import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { generateRawTransaction } from '../../convert-tx';
 import { Script } from '@ckb-lumos/base';
+import { INTERNAL_ERROR } from '../error-code';
+
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
 require('dotenv').config({ path: './.env' });
@@ -814,14 +816,23 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    const data = args[0];
-    const rawTx = await generateRawTransaction(data, this.rpc);
-    const moleculeTx = new Reader(
-      schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
-    ).serializeJson();
-    const result = await this.rpc.submit_l2transaction(moleculeTx);
-    console.log('sendRawTransaction hash:', result);
-    callback(null, result);
+    try {
+      const data = args[0];
+      const rawTx = await generateRawTransaction(data, this.rpc);
+      const moleculeTx = new Reader(
+        schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
+      ).serializeJson();
+      const result = await this.rpc.submit_l2transaction(moleculeTx);
+      console.log('sendRawTransaction hash:', result);
+      callback(null, result);
+    } catch (error) {
+      console.error(error);
+      callback({
+        // https://www.jsonrpc.org/specification | 5.1 Error object
+        code: INTERNAL_ERROR,
+        message: error.message
+      });
+    }
   }
   /* #endregion */
 
