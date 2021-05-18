@@ -46,6 +46,12 @@ function debugLogger(...messages: any[]) {
   }
 }
 
+export function calcEthTxHash(encodedSignedTx: HexString): Hash {
+  const ethTxHash =
+  '0x' + keccak256(Buffer.from(encodedSignedTx.slice(2), 'hex')).toString('hex');
+  return ethTxHash
+}
+
 export async function generateRawTransaction(
   data: HexString,
   rpc: RPC

@@ -17,7 +17,7 @@ import { camelToSnake, toHex, handleBlockParamter } from '../../util';
 import { core, utils, HexNumber, Hash } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
-import { generateRawTransaction } from '../../convert-tx';
+import { calcEthTxHash, generateRawTransaction } from '../../convert-tx';
 import { Script } from '@ckb-lumos/base';
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
@@ -819,9 +819,11 @@ export class Eth {
     const moleculeTx = new Reader(
       schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
     ).serializeJson();
-    const result = await this.rpc.submit_l2transaction(moleculeTx);
-    console.log('sendRawTransaction hash:', result);
-    callback(null, result);
+    const gwTxHash = await this.rpc.submit_l2transaction(moleculeTx);
+    console.log('sendRawTransaction gw hash:', gwTxHash);
+    const ethTxHash = calcEthTxHash(data);
+    console.log("sendRawTransaction eth hash:", ethTxHash);
+    callback(null, ethTxHash);
   }
   /* #endregion */
 
