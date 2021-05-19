@@ -1,5 +1,6 @@
 import { HexNumber, HexString } from '@ckb-lumos/base';
 export type Error = {
+  code?: number;
   message: string;
 } | null;
 
