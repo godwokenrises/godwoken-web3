@@ -127,6 +127,12 @@ export class Eth {
       validators.newFilterParams
     ]);
 
+    this.sendRawTransaction = middleware(
+      this.sendRawTransaction.bind(this),
+      1,
+      [validators.hexString]
+    );
+
     //
     this.syncing = middleware(this.syncing.bind(this), 0);
 
