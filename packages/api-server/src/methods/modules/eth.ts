@@ -14,7 +14,7 @@ import { middleware, validators } from '../validator';
 import { FilterManager } from '../../cache/index';
 import { FilterObject } from '../../cache/types';
 import { camelToSnake, toHex, handleBlockParamter } from '../../util';
-import { core, utils, HexNumber, Hash } from '@ckb-lumos/base';
+import { core, utils, HexNumber, Hash, HexString } from '@ckb-lumos/base';
 import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { calcEthTxHash, generateRawTransaction } from '../../convert-tx';
@@ -187,7 +187,8 @@ export class Eth {
    * protocol version as the second argument
    */
   protocolVersion(args: [], callback: Callback) {
-    callback(null, Config.eth_protocolVersion);
+    const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
+    callback(null, version);
   }
 
   /**
@@ -857,6 +858,15 @@ export class Eth {
   }
 }
 
+const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256)
+
+function transformLogsBloom(bloom: HexString) {
+  if (!bloom || bloom === "0x") {
+    return DEFAULT_LOGS_BLOOM;
+  }
+  return bloom;
+}
+
 function dbBlockToApiBlock(block: any) {
   return {
     number: '0x' + BigInt(block.number).toString(16),
@@ -866,9 +876,9 @@ function dbBlockToApiBlock(block: any) {
     gasLrice: '0x' + BigInt(block.gas_used).toString(16),
     miner: block.miner,
     size: '0x' + BigInt(block.size).toString(16),
-    logsBloom: block.logs_bloom,
+    logsBloom: transformLogsBloom(block.logs_bloom),
     transactions: [],
-    timestamp: new Date(block.timestamp).getTime() / 1000,
+    timestamp: "0x" + (new Date(block.timestamp).getTime() / 1000).toString(16),
     // use default value
     mixHash: '0x' + '0'.repeat(64),
     nonce: '0x' + '0'.repeat(16),
@@ -895,7 +905,7 @@ function dbTransactionToApiTransaction(transaction: any) {
     input: transaction.input,
     nonce: '0x' + BigInt(transaction.nonce).toString(16),
     value: '0x' + BigInt(transaction.value).toString(16),
-    v: transaction.v,
+    v: "0x" + BigInt(transaction.v).toString(16),
     r: transaction.r,
     s: transaction.s
   };
@@ -910,7 +920,7 @@ function dbTransactionToApiTransactionReceipt(transaction: any) {
     gasUsed: '0x' + BigInt(transaction.gas_used).toString(16),
     cumulativeGasUsed:
       '0x' + BigInt(transaction.cumulative_gas_used).toString(16),
-    logsBloom: transaction.logs_bloom,
+    logsBloom: transformLogsBloom(transaction.logs_bloom),
     logs: [],
     contractAddress: transaction.contract_address,
     status: transaction.status ? '0x1' : '0x0'
@@ -924,7 +934,7 @@ function dbLogToApiLog(log: any) {
     blockNumber: '0x' + BigInt(log.block_number).toString(16),
     transactionIndex: '0x' + BigInt(log.transaction_index).toString(16),
     transactionHash: log.transaction_hash,
-    data: log.data,
+    data: log.data === "0x" ? ("0x" + "00".repeat(32)) : log.data,
     logIndex: '0x' + BigInt(log.transaction_index).toString(16),
     topics: log.topics,
     removed: false
