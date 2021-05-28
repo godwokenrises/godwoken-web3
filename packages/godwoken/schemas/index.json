@@ -100,7 +100,7 @@
           "type": "Byte32"
         },
         {
-          "name": "deposition_script_type_hash",
+          "name": "deposit_script_type_hash",
           "type": "Byte32"
         },
         {
@@ -134,6 +134,10 @@
         {
           "name": "finality_blocks",
           "type": "Uint64"
+        },
+        {
+          "name": "compatible_chain_id",
+          "type": "Uint32"
         },
         {
           "name": "reward_burn_rate",
@@ -203,12 +207,8 @@
           "type": "Uint32"
         },
         {
-          "name": "compacted_prev_root_hash",
+          "name": "prev_state_checkpoint",
           "type": "Byte32"
-        },
-        {
-          "name": "compacted_post_root_list",
-          "type": "Byte32Vec"
         }
       ]
     },
@@ -259,12 +259,16 @@
           "type": "AccountMerkleState"
         },
         {
-          "name": "submit_transactions",
-          "type": "SubmitTransactions"
+          "name": "state_checkpoint_list",
+          "type": "Byte32Vec"
         },
         {
           "name": "submit_withdrawals",
           "type": "SubmitWithdrawals"
+        },
+        {
+          "name": "submit_transactions",
+          "type": "SubmitTransactions"
         }
       ]
     },
@@ -305,7 +309,7 @@
     },
     {
       "type": "table",
-      "name": "DepositionRequest",
+      "name": "DepositRequest",
       "fields": [
         {
           "name": "capacity",
@@ -327,8 +331,8 @@
     },
     {
       "type": "dynvec",
-      "name": "DepositionRequestVec",
-      "item": "DepositionRequest"
+      "name": "DepositRequestVec",
+      "item": "DepositRequest"
     },
     {
       "type": "struct",
@@ -430,7 +434,7 @@
     },
     {
       "type": "table",
-      "name": "DepositionLockArgs",
+      "name": "DepositLockArgs",
       "fields": [
         {
           "name": "owner_lock_hash",
@@ -451,15 +455,15 @@
       "name": "CustodianLockArgs",
       "fields": [
         {
-          "name": "deposition_lock_args",
-          "type": "DepositionLockArgs"
+          "name": "deposit_lock_args",
+          "type": "DepositLockArgs"
         },
         {
-          "name": "deposition_block_hash",
+          "name": "deposit_block_hash",
           "type": "Byte32"
         },
         {
-          "name": "deposition_block_number",
+          "name": "deposit_block_number",
           "type": "Uint64"
         }
       ]
@@ -469,7 +473,7 @@
       "name": "UnlockCustodianViaRevertWitness",
       "fields": [
         {
-          "name": "deposition_lock_hash",
+          "name": "deposit_lock_hash",
           "type": "Byte32"
         }
       ]
@@ -685,27 +689,15 @@
     },
     {
       "type": "table",
-      "name": "VerifyTransactionWitness",
+      "name": "VerifyTransactionContext",
       "fields": [
         {
-          "name": "raw_l2block",
-          "type": "RawL2Block"
-        },
-        {
-          "name": "l2tx",
-          "type": "L2Transaction"
-        },
-        {
-          "name": "tx_proof",
-          "type": "Bytes"
+          "name": "account_count",
+          "type": "Uint32"
         },
         {
           "name": "kv_state",
           "type": "KVPairVec"
-        },
-        {
-          "name": "kv_state_proof",
-          "type": "Bytes"
         },
         {
           "name": "scripts",
@@ -716,16 +708,86 @@
           "type": "Byte32"
         },
         {
-          "name": "account_count",
-          "type": "Uint32"
-        },
-        {
           "name": "block_hashes",
           "type": "BlockHashEntryVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "VerifyTransactionWitness",
+      "fields": [
+        {
+          "name": "l2tx",
+          "type": "L2Transaction"
+        },
+        {
+          "name": "raw_l2block",
+          "type": "RawL2Block"
+        },
+        {
+          "name": "tx_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "kv_state_proof",
+          "type": "Bytes"
         },
         {
           "name": "block_hashes_proof",
           "type": "Bytes"
+        },
+        {
+          "name": "context",
+          "type": "VerifyTransactionContext"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "VerifySignatureContext",
+      "fields": [
+        {
+          "name": "account_count",
+          "type": "Uint32"
+        },
+        {
+          "name": "kv_state",
+          "type": "KVPairVec"
+        },
+        {
+          "name": "scripts",
+          "type": "ScriptVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "VerifyTransactionSignatureWitness",
+      "fields": [
+        {
+          "name": "l2tx",
+          "type": "L2Transaction"
+        },
+        {
+          "name": "raw_l2block",
+          "type": "RawL2Block"
+        },
+        {
+          "name": "tx_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "kv_state_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "block_hashes_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "context",
+          "type": "VerifySignatureContext"
         }
       ]
     },
@@ -738,8 +800,8 @@
           "type": "RawL2Block"
         },
         {
-          "name": "account_script",
-          "type": "Script"
+          "name": "kv_state_proof",
+          "type": "Bytes"
         },
         {
           "name": "withdrawal_request",
@@ -748,6 +810,10 @@
         {
           "name": "withdrawal_proof",
           "type": "Bytes"
+        },
+        {
+          "name": "context",
+          "type": "VerifySignatureContext"
         }
       ]
     },
@@ -811,6 +877,13 @@
         "RollupCancelChallenge",
         "RollupRevert"
       ]
+    },
+    {
+      "type": "array",
+      "name": "Uint16",
+      "item": "byte",
+      "item_count": 2,
+      "imported_depth": 1
     },
     {
       "type": "array",
