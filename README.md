@@ -12,6 +12,7 @@ DATABASE_URL=postgres://username:password@localhost:5432/your_db
 GODWOKEN_JSON_RPC=<godwoken rpc>
 ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
+CHAIN_ID=<your chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
 EOF
 $ yarn

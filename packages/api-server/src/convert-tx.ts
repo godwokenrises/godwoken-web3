@@ -100,9 +100,9 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
   if (vInt % 2 === 0) {
-    finalVInt = '0x' + (vInt - 36) / 2;
+    finalVInt = '0x' + BigInt( (vInt - 36) / 2 ).toString(16);
   } else {
-    finalVInt = '0x' + (vInt - 35) / 2;
+    finalVInt = '0x' + BigInt( (vInt - 35) / 2 ).toString(16);
   }
 
   const rawTx: PolyjuiceTransaction = {

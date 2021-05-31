@@ -177,7 +177,7 @@ export class Eth {
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, '0x' + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16));
+    callback(null, '0x' + BigInt(process.env.CHAIN_ID).toString(16));
   }
 
   /**
