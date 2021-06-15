@@ -22,6 +22,18 @@ export class Poly {
       1,
       [validators.address]
     );
+
+    this.get_eth_address_by_godwoken_short_address = middleware(
+      this.get_eth_address_by_godwoken_short_address.bind(this),
+      1,
+      [validators.address]
+    );
+
+    this.save_eth_address_godwoken_short_address_mapping = middleware(
+      this.save_eth_address_godwoken_short_address_mapping.bind(this),
+      2,
+      [validators.address, validators.address]
+    );
   }
 
   async ethAddressToPolyjuiceAddress(args: [string], callback: Callback) {
@@ -40,5 +52,21 @@ export class Poly {
       this.rpc
     );
     callback(null, ethAddress);
+  }
+
+  async get_eth_address_by_godwoken_short_address(
+    args: [string],
+    callback: Callback
+  ) {
+    // todo: not impl yet
+    callback(null, null);
+  }
+
+  async save_eth_address_godwoken_short_address_mapping(
+    args: [string],
+    callback: Callback
+  ) {
+    // todo: not impl yet
+    callback(null, null);
   }
 }
