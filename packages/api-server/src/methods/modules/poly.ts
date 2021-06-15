@@ -23,14 +23,14 @@ export class Poly {
       [validators.address]
     );
 
-    this.get_eth_address_by_godwoken_short_address = middleware(
-      this.get_eth_address_by_godwoken_short_address.bind(this),
+    this.getEthAddressByGodwokenShortAddress = middleware(
+      this.getEthAddressByGodwokenShortAddress.bind(this),
       1,
       [validators.address]
     );
 
-    this.save_eth_address_godwoken_short_address_mapping = middleware(
-      this.save_eth_address_godwoken_short_address_mapping.bind(this),
+    this.saveEthAddressGodwokenShortAddressMapping = middleware(
+      this.saveEthAddressGodwokenShortAddressMapping.bind(this),
       2,
       [validators.address, validators.address]
     );
@@ -54,7 +54,7 @@ export class Poly {
     callback(null, ethAddress);
   }
 
-  async get_eth_address_by_godwoken_short_address(
+  async getEthAddressByGodwokenShortAddress(
     args: [string],
     callback: Callback
   ) {
@@ -62,7 +62,7 @@ export class Poly {
     callback(null, null);
   }
 
-  async save_eth_address_godwoken_short_address_mapping(
+  async saveEthAddressGodwokenShortAddressMapping(
     args: [string],
     callback: Callback
   ) {
