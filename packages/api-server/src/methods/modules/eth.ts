@@ -187,7 +187,7 @@ export class Eth {
    * protocol version as the second argument
    */
   protocolVersion(args: [], callback: Callback) {
-    const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
+    const version = '0x' + BigInt(Config.eth_protocolVersion).toString(16);
     callback(null, version);
   }
 
@@ -843,10 +843,10 @@ export class Eth {
   }
 }
 
-const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256)
+const DEFAULT_LOGS_BLOOM = '0x' + '00'.repeat(256);
 
 function transformLogsBloom(bloom: HexString) {
-  if (!bloom || bloom === "0x") {
+  if (!bloom || bloom === '0x') {
     return DEFAULT_LOGS_BLOOM;
   }
   return bloom;
@@ -863,7 +863,7 @@ function dbBlockToApiBlock(block: any) {
     size: '0x' + BigInt(block.size).toString(16),
     logsBloom: transformLogsBloom(block.logs_bloom),
     transactions: [],
-    timestamp: "0x" + (new Date(block.timestamp).getTime() / 1000).toString(16),
+    timestamp: '0x' + (new Date(block.timestamp).getTime() / 1000).toString(16),
     // use default value
     mixHash: '0x' + '0'.repeat(64),
     nonce: '0x' + '0'.repeat(16),
@@ -890,7 +890,7 @@ function dbTransactionToApiTransaction(transaction: any) {
     input: transaction.input,
     nonce: '0x' + BigInt(transaction.nonce).toString(16),
     value: '0x' + BigInt(transaction.value).toString(16),
-    v: "0x" + BigInt(transaction.v).toString(16),
+    v: '0x' + BigInt(transaction.v).toString(16),
     r: transaction.r,
     s: transaction.s
   };
@@ -919,7 +919,7 @@ function dbLogToApiLog(log: any) {
     blockNumber: '0x' + BigInt(log.block_number).toString(16),
     transactionIndex: '0x' + BigInt(log.transaction_index).toString(16),
     transactionHash: log.transaction_hash,
-    data: log.data === "0x" ? ("0x" + "00".repeat(32)) : log.data,
+    data: log.data === '0x' ? '0x' + '00'.repeat(32) : log.data,
     logIndex: '0x' + BigInt(log.transaction_index).toString(16),
     topics: log.topics,
     removed: false
