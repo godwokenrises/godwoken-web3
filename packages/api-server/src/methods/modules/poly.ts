@@ -5,11 +5,15 @@ import {
 import { RPC } from 'ckb-js-toolkit';
 import { Callback } from '../types';
 import { middleware, validators } from '../validator';
+import { HashMap } from '../../hashmap';
+
 export class Poly {
   private rpc: RPC;
+  private hashMap: HashMap;
 
   constructor() {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
+    this.hashMap = new HashMap();
 
     this.ethAddressToPolyjuiceAddress = middleware(
       this.ethAddressToPolyjuiceAddress.bind(this),
@@ -58,15 +62,29 @@ export class Poly {
     args: [string],
     callback: Callback
   ) {
-    // todo: not impl yet
-    callback(null, null);
+    try {
+      const gw_short_adddress = args[0];
+      const eth_addrss = await this.hashMap.query(gw_short_adddress);
+      callback(null, eth_addrss);
+    } catch (error) {
+      callback(error);
+    }
   }
 
   async saveEthAddressGodwokenShortAddressMapping(
-    args: [string],
+    args: [string, string],
     callback: Callback
   ) {
-    // todo: not impl yet
-    callback(null, null);
+    try {
+      const eth_address = args[0];
+      const godwoken_short_address = args[1];
+      await this.hashMap.save(godwoken_short_address, eth_address);
+      callback(
+        null,
+        `insert one record, [${eth_address}]: ${godwoken_short_address}`
+      );
+    } catch (error) {
+      callback(error);
+    }
   }
 }
