@@ -823,22 +823,7 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    try {
-      const data = args[0];
-      const rawTx = await generateRawTransaction(data, this.rpc);
-      const moleculeTx = new Reader(
-        schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
-      ).serializeJson();
-      const gwTxHash = await this.rpc.submit_l2transaction(moleculeTx);
-      console.log('sendRawTransaction gw hash:', gwTxHash);
-      const ethTxHash = calcEthTxHash(data);
-      console.log("sendRawTransaction eth hash:", ethTxHash);
-      callback(null, ethTxHash);
-    } catch (error) {
-      console.error(error);
-      return callback({ code: INVALID_PARAMS, message: error.message });
-      // https://www.jsonrpc.org/specification | 5.1 Error object
-    }
+    callback(null, 'eth_sendRawTransaction is not supported!');
   }
   /* #endregion */
 
