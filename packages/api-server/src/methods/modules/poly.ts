@@ -6,6 +6,7 @@ import { RPC } from 'ckb-js-toolkit';
 import { Callback } from '../types';
 import { middleware, validators } from '../validator';
 import { HashMap } from '../../hashmap';
+import { INTERNAL_ERROR, INVALID_PARAMS } from '../error-code';
 
 export class Poly {
   private rpc: RPC;
@@ -67,7 +68,15 @@ export class Poly {
       const eth_addrss = await this.hashMap.query(gw_short_adddress);
       callback(null, eth_addrss);
     } catch (error) {
-      callback(error);
+      console.log(error);
+      if (error.notFound) {
+        return callback({
+          code: INVALID_PARAMS,
+          message: 'gw_short_address as key is not found on database.'
+        });
+      }
+
+      return callback({ code: INTERNAL_ERROR, message: error.message });
     }
   }
 
@@ -84,7 +93,7 @@ export class Poly {
         `insert one record, [${eth_address}]: ${godwoken_short_address}`
       );
     } catch (error) {
-      callback(error);
+      callback({ code: INVALID_PARAMS, message: error.message }, null);
     }
   }
 }

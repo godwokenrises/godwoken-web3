@@ -6,13 +6,13 @@ test.cb('poly_saveEthAddressGodwokenShortAddressMapping', (t) => {
     'poly_saveEthAddressGodwokenShortAddressMapping',
     [
       '0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A',
-      '0x0000000000000000000000000000000000000000'
+      '0x6934bca347369e4e9f1d6e88facb22271c7d32bb'
     ],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result,
-        'insert one record, [0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A]: 0x0000000000000000000000000000000000000000'
+        'insert one record, [0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A]: 0x6934bca347369e4e9f1d6e88facb22271c7d32bb'
       );
       t.end();
     }
@@ -22,16 +22,16 @@ test.cb('poly_saveEthAddressGodwokenShortAddressMapping', (t) => {
 test.cb('poly_getEthAddressByGodwokenShortAddress', (t) => {
   client.request(
     'poly_getEthAddressByGodwokenShortAddress',
-    ['0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A'],
+    ['0x6934bca347369e4e9f1d6e88facb22271c7d32bb'],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '0x0000000000000000000000000000000000000000');
+      t.is(response.result, '0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A');
       t.end();
     }
   );
 });
 
-test.cb('poly_getEthAddressByGodwokenShortAddress with key not exist', (t) => {
+test.cb('poly_getEthAddressByGodwokenShortAddress-with-key-not-exist', (t) => {
   client.request(
     'poly_getEthAddressByGodwokenShortAddress',
     ['0x768249aC5ED64517C96c16e26B7A5Aa3E9334217'],
