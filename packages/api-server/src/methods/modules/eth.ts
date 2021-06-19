@@ -292,7 +292,10 @@ export class Eth {
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
-    const short_address = await allTypeEthAddressToShortAddress(this.rpc, address);
+    const short_address = await allTypeEthAddressToShortAddress(
+      this.rpc,
+      address
+    );
     console.log(`short_address: ${short_address}`);
     const balance = await this.rpc.get_balance(
       short_address,
@@ -932,7 +935,7 @@ async function allTypeEthAddressToShortAddress(
     const short_address = ethAddressToScriptHash(address).slice(0, 42);
     return short_address;
   }
-  return address; 
+  return address;
 }
 
 function ethAddressToScriptHash(address: string) {
@@ -959,7 +962,7 @@ async function ethContractAddressToAccountId(
   // todo: support create2 contract address in which case it has not been created.
   try {
     const scriptHash = await rpc.get_script_hash_by_short_address(address);
-    const accountId = await rpc.get_account_id_by_script_hash(scriptHash)
+    const accountId = await rpc.get_account_id_by_script_hash(scriptHash);
     console.log(`eth contract address: ${address}, account id: ${accountId}`);
     return accountId;
   } catch (error) {

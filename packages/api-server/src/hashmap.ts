@@ -39,7 +39,9 @@ export class HashMap {
   }
 
   async query(gw_short_address: string) {
-    return await this.db.get(gw_short_address.toLowerCase(), { asBuffer: false });
+    return await this.db.get(gw_short_address.toLowerCase(), {
+      asBuffer: false
+    });
   }
 }
 

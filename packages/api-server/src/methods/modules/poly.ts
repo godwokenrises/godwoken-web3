@@ -89,11 +89,10 @@ export class Poly {
       const godwoken_short_address = args[1];
       // todo: save before check if it not exsit;
       await this.hashMap.save(godwoken_short_address, eth_address);
-      console.log(`poly_hashmap: insert one record, [${godwoken_short_address}]: ${eth_address}`);
-      callback(
-        null,
-        `ok`
+      console.log(
+        `poly_hashmap: insert one record, [${godwoken_short_address}]: ${eth_address}`
       );
+      callback(null, `ok`);
     } catch (error) {
       callback({ code: INVALID_PARAMS, message: error.message }, null);
     }

@@ -83,7 +83,7 @@ export class Gw {
   }
 
   async get_account_id_by_script_hash(args: any[], callback: Callback) {
-    console.log(args)
+    console.log(args);
     const result = await this.rpc.get_account_id_by_script_hash(...args);
     callback(null, result);
   }
