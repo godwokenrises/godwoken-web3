@@ -292,7 +292,7 @@ export class Eth {
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
-    const short_address = ethAddressToScriptHash(address).slice(0, 42);
+    const short_address = await allTypeEthAddressToShortAddress(this.rpc, address);
     console.log(`short_address: ${short_address}`);
     const balance = await this.rpc.get_balance(
       short_address,
@@ -929,9 +929,8 @@ async function allTypeEthAddressToShortAddress(
 ): Promise<string | null> {
   const accountId = await ethContractAddressToAccountId(address, rpc);
   if (accountId === null || accountId === undefined) {
-    const scriptHash = ethAddressToScriptHash(address);
-    let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
-    return accountId;
+    const short_address = ethAddressToScriptHash(address).slice(0, 42);
+    return short_address;
   }
   return address; 
 }
@@ -957,24 +956,15 @@ async function ethContractAddressToAccountId(
   if (address === '0x0000000000000000000000000000000000000000') {
     return +(process.env.CREATOR_ACCOUNT_ID as string);
   }
-  const accountIdBuf = Buffer.from(address.slice(-8), 'hex');
-  const accountId = accountIdBuf.readUInt32LE();
-  const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
-
-  if (scriptHash === '0x' + '00'.repeat(32)) {
+  // todo: support create2 contract address in which case it has not been created.
+  try {
+    const scriptHash = await rpc.get_script_hash_by_short_address(address);
+    const accountId = await rpc.get_account_id_by_script_hash(scriptHash)
+    console.log(`eth contract address: ${address}, account id: ${accountId}`);
+    return accountId;
+  } catch (error) {
     return undefined;
   }
-
-  if (scriptHash.slice(0, 34) !== address.slice(0, 34)) {
-    throw new Error(
-      `eth address first 16 bytes not match account script hash: expected=${address.slice(
-        0,
-        34
-      )}, got=${scriptHash.slice(0, 34)}`
-    );
-  }
-  console.log(`eth contract address: ${address}, account id: ${accountId}`);
-  return accountId;
 }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {

@@ -34,11 +34,12 @@ export class HashMap {
 
     console.log(gw_short_adddress, eth_address);
     // use short-address as key, eth-address as value
-    await this.db.put(gw_short_adddress, eth_address);
+    // note: we should keep lowercase and uppercase for eth_address since it will be used in checksum.
+    await this.db.put(gw_short_adddress.toLowerCase(), eth_address);
   }
 
   async query(gw_short_address: string) {
-    return await this.db.get(gw_short_address, { asBuffer: false });
+    return await this.db.get(gw_short_address.toLowerCase(), { asBuffer: false });
   }
 }
 
