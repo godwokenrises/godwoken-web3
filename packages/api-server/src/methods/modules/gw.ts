@@ -83,6 +83,7 @@ export class Gw {
   }
 
   async get_account_id_by_script_hash(args: any[], callback: Callback) {
+    console.log(args)
     const result = await this.rpc.get_account_id_by_script_hash(...args);
     callback(null, result);
   }
@@ -98,6 +99,7 @@ export class Gw {
   }
 
   async get_script_hash(args: any[], callback: Callback) {
+    console.log(args);
     const result = await this.rpc.get_script_hash(...args);
     callback(null, result);
   }
@@ -123,12 +125,19 @@ export class Gw {
   }
 
   async submit_l2transaction(args: any[], callback: Callback) {
+    console.log('submit_l2transaction...');
+    console.log(args);
     const result = await this.rpc.submit_l2transaction(...args);
     callback(null, result);
   }
 
   async submit_withdrawal_request(args: any[], callback: Callback) {
     const result = await this.rpc.submit_withdrawal_request(...args);
+    callback(null, result);
+  }
+
+  async get_script_hash_by_short_address(args: any[], callback: Callback) {
+    const result = await this.rpc.get_script_hash_by_short_address(...args);
     callback(null, result);
   }
 }

@@ -292,13 +292,10 @@ export class Eth {
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
     const address = args[0];
-    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
-    }
+    const short_address = ethAddressToScriptHash(address).slice(0, 42);
+    console.log(`short_address: ${short_address}`);
     const balance = await this.rpc.get_balance(
-      toHexNumber(accountId),
+      short_address,
       toHexNumber(CKB_SUDT_ID)
     );
     const balanceHex = '0x' + BigInt(balance).toString(16);
@@ -924,6 +921,19 @@ function dbLogToApiLog(log: any) {
     topics: log.topics,
     removed: false
   };
+}
+
+async function allTypeEthAddressToShortAddress(
+  rpc: RPC,
+  address: string
+): Promise<string | null> {
+  const accountId = await ethContractAddressToAccountId(address, rpc);
+  if (accountId === null || accountId === undefined) {
+    const scriptHash = ethAddressToScriptHash(address);
+    let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
+    return accountId;
+  }
+  return address; 
 }
 
 function ethAddressToScriptHash(address: string) {
