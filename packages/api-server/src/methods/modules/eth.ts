@@ -54,7 +54,7 @@ export class Eth {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
-      validators.hexNumber
+      validators.defaultParameter
     ]);
     // TODO: required 2 arguments
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
@@ -177,7 +177,7 @@ export class Eth {
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, '0x' + BigInt(process.env.CHAIN_ID).toString(16));
+    callback(null, '0x' + BigInt(process.env.CHAIN_ID!).toString(16));
   }
 
   /**
@@ -187,6 +187,7 @@ export class Eth {
    * protocol version as the second argument
    */
   protocolVersion(args: [], callback: Callback) {
+    console.log('protocolVersion');
     const version = '0x' + BigInt(Config.eth_protocolVersion).toString(16);
     callback(null, version);
   }
@@ -260,7 +261,7 @@ export class Eth {
    * [] as the second argument.
    */
   accounts(args: [], callback: Callback) {
-    callback(null, []);
+    callback(null, ['0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A']);
   }
 
   async blockNumber(args: [], callback: Callback) {
@@ -291,17 +292,18 @@ export class Eth {
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
+    console.log('get_balance');
     const address = args[0];
     const short_address = await allTypeEthAddressToShortAddress(
       this.rpc,
       address
     );
-    console.log(`short_address: ${short_address}`);
+    console.log(`eth_address: ${address}, short_address: ${short_address}`);
     const balance = await this.rpc.get_balance(
       short_address,
       toHexNumber(CKB_SUDT_ID)
     );
-    const balanceHex = '0x' + BigInt(balance).toString(16);
+    const balanceHex = '0x' + (BigInt(balance) * BigInt(10 ** 8)).toString(16);
     callback(null, balanceHex);
   }
 
@@ -366,14 +368,21 @@ export class Eth {
   }
 
   async estimateGas(args: [TransactionCallObject], callback: Callback) {
+    console.log('estimate gas..');
+    console.log(args[0]);
     const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
     const runResult = await this.rpc.execute_raw_l2transaction(
       rawL2TransactionHex
     );
-    console.log('eth_estimateGas RunResult:', runResult);
+    
     const polyjuiceSystemLog = extractPolyjuiceSystemLog(
       runResult.logs
     ) as PolyjuiceSystemLog;
+
+    console.log(polyjuiceSystemLog);
+
+    console.log('eth_estimateGas RunResult:', runResult, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+    
     callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
   }
 
@@ -398,6 +407,7 @@ export class Eth {
   }
 
   async gw_getNonce(args: any[], callback: Callback) {
+    console.log('get_nonce');
     const result = await this.rpc.get_nonce(...args);
     callback(null, result);
   }
@@ -428,21 +438,33 @@ export class Eth {
   }
 
   async getBlockByNumber(args: [string], callback: Callback) {
-    // TODO handle "earliest", "latest" or "pending"
+    let block_number;
+    // TODO handle "earliest", "latest" or "pending", only support latest now.
+    if(args[0] === "latest"){
+      const tipNumber = await this.getTipNumber();
+      console.log(tipNumber);
+      const tipNumberHex = '0x' + BigInt(tipNumber).toString(16);
+      block_number = BigInt(tipNumberHex);
+    }else{
+      block_number = BigInt(args[0]);
+    }
+    
+
     const blockData = await this.knex
       .select()
       .table('blocks')
-      .where({ number: BigInt(args[0]) });
+      .where({ number: block_number});
     if (blockData.length === 1) {
       const transactionData = await this.knex
         .select('hash')
         .table('transactions')
-        .where({ block_number: BigInt(args[0]) });
+        .where({ block_number: block_number });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
       block.transactions = txHashes as any;
       callback(null, block);
     } else {
+      console.log('no block.....')
       callback(null, null);
     }
   }
@@ -643,7 +665,7 @@ export class Eth {
       const blocks = await this.knex
         .select()
         .table('blocks')
-        .where('number', '>', BigInt(last_poll_block_number).toString())
+        .where('number', '>', BigInt(last_poll_block_number!).toString())
         .orderBy('number', 'desc');
 
       if (blocks.length === 0) return callback(null, []);
@@ -857,8 +879,8 @@ function dbBlockToApiBlock(block: any) {
     number: '0x' + BigInt(block.number).toString(16),
     hash: block.hash,
     parentHash: block.parent_hash,
-    gasLimit: '0x' + BigInt(block.gas_limit).toString(16),
-    gasLrice: '0x' + BigInt(block.gas_used).toString(16),
+    gasLimit: '0x' + BigInt(block.gas_limit).toString(16) === '0x0' ? '0xe4e1c0' : '0x' + BigInt(block.gas_limit).toString(16),
+    gasUsed: '0x' + BigInt(block.gas_used).toString(16),
     miner: block.miner,
     size: '0x' + BigInt(block.size).toString(16),
     logsBloom: transformLogsBloom(block.logs_bloom),
@@ -876,6 +898,7 @@ function dbBlockToApiBlock(block: any) {
     extraData: '0x'
   };
 }
+
 
 function dbTransactionToApiTransaction(transaction: any) {
   return {
@@ -1208,17 +1231,17 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
 
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), 'hex');
-  if (buf.length != 8 + 8 + 4 + 4 + 4) {
+  if (buf.length != 8 + 8 + 16 + 4 + 4) {
     throw new Error(`invalid system log raw data length: ${buf.length}`);
   }
   const gasUsed = buf.readBigUInt64LE(0);
   const cumulativeGasUsed = buf.readBigUInt64LE(8);
-  const createdId = buf.readUInt32LE(16);
-  const statusCode = buf.readUInt32LE(20);
+  const createdAddress = '0x' + buf.slice(16, 32).toString('hex');
+  const statusCode = buf.readUInt32LE(32);
   return {
     gasUsed: gasUsed,
     cumulativeGasUsed: cumulativeGasUsed,
-    createdId: createdId,
+    createdAddress: createdAddress,
     statusCode: statusCode
   };
 }

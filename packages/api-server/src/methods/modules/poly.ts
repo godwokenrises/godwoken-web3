@@ -66,6 +66,7 @@ export class Poly {
     try {
       const gw_short_adddress = args[0];
       const eth_addrss = await this.hashMap.query(gw_short_adddress);
+      console.log(`[from hash_map] eth address: ${eth_addrss}, short_address: ${gw_short_adddress}`);
       callback(null, eth_addrss);
     } catch (error) {
       console.log(error);
@@ -94,6 +95,7 @@ export class Poly {
       );
       callback(null, `ok`);
     } catch (error) {
+      console.log(error);
       callback({ code: INVALID_PARAMS, message: error.message }, null);
     }
   }

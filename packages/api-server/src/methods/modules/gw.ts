@@ -120,8 +120,14 @@ export class Gw {
   }
 
   async execute_raw_l2transaction(args: any[], callback: Callback) {
-    const result = await this.rpc.execute_raw_l2transaction(...args);
-    callback(null, result);
+    console.log(`execute_raw_l2transaction.....`);
+    try {
+      console.log(args);
+      const result = await this.rpc.execute_raw_l2transaction(...args);
+      callback(null, result); 
+    } catch (error) {
+     callback(error.message, null); 
+    }
   }
 
   async submit_l2transaction(args: any[], callback: Callback) {

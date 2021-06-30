@@ -27,6 +27,7 @@ export class HashMap {
       0,
       42
     );
+    console.log(eth_address, target_gw_short_address);
     if (target_gw_short_address !== gw_short_adddress)
       throw new Error(
         'eth_address and godwoken_short_address unmatched! abort saving!'

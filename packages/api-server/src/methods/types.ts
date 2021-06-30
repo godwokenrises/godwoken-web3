@@ -48,7 +48,7 @@ export interface SudtPayFeeLog {
 export interface PolyjuiceSystemLog {
   gasUsed: bigint;
   cumulativeGasUsed: bigint;
-  createdId: number;
+  createdAddress: string;
   statusCode: number;
 }
 

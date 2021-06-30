@@ -1,7 +1,7 @@
 import { Callback } from '../types';
 import { middleware } from '../validator';
 const server = require('../../../bin/www');
-const Config = require('../../../config/eth.json');
+require('dotenv').config({ path: './.env' });
 
 export class Net {
   constructor() {}
@@ -13,7 +13,7 @@ export class Net {
    * net version as the second argument
    */
   version(args: [], callback: Callback) {
-    callback(null, Config.chain_id);
+    callback(null, '0x'+ BigInt(process.env.CHAIN_ID!).toString(16));
   }
 
   /**
