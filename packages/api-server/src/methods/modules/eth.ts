@@ -292,7 +292,6 @@ export class Eth {
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
-    console.log('get_balance');
     const address = args[0];
     const short_address = await allTypeEthAddressToShortAddress(
       this.rpc,
@@ -303,7 +302,7 @@ export class Eth {
       short_address,
       toHexNumber(CKB_SUDT_ID)
     );
-    const balanceHex = '0x' + (BigInt(balance) * BigInt(10 ** 8)).toString(16);
+    const balanceHex = '0x' + BigInt(balance).toString(16);
     callback(null, balanceHex);
   }
 
