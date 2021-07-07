@@ -6,7 +6,7 @@ import { RPC } from 'ckb-js-toolkit';
 import { Callback } from '../types';
 import { middleware, validators } from '../validator';
 import { HashMap } from '../../hashmap';
-import { INTERNAL_ERROR, INVALID_PARAMS } from '../error-code';
+import { INTERNAL_ERROR, INVALID_PARAMS, WEB3_ERROR } from '../error-code';
 
 export class Poly {
   private rpc: RPC;
@@ -42,21 +42,35 @@ export class Poly {
   }
 
   async ethAddressToPolyjuiceAddress(args: [string], callback: Callback) {
-    const ethAddress = args[0];
-    const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
-      ethAddress,
-      this.rpc
-    );
-    callback(null, polyjuiceAddress);
+    try {
+      const ethAddress = args[0];
+      const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
+        ethAddress,
+        this.rpc
+      );
+      callback(null, polyjuiceAddress);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });
+    } 
   }
 
   async polyjuiceAddressToEthAddress(args: [string], callback: Callback) {
-    const polyjuiceAddress = args[0];
-    const ethAddress = await polyjuiceAddressToEthAddress(
-      polyjuiceAddress,
-      this.rpc
-    );
-    callback(null, ethAddress);
+    try {
+      const polyjuiceAddress = args[0];
+      const ethAddress = await polyjuiceAddressToEthAddress(
+        polyjuiceAddress,
+        this.rpc
+      );
+      callback(null, ethAddress);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });
+    }
   }
 
   async getEthAddressByGodwokenShortAddress(
