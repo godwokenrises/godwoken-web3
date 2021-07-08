@@ -19,7 +19,7 @@ import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { calcEthTxHash, generateRawTransaction } from '../../convert-tx';
 import { Script } from '@ckb-lumos/base';
-import { INVALID_PARAMS } from '../error-code';
+import { INVALID_PARAMS, METHOD_NOT_SUPPORT, WEB3_ERROR } from '../error-code';
 
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
@@ -54,7 +54,7 @@ export class Eth {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
-      validators.hexNumber
+      validators.defaultParameter
     ]);
     // TODO: required 2 arguments
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
@@ -148,36 +148,10 @@ export class Eth {
 
     this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
 
-    this.gw_executeL2Tranaction = middleware(
-      this.gw_executeL2Tranaction.bind(this),
-      0
-    );
-
-    this.gw_submitL2Transaction = middleware(
-      this.gw_submitL2Transaction.bind(this),
-      0
-    );
-
-    this.gw_getAccountIdByScriptHash = middleware(
-      this.gw_getAccountIdByScriptHash.bind(this),
-      0
-    );
-
-    this.gw_getScriptHashByAccountId = middleware(
-      this.gw_getScriptHashByAccountId.bind(this),
-      0
-    );
-
-    this.gw_getNonce = middleware(this.gw_getNonce.bind(this), 0);
-
-    this.gw_getTransactionReceipt = middleware(
-      this.gw_getTransactionReceipt.bind(this),
-      0
-    );
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, '0x' + BigInt(process.env.CHAIN_ID).toString(16));
+    callback(null, '0x' + BigInt(process.env.CHAIN_ID!).toString(16));
   }
 
   /**
@@ -187,7 +161,8 @@ export class Eth {
    * protocol version as the second argument
    */
   protocolVersion(args: [], callback: Callback) {
-    const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
+    console.log('protocolVersion');
+    const version = '0x' + BigInt(Config.eth_protocolVersion).toString(16);
     callback(null, version);
   }
 
@@ -278,46 +253,69 @@ export class Eth {
   }
 
   async sign(_args: any[], callback: Callback) {
-    callback(null, 'eth_sign is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sign is not supported!'
+    });
   }
 
   async signTransaction(_args: any[], callback: Callback) {
-    callback(null, 'eth_signTransaction is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_signTransaction is not supported!'
+    });
   }
 
   async sendTransaction(_args: any[], callback: Callback) {
-    callback(null, 'eth_sendTransaction is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sendTransaction is not supported!'
+    });
   }
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const accountId = await allTypeEthAddressToAccountId(this.rpc, address);
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
+    try {
+      const address = args[0];
+      const short_address = await allTypeEthAddressToShortAddress(
+        this.rpc,
+        address
+      );
+      console.log(`eth_address: ${address}, short_address: ${short_address}`);
+      const balance = await this.rpc.get_balance(
+        short_address,
+        toHexNumber(CKB_SUDT_ID)
+      );
+      const balanceHex = '0x' + BigInt(balance).toString(16);
+      callback(null, balanceHex); 
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });
     }
-    const balance = await this.rpc.get_balance(
-      toHexNumber(accountId),
-      toHexNumber(CKB_SUDT_ID)
-    );
-    const balanceHex = '0x' + BigInt(balance).toString(16);
-    callback(null, balanceHex);
   }
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
-    const address = args[0];
-    const accountId = await ethContractAddressToAccountId(address, this.rpc);
-    if (accountId === undefined || accountId === null) {
-      return callback(
-        null,
-        '0x0000000000000000000000000000000000000000000000000000000000000000'
-      );
-    }
-    const storagePosition = args[1];
-    const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
+    try {
+      const address = args[0];
+      const accountId = await ethContractAddressToAccountId(address, this.rpc);
+      if (accountId === undefined || accountId === null) {
+        return callback(
+          null,
+          '0x0000000000000000000000000000000000000000000000000000000000000000'
+        );
+      }
+      const storagePosition = args[1];
+      const key = buildStorageKey(storagePosition);
+      const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
     callback(null, value);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      }); 
+    }
   }
 
   /**
@@ -326,123 +324,153 @@ export class Eth {
    * @param callback
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const accountId: number | null = await allTypeEthAddressToAccountId(
-      this.rpc,
-      address
-    );
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
+    try {
+      const address = args[0];
+      const accountId: number | null = await allTypeEthAddressToAccountId(
+        this.rpc,
+        address
+      );
+      if (accountId === undefined || accountId === null) {
+        callback(null, '0x0');
+        return;
+      }
+      const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
+      const transactionCount = '0x' + BigInt(nonce).toString(16);
+      callback(null, transactionCount);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
     }
-    const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
-    const transactionCount = '0x' + BigInt(nonce).toString(16);
-    callback(null, transactionCount);
   }
 
   async getCode(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const accountId = await ethContractAddressToAccountId(address, this.rpc);
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
+    try {
+      const address = args[0];
+      const accountId = await ethContractAddressToAccountId(address, this.rpc);
+      if (accountId === undefined || accountId === null) {
+        callback(null, '0x0');
+        return;
+      }
+      const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
+      const dataHash = await this.rpc.get_storage_at(
+        toHexNumber(accountId),
+        contractCodeKey
+      );
+      const data = await this.rpc.get_data(dataHash);
+      callback(null, data);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });   
     }
-    const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.get_storage_at(
-      toHexNumber(accountId),
-      contractCodeKey
-    );
-    const data = await this.rpc.get_data(dataHash);
-    callback(null, data);
   }
 
   async call(args: [TransactionCallObject], callback: Callback) {
-    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-    const runResult = await this.rpc.execute_raw_l2transaction(
-      rawL2TransactionHex
-    );
-    console.log('RunResult:', runResult);
-    callback(null, runResult.return_data);
+    try {
+      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+      const runResult = await this.rpc.execute_raw_l2transaction(
+        rawL2TransactionHex
+      );
+      console.log('RunResult:', runResult);
+      callback(null, runResult.return_data);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      }); 
+    }
   }
 
   async estimateGas(args: [TransactionCallObject], callback: Callback) {
-    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-    const runResult = await this.rpc.execute_raw_l2transaction(
-      rawL2TransactionHex
-    );
-    console.log('eth_estimateGas RunResult:', runResult);
-    const polyjuiceSystemLog = extractPolyjuiceSystemLog(
-      runResult.logs
-    ) as PolyjuiceSystemLog;
-    callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
-  }
+    try {
+      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+      const runResult = await this.rpc.execute_raw_l2transaction(
+        rawL2TransactionHex
+      );
+      
+      const polyjuiceSystemLog = extractPolyjuiceSystemLog(
+        runResult.logs
+      ) as PolyjuiceSystemLog;
 
-  async gw_executeL2Tranaction(args: any[], callback: Callback) {
-    const result = await this.rpc.execute_l2transaction(...args);
-    callback(null, result);
-  }
+      console.log(polyjuiceSystemLog);
 
-  async gw_submitL2Transaction(args: any[], callback: Callback) {
-    const result = await this.rpc.submit_l2transaction(...args);
-    callback(null, result);
-  }
-
-  async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
-    const result = await this.rpc.get_account_id_by_script_hash(...args);
-    callback(null, result);
-  }
-
-  async gw_getScriptHashByAccountId(args: any[], callback: Callback) {
-    const result = await this.rpc.get_script_hash(...args);
-    callback(null, result);
-  }
-
-  async gw_getNonce(args: any[], callback: Callback) {
-    const result = await this.rpc.get_nonce(...args);
-    callback(null, result);
-  }
-
-  async gw_getTransactionReceipt(args: Hash[], callback: Callback) {
-    const result = await this.rpc.get_transaction_receipt(...args);
-    callback(null, result);
+      console.log('eth_estimateGas RunResult:', runResult, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      
+      callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
+    }
   }
 
   // TODO: second argument
   async getBlockByHash(args: [string], callback: Callback) {
-    const blockData = await this.knex
-      .select()
-      .table('blocks')
-      .where({ hash: args[0] });
-    const transactionData = await this.knex
-      .select('hash')
-      .table('transactions')
-      .where({ block_hash: args[0] });
-    if (blockData.length === 1) {
-      const txHashes = transactionData.map((item) => item.hash);
-      let block = dbBlockToApiBlock(blockData[0]);
-      block.transactions = txHashes as any;
-      callback(null, block);
-    } else {
-      callback(null, null);
+    try {
+      const blockData = await this.knex
+        .select()
+        .table('blocks')
+        .where({ hash: args[0] });
+      const transactionData = await this.knex
+        .select('hash')
+        .table('transactions')
+        .where({ block_hash: args[0] });
+      if (blockData.length === 1) {
+        const txHashes = transactionData.map((item) => item.hash);
+        let block = dbBlockToApiBlock(blockData[0]);
+        block.transactions = txHashes as any;
+        callback(null, block);
+      } else {
+        callback(null, null);
+      }
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
     }
   }
 
   async getBlockByNumber(args: [string], callback: Callback) {
-    // TODO handle "earliest", "latest" or "pending"
+    let block_number;
+    // TODO handle "earliest", "latest" or "pending", only support latest now.
+
+    if(args[0] === "earliest" || args[0] === "pending"){
+      return callback({
+        code: WEB3_ERROR,
+        message: 'right now we only support latest tag in block parameter!' 
+      }); 
+    }
+
+    if(args[0] === "latest"){
+      const tipNumber = await this.getTipNumber();
+      console.log(tipNumber);
+      const tipNumberHex = '0x' + BigInt(tipNumber).toString(16);
+      block_number = BigInt(tipNumberHex);
+    }else{
+      block_number = BigInt(args[0]);
+    }
+    
+
     const blockData = await this.knex
       .select()
       .table('blocks')
-      .where({ number: BigInt(args[0]) });
+      .where({ number: block_number});
     if (blockData.length === 1) {
       const transactionData = await this.knex
         .select('hash')
         .table('transactions')
-        .where({ block_number: BigInt(args[0]) });
+        .where({ block_number: block_number });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
       block.transactions = txHashes as any;
       callback(null, block);
     } else {
+      console.log('no block.....')
       callback(null, null);
     }
   }
@@ -643,7 +671,7 @@ export class Eth {
       const blocks = await this.knex
         .select()
         .table('blocks')
-        .where('number', '>', BigInt(last_poll_block_number).toString())
+        .where('number', '>', BigInt(last_poll_block_number!).toString())
         .orderBy('number', 'desc');
 
       if (blocks.length === 0) return callback(null, []);
@@ -823,22 +851,10 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    try {
-      const data = args[0];
-      const rawTx = await generateRawTransaction(data, this.rpc);
-      const moleculeTx = new Reader(
-        schemas.SerializeL2Transaction(types.NormalizeL2Transaction(rawTx))
-      ).serializeJson();
-      const gwTxHash = await this.rpc.submit_l2transaction(moleculeTx);
-      console.log('sendRawTransaction gw hash:', gwTxHash);
-      const ethTxHash = calcEthTxHash(data);
-      console.log("sendRawTransaction eth hash:", ethTxHash);
-      callback(null, ethTxHash);
-    } catch (error) {
-      console.error(error);
-      return callback({ code: INVALID_PARAMS, message: error.message });
-      // https://www.jsonrpc.org/specification | 5.1 Error object
-    }
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sendRawTransaction is not supported!'
+    }); 
   }
   /* #endregion */
 
@@ -858,10 +874,10 @@ export class Eth {
   }
 }
 
-const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256)
+const DEFAULT_LOGS_BLOOM = '0x' + '00'.repeat(256);
 
 function transformLogsBloom(bloom: HexString) {
-  if (!bloom || bloom === "0x") {
+  if (!bloom || bloom === '0x') {
     return DEFAULT_LOGS_BLOOM;
   }
   return bloom;
@@ -872,13 +888,13 @@ function dbBlockToApiBlock(block: any) {
     number: '0x' + BigInt(block.number).toString(16),
     hash: block.hash,
     parentHash: block.parent_hash,
-    gasLimit: '0x' + BigInt(block.gas_limit).toString(16),
-    gasLrice: '0x' + BigInt(block.gas_used).toString(16),
+    gasLimit: '0x' + BigInt(block.gas_limit).toString(16) === '0x0' ? '0xe4e1c0' : '0x' + BigInt(block.gas_limit).toString(16),
+    gasUsed: '0x' + BigInt(block.gas_used).toString(16),
     miner: block.miner,
     size: '0x' + BigInt(block.size).toString(16),
     logsBloom: transformLogsBloom(block.logs_bloom),
     transactions: [],
-    timestamp: "0x" + (new Date(block.timestamp).getTime() / 1000).toString(16),
+    timestamp: '0x' + (new Date(block.timestamp).getTime() / 1000).toString(16),
     // use default value
     mixHash: '0x' + '0'.repeat(64),
     nonce: '0x' + '0'.repeat(16),
@@ -891,6 +907,7 @@ function dbBlockToApiBlock(block: any) {
     extraData: '0x'
   };
 }
+
 
 function dbTransactionToApiTransaction(transaction: any) {
   return {
@@ -905,7 +922,7 @@ function dbTransactionToApiTransaction(transaction: any) {
     input: transaction.input,
     nonce: '0x' + BigInt(transaction.nonce).toString(16),
     value: '0x' + BigInt(transaction.value).toString(16),
-    v: "0x" + BigInt(transaction.v).toString(16),
+    v: '0x' + BigInt(transaction.v).toString(16),
     r: transaction.r,
     s: transaction.s
   };
@@ -934,11 +951,23 @@ function dbLogToApiLog(log: any) {
     blockNumber: '0x' + BigInt(log.block_number).toString(16),
     transactionIndex: '0x' + BigInt(log.transaction_index).toString(16),
     transactionHash: log.transaction_hash,
-    data: log.data === "0x" ? ("0x" + "00".repeat(32)) : log.data,
+    data: log.data === '0x' ? '0x' + '00'.repeat(32) : log.data,
     logIndex: '0x' + BigInt(log.transaction_index).toString(16),
     topics: log.topics,
     removed: false
   };
+}
+
+async function allTypeEthAddressToShortAddress(
+  rpc: RPC,
+  address: string
+): Promise<string | null> {
+  const accountId = await ethContractAddressToAccountId(address, rpc);
+  if (accountId === null || accountId === undefined) {
+    const short_address = ethAddressToScriptHash(address).slice(0, 42);
+    return short_address;
+  }
+  return address;
 }
 
 function ethAddressToScriptHash(address: string) {
@@ -962,24 +991,15 @@ async function ethContractAddressToAccountId(
   if (address === '0x0000000000000000000000000000000000000000') {
     return +(process.env.CREATOR_ACCOUNT_ID as string);
   }
-  const accountIdBuf = Buffer.from(address.slice(-8), 'hex');
-  const accountId = accountIdBuf.readUInt32LE();
-  const scriptHash = await rpc.get_script_hash(toHexNumber(accountId));
-
-  if (scriptHash === '0x' + '00'.repeat(32)) {
+  // todo: support create2 contract address in which case it has not been created.
+  try {
+    const scriptHash = await rpc.get_script_hash_by_short_address(address);
+    const accountId = await rpc.get_account_id_by_script_hash(scriptHash);
+    console.log(`eth contract address: ${address}, account id: ${accountId}`);
+    return accountId;
+  } catch (error) {
     return undefined;
   }
-
-  if (scriptHash.slice(0, 34) !== address.slice(0, 34)) {
-    throw new Error(
-      `eth address first 16 bytes not match account script hash: expected=${address.slice(
-        0,
-        34
-      )}, got=${scriptHash.slice(0, 34)}`
-    );
-  }
-  console.log(`eth contract address: ${address}, account id: ${accountId}`);
-  return accountId;
 }
 
 function gwBuildAccountKey(accountId: number, key: Uint8Array) {
@@ -1220,17 +1240,17 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
 
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), 'hex');
-  if (buf.length != 8 + 8 + 4 + 4 + 4) {
+  if (buf.length != 8 + 8 + 16 + 4 + 4) {
     throw new Error(`invalid system log raw data length: ${buf.length}`);
   }
   const gasUsed = buf.readBigUInt64LE(0);
   const cumulativeGasUsed = buf.readBigUInt64LE(8);
-  const createdId = buf.readUInt32LE(16);
-  const statusCode = buf.readUInt32LE(20);
+  const createdAddress = '0x' + buf.slice(16, 32).toString('hex');
+  const statusCode = buf.readUInt32LE(32);
   return {
     gasUsed: gasUsed,
     cumulativeGasUsed: cumulativeGasUsed,
-    createdId: createdId,
+    createdAddress: createdAddress,
     statusCode: statusCode
   };
 }

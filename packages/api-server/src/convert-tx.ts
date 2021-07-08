@@ -48,8 +48,9 @@ function debugLogger(...messages: any[]) {
 
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
-  '0x' + keccak256(Buffer.from(encodedSignedTx.slice(2), 'hex')).toString('hex');
-  return ethTxHash
+    '0x' +
+    keccak256(Buffer.from(encodedSignedTx.slice(2), 'hex')).toString('hex');
+  return ethTxHash;
 }
 
 export async function generateRawTransaction(
@@ -100,9 +101,9 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
   if (vInt % 2 === 0) {
-    finalVInt = '0x' + BigInt( (vInt - 36) / 2 ).toString(16);
+    finalVInt = '0x' + BigInt((vInt - 36) / 2).toString(16);
   } else {
-    finalVInt = '0x' + BigInt( (vInt - 35) / 2 ).toString(16);
+    finalVInt = '0x' + BigInt((vInt - 35) / 2).toString(16);
   }
 
   const rawTx: PolyjuiceTransaction = {
@@ -196,7 +197,7 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const godwokenRawL2Tx: GodwokenRawL2Transaction = {
     from_id: fromId,
     to_id: toId,
-    nonce: nonce === "0x" ? "0x0" : nonce,
+    nonce: nonce === '0x' ? '0x0' : nonce,
     args
   };
 

@@ -85,6 +85,16 @@ export interface L2Transaction {
   signature: HexString;
 }
 
+export function NormalizeFee(
+  fee: object,
+  { debugPath = "fee" } = {}
+) {
+  return normalizeObject(debugPath, fee, {
+    sudt_id: normalizeHexNumber(4),
+    amount: normalizeHexNumber(16),
+  })
+}
+
 export function NormalizeRawL2Transaction(
   rawL2Transaction: object,
   { debugPath = "raw_l2_transaction" } = {}

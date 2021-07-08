@@ -67,6 +67,10 @@ export const validators = {
     return verifyHexNumber(params[index], index);
   },
 
+  defaultParameter(params: any[], index: number): any {
+    return verifyDefaultParameter(params[index], index);
+  },
+
   /**
    * Hex number | "latest" | "earliest" | "pending"
    * @param params
@@ -301,6 +305,26 @@ function verifyHexNumberOrTag(hexNumber: any, index: number): any {
   }
 
   return verifyHexNumber(hexNumber, index);
+}
+
+function verifyDefaultParameter(blockNumber: any, index: number): any{
+    // TODO: only support "latest" now
+    if (blockNumber === 'latest') {
+      return undefined;
+    }
+  
+    if (
+      typeof blockNumber !== 'string' ||
+      blockNumber === 'earliest' ||
+      blockNumber === 'pending'
+    ) {
+      return invalidParamsError(
+        index,
+        `argument must be a hex string or "latest"`
+      );
+    }
+  
+    return verifyHexNumber(blockNumber, index);
 }
 
 function verifyHexString(hexString: any, index: number): any {
