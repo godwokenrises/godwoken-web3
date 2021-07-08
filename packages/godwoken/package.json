@@ -4,7 +4,8 @@
   "private": true,
   "main": "lib/index.js",
   "scripts": {
-    "fmt": "prettier --write \"src/**/*.ts\" package.json"
+    "fmt": "prettier --write \"src/**/*.ts\" package.json",
+    "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\""
   },
   "dependencies": {
     "@ckb-lumos/base": "^0.14.2-rc6",

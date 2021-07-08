@@ -1,6 +1,6 @@
-import { Map, Set } from 'immutable';
-import { FilterType } from './types';
-import EventEmitter from 'events';
+import { Map, Set } from "immutable";
+import { FilterType } from "./types";
+import EventEmitter from "events";
 
 class CacheEmitter extends EventEmitter {}
 
@@ -82,8 +82,8 @@ export class Cache {
     return Date.now() - life.get(key)! >= this.milsecsToLive;
   }
 
-  public onExpired(callback = (key: number) => {}) {
-    this.eventEmitter.on('kill', callback);
+  public onExpired(callback = (_key: number) => {}) {
+    this.eventEmitter.on("kill", callback);
   }
 
   private checker(lifeManager: Set<Map<number, number>>) {
@@ -95,7 +95,7 @@ export class Cache {
         if (!this.isExpired(key)) return false;
 
         this.killLife(key);
-        this.eventEmitter.emit('kill', key);
+        this.eventEmitter.emit("kill", key);
       }
     });
   }

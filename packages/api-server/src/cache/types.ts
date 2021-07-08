@@ -1,4 +1,4 @@
-import { BlockParameter } from '../methods/types';
+import { BlockParameter } from "../methods/types";
 
 export interface FilterObject {
   address?: string;

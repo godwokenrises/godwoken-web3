@@ -1,7 +1,7 @@
-import { RPC } from 'ckb-js-toolkit';
-import { GW_RPC_REQUEST_ERROR } from '../error-code';
-import { Callback } from '../types';
-import { middleware } from '../validator';
+import { RPC } from "ckb-js-toolkit";
+import { GW_RPC_REQUEST_ERROR } from "../error-code";
+import { Callback } from "../types";
+import { middleware } from "../validator";
 
 export class Gw {
   private rpc: RPC;
@@ -51,11 +51,11 @@ export class Gw {
   async ping(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.ping(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -63,11 +63,11 @@ export class Gw {
   async get_tip_block_hash(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.get_tip_block_hash(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -75,11 +75,11 @@ export class Gw {
   async get_block_hash(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.get_block_hash(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -87,12 +87,12 @@ export class Gw {
   async get_block(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.get_block(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -103,20 +103,20 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
   async get_balance(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.get_balance(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -127,8 +127,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -139,8 +139,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -151,8 +151,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -163,8 +163,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -175,8 +175,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -187,8 +187,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -199,8 +199,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -211,20 +211,20 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
   async execute_raw_l2transaction(args: any[], callback: Callback) {
     try {
       const result = await this.rpc.execute_raw_l2transaction(...args);
-      callback(null, result); 
+      callback(null, result);
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -235,8 +235,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -247,8 +247,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -259,8 +259,8 @@ export class Gw {
     } catch (error) {
       callback({
         code: GW_RPC_REQUEST_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 }

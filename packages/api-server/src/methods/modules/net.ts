@@ -1,7 +1,6 @@
-import { Callback } from '../types';
-import { middleware } from '../validator';
-const server = require('../../../bin/www');
-require('dotenv').config({ path: './.env' });
+import { Callback } from "../types";
+const server = require("../../../bin/www");
+require("dotenv").config({ path: "./.env" });
 
 export class Net {
   constructor() {}
@@ -13,7 +12,7 @@ export class Net {
    * net version as the second argument
    */
   version(args: [], callback: Callback) {
-    callback(null, '0x'+ BigInt(process.env.CHAIN_ID!).toString(16));
+    callback(null, "0x" + BigInt(process.env.CHAIN_ID!).toString(16));
   }
 
   /**
@@ -23,7 +22,7 @@ export class Net {
    * current peer nodes number as the second argument
    */
   peerCount(args: [], callback: Callback) {
-    callback(null, '0x0');
+    callback(null, "0x0");
   }
 
   /**
