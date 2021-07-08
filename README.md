@@ -17,7 +17,7 @@ CREATOR_ACCOUNT_ID=<your creator account id in integer>
 ADDRESS_STORE_PATH_ABSOLUTE=<path for storing short-address vs eth-address mapping. if not provided, will use default path: api-server/lib/hashmap-db>
 EOF
 $ yarn
-// Only for test purpos
+// Only for test purpose
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```
 
