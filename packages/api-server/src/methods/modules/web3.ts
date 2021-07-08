@@ -2,6 +2,7 @@ import { Callback } from '../types';
 import { getClientVersion } from '../../util';
 import { addHexPrefix, keccak, toBuffer } from 'ethereumjs-util';
 import { middleware, validators } from '../validator';
+import { WEB3_ERROR } from '../error-code';
 
 export class Web3 {
   constructor() {
@@ -30,8 +31,10 @@ export class Web3 {
       const hexEncodedDigest = addHexPrefix(rawDigest.toString('hex'));
       callback(null, hexEncodedDigest);
     } catch (err) {
-      console.log(err);
-      callback(err);
+      callback({
+        code: WEB3_ERROR,
+        message: err.message
+      });
     }
   }
 }

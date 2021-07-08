@@ -19,7 +19,7 @@ import { normalizers, Reader } from 'ckb-js-toolkit';
 import { types, schemas } from '@godwoken-web3/godwoken';
 import { calcEthTxHash, generateRawTransaction } from '../../convert-tx';
 import { Script } from '@ckb-lumos/base';
-import { INVALID_PARAMS } from '../error-code';
+import { INVALID_PARAMS, METHOD_NOT_SUPPORT, WEB3_ERROR } from '../error-code';
 
 const Config = require('../../../config/eth.json');
 const blake2b = require('blake2b');
@@ -261,7 +261,7 @@ export class Eth {
    * [] as the second argument.
    */
   accounts(args: [], callback: Callback) {
-    callback(null, ['0xFb2C72d3ffe10Ef7c9960272859a23D24db9e04A']);
+    callback(null, []);
   }
 
   async blockNumber(args: [], callback: Callback) {
@@ -279,46 +279,69 @@ export class Eth {
   }
 
   async sign(_args: any[], callback: Callback) {
-    callback(null, 'eth_sign is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sign is not supported!'
+    });
   }
 
   async signTransaction(_args: any[], callback: Callback) {
-    callback(null, 'eth_signTransaction is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_signTransaction is not supported!'
+    });
   }
 
   async sendTransaction(_args: any[], callback: Callback) {
-    callback(null, 'eth_sendTransaction is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sendTransaction is not supported!'
+    });
   }
 
   // TODO: second arguments
   async getBalance(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const short_address = await allTypeEthAddressToShortAddress(
-      this.rpc,
-      address
-    );
-    console.log(`eth_address: ${address}, short_address: ${short_address}`);
-    const balance = await this.rpc.get_balance(
-      short_address,
-      toHexNumber(CKB_SUDT_ID)
-    );
-    const balanceHex = '0x' + BigInt(balance).toString(16);
-    callback(null, balanceHex);
+    try {
+      const address = args[0];
+      const short_address = await allTypeEthAddressToShortAddress(
+        this.rpc,
+        address
+      );
+      console.log(`eth_address: ${address}, short_address: ${short_address}`);
+      const balance = await this.rpc.get_balance(
+        short_address,
+        toHexNumber(CKB_SUDT_ID)
+      );
+      const balanceHex = '0x' + BigInt(balance).toString(16);
+      callback(null, balanceHex); 
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });
+    }
   }
 
   async getStorageAt(args: [string, string, string], callback: Callback) {
-    const address = args[0];
-    const accountId = await ethContractAddressToAccountId(address, this.rpc);
-    if (accountId === undefined || accountId === null) {
-      return callback(
-        null,
-        '0x0000000000000000000000000000000000000000000000000000000000000000'
-      );
-    }
-    const storagePosition = args[1];
-    const key = buildStorageKey(storagePosition);
-    const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
+    try {
+      const address = args[0];
+      const accountId = await ethContractAddressToAccountId(address, this.rpc);
+      if (accountId === undefined || accountId === null) {
+        return callback(
+          null,
+          '0x0000000000000000000000000000000000000000000000000000000000000000'
+        );
+      }
+      const storagePosition = args[1];
+      const key = buildStorageKey(storagePosition);
+      const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
     callback(null, value);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      }); 
+    }
   }
 
   /**
@@ -327,62 +350,88 @@ export class Eth {
    * @param callback
    */
   async getTransactionCount(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const accountId: number | null = await allTypeEthAddressToAccountId(
-      this.rpc,
-      address
-    );
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
+    try {
+      const address = args[0];
+      const accountId: number | null = await allTypeEthAddressToAccountId(
+        this.rpc,
+        address
+      );
+      if (accountId === undefined || accountId === null) {
+        callback(null, '0x0');
+        return;
+      }
+      const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
+      const transactionCount = '0x' + BigInt(nonce).toString(16);
+      callback(null, transactionCount);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
     }
-    const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
-    const transactionCount = '0x' + BigInt(nonce).toString(16);
-    callback(null, transactionCount);
   }
 
   async getCode(args: [string, string], callback: Callback) {
-    const address = args[0];
-    const accountId = await ethContractAddressToAccountId(address, this.rpc);
-    if (accountId === undefined || accountId === null) {
-      callback(null, '0x0');
-      return;
+    try {
+      const address = args[0];
+      const accountId = await ethContractAddressToAccountId(address, this.rpc);
+      if (accountId === undefined || accountId === null) {
+        callback(null, '0x0');
+        return;
+      }
+      const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
+      const dataHash = await this.rpc.get_storage_at(
+        toHexNumber(accountId),
+        contractCodeKey
+      );
+      const data = await this.rpc.get_data(dataHash);
+      callback(null, data);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });   
     }
-    const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-    const dataHash = await this.rpc.get_storage_at(
-      toHexNumber(accountId),
-      contractCodeKey
-    );
-    const data = await this.rpc.get_data(dataHash);
-    callback(null, data);
   }
 
   async call(args: [TransactionCallObject], callback: Callback) {
-    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-    const runResult = await this.rpc.execute_raw_l2transaction(
-      rawL2TransactionHex
-    );
-    console.log('RunResult:', runResult);
-    callback(null, runResult.return_data);
+    try {
+      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+      const runResult = await this.rpc.execute_raw_l2transaction(
+        rawL2TransactionHex
+      );
+      console.log('RunResult:', runResult);
+      callback(null, runResult.return_data);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      }); 
+    }
   }
 
   async estimateGas(args: [TransactionCallObject], callback: Callback) {
-    console.log('estimate gas..');
-    console.log(args[0]);
-    const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-    const runResult = await this.rpc.execute_raw_l2transaction(
-      rawL2TransactionHex
-    );
-    
-    const polyjuiceSystemLog = extractPolyjuiceSystemLog(
-      runResult.logs
-    ) as PolyjuiceSystemLog;
+    try {
+      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
+      const runResult = await this.rpc.execute_raw_l2transaction(
+        rawL2TransactionHex
+      );
+      
+      const polyjuiceSystemLog = extractPolyjuiceSystemLog(
+        runResult.logs
+      ) as PolyjuiceSystemLog;
 
-    console.log(polyjuiceSystemLog);
+      console.log(polyjuiceSystemLog);
 
-    console.log('eth_estimateGas RunResult:', runResult, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
-    
-    callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      console.log('eth_estimateGas RunResult:', runResult, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      
+      callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
+    }
   }
 
   async gw_executeL2Tranaction(args: any[], callback: Callback) {
@@ -418,27 +467,42 @@ export class Eth {
 
   // TODO: second argument
   async getBlockByHash(args: [string], callback: Callback) {
-    const blockData = await this.knex
-      .select()
-      .table('blocks')
-      .where({ hash: args[0] });
-    const transactionData = await this.knex
-      .select('hash')
-      .table('transactions')
-      .where({ block_hash: args[0] });
-    if (blockData.length === 1) {
-      const txHashes = transactionData.map((item) => item.hash);
-      let block = dbBlockToApiBlock(blockData[0]);
-      block.transactions = txHashes as any;
-      callback(null, block);
-    } else {
-      callback(null, null);
+    try {
+      const blockData = await this.knex
+        .select()
+        .table('blocks')
+        .where({ hash: args[0] });
+      const transactionData = await this.knex
+        .select('hash')
+        .table('transactions')
+        .where({ block_hash: args[0] });
+      if (blockData.length === 1) {
+        const txHashes = transactionData.map((item) => item.hash);
+        let block = dbBlockToApiBlock(blockData[0]);
+        block.transactions = txHashes as any;
+        callback(null, block);
+      } else {
+        callback(null, null);
+      }
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message
+      });  
     }
   }
 
   async getBlockByNumber(args: [string], callback: Callback) {
     let block_number;
     // TODO handle "earliest", "latest" or "pending", only support latest now.
+
+    if(args[0] === "earliest" || args[0] === "pending"){
+      return callback({
+        code: WEB3_ERROR,
+        message: 'right now we only support latest tag in block parameter!' 
+      }); 
+    }
+
     if(args[0] === "latest"){
       const tipNumber = await this.getTipNumber();
       console.log(tipNumber);
@@ -844,7 +908,10 @@ export class Eth {
   }
 
   async sendRawTransaction(args: [string], callback: Callback) {
-    callback(null, 'eth_sendRawTransaction is not supported!');
+    callback({
+      code: METHOD_NOT_SUPPORT,
+      message: 'eth_sendRawTransaction is not supported!'
+    }); 
   }
   /* #endregion */
 
