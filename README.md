@@ -211,7 +211,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ```
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getTransactionCount", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getTransactionCount", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73", "latest"], "id": 1}'
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x2"}
@@ -230,7 +230,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ```
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getBalance", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73"], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getBalance", "params": ["0x3db4a5310fe102430eb457c257e695795985fd73", "latest"], "id": 1}'
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x746a5287f6"}
@@ -241,7 +241,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ```
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getCode", "params": ["0x0500000000000000000000000000000000000000"], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getCode", "params": ["0x0500000000000000000000000000000000000000", "0x30c"], "id": 1}'
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x60806040526004361060295760003560e01c806360fe47b114602f5780636d4ce63c14605b576029565b60006000fd5b60596004803603602081101560445760006000fd5b81019080803590602001909291905050506084565b005b34801560675760006000fd5b50606e6094565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060a2565b9056fea2646970667358221220044daf4e34adffc61c3bb9e8f40061731972d32db5b8c2bc975123da9e988c3e64736f6c63430006060033"}
@@ -252,7 +252,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 
 ```
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getStorageAt", "params": ["0x0c00000000000000000000000000000000000000","0x0"], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_getStorageAt", "params": ["0x0c00000000000000000000000000000000000000","0x0", "latest"], "id": 1}'
 
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x0000000000000000000000000000000000000000000000000000000000000d10"}
@@ -262,13 +262,13 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 // Call SimpleStorage:set
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}, "latest"], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x"}
 
 // Call SimpleStorage:get 
 // Request
- curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x6d4ce63c"}], "id": 1}'
+ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_call", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x6d4ce63c"}, "latest"], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x000000000000000000000000000000000000000000000000000000000000007b"}
 ```
@@ -277,7 +277,7 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 ```
 // Call SimpleStorage:set
 // Request
-curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_estimateGas", "params": [{"from": "0x3db4a5310fe102430eb457c257e695795985fd73","to": "0x0500000000000000000000000000000000000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"eth_estimateGas", "params": [{"from": "0x46beaC96B726a51C5703f99eC787ce12793Dae11","to": "0x0c6c27bfd10b83c36bd5a3bdf768995a04000000", "gas": "0xf4240", "gasPrice": "0x1", "value": "0x0", "data": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000002"}], "id": 1}'
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x5c43"}
 ```
