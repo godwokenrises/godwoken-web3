@@ -1,5 +1,6 @@
 const jayson = require('jayson');
 const test = require('ava');
+require('dotenv').config({ path: './.env' });
 
 const PORT = process.env.PORT || '3000';
 
