@@ -1,4 +1,4 @@
-import { HexNumber, HexString } from '@ckb-lumos/base';
+import { HexNumber, HexString } from "@ckb-lumos/base";
 export type Error = {
   code?: number;
   message: string;
@@ -16,7 +16,7 @@ export type Response = number | string | boolean | SyningStatus | Array<string>;
 
 export type Callback = (err: Error, res?: any | Response) => void;
 
-export type BlockParameter = string | 'latest' | 'earliest' | 'pending';
+export type BlockParameter = string | "latest" | "earliest" | "pending";
 
 export interface TransactionCallObject {
   from?: HexString;

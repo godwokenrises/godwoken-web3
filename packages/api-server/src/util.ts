@@ -1,7 +1,7 @@
-import { BlockParameter } from './methods/types';
+import { BlockParameter } from "./methods/types";
 
-const { platform } = require('os');
-const { version: packageVersion } = require('../../../package.json');
+const { platform } = require("os");
+const { version: packageVersion } = require("../../../package.json");
 
 export function getClientVersion() {
   //todo: change to rust process version
@@ -12,18 +12,18 @@ export function getClientVersion() {
 }
 
 export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
-  if (!block_paramter) throw new Error('block_parameter is undefind!');
+  if (!block_paramter) throw new Error("block_parameter is undefind!");
 
   switch (block_paramter) {
-    case 'latest':
-      return BigInt('1' + '0'.repeat(10)); // a very large number
+    case "latest":
+      return BigInt("1" + "0".repeat(10)); // a very large number
 
-    case 'earliest':
+    case "earliest":
       return BigInt(0);
 
-    case 'pending':
+    case "pending":
       // throw new Error("pending transaction unsupported.");
-      return BigInt('1' + '0'.repeat(10)); // treat it as 'latest'
+      return BigInt("1" + "0".repeat(10)); // treat it as 'latest'
 
     default:
       return BigInt(block_paramter);
@@ -32,7 +32,7 @@ export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
 
 export function toCamel(s: string) {
   return s.replace(/([-_][a-z])/gi, ($1) => {
-    return $1.toUpperCase().replace('-', '').replace('_', '');
+    return $1.toUpperCase().replace("-", "").replace("_", "");
   });
 }
 
@@ -42,7 +42,7 @@ export function toSnake(s: string) {
 
 export function snakeToCamel(t: object) {
   // db schema: snake_name => json rpc: camelName
-  var camel: any = {};
+  let camel: any = {};
   Object.keys(t).map((key) => {
     //@ts-ignore
     camel[toCamel(key)] = t[key];
@@ -52,7 +52,7 @@ export function snakeToCamel(t: object) {
 
 export function camelToSnake(t: object) {
   // json rpc: camelName => db schema: snake_name
-  var snake: any = {};
+  let snake: any = {};
   Object.keys(t).map((key) => {
     //@ts-ignore
     snake[toSnake(key)] = t[key];
@@ -61,9 +61,9 @@ export function camelToSnake(t: object) {
 }
 
 export function toHex(i: number) {
-  if (typeof i !== 'number') return i;
+  if (typeof i !== "number") return i;
 
-  return '0x' + BigInt(i).toString(16);
+  return "0x" + BigInt(i).toString(16);
 }
 
 export function validateHexString(hex: string): boolean {

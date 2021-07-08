@@ -6,67 +6,67 @@ import {
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
   TransactionCallObject,
-  SudtPayFeeLog
-} from '../types';
-import * as Knex from 'knex';
-import { RPC } from 'ckb-js-toolkit';
-import { middleware, validators } from '../validator';
-import { FilterManager } from '../../cache/index';
-import { FilterObject } from '../../cache/types';
-import { camelToSnake, toHex, handleBlockParamter } from '../../util';
-import { core, utils, HexNumber, Hash, HexString } from '@ckb-lumos/base';
-import { normalizers, Reader } from 'ckb-js-toolkit';
-import { types, schemas } from '@godwoken-web3/godwoken';
-import { calcEthTxHash, generateRawTransaction } from '../../convert-tx';
-import { Script } from '@ckb-lumos/base';
-import { INVALID_PARAMS, METHOD_NOT_SUPPORT, WEB3_ERROR } from '../error-code';
+  SudtPayFeeLog,
+} from "../types";
+import * as Knex from "knex";
+import { RPC } from "ckb-js-toolkit";
+import { middleware, validators } from "../validator";
+import { FilterManager } from "../../cache/index";
+import { FilterObject } from "../../cache/types";
+import { camelToSnake, toHex, handleBlockParamter } from "../../util";
+import { utils, HexNumber, HexString } from "@ckb-lumos/base";
+import { Reader } from "ckb-js-toolkit";
+import { types, schemas } from "@godwoken-web3/godwoken";
+import { Script } from "@ckb-lumos/base";
+import { METHOD_NOT_SUPPORT, WEB3_ERROR } from "../error-code";
 
-const Config = require('../../../config/eth.json');
-const blake2b = require('blake2b');
-require('dotenv').config({ path: './.env' });
+const Config = require("../../../config/eth.json");
+const blake2b = require("blake2b");
+require("dotenv").config({ path: "./.env" });
 
 const ETH_ACCOUNT_LOCK_HASH = process.env.ETH_ACCOUNT_LOCK_HASH;
 const ROLLUP_TYPE_HASH = process.env.ROLLUP_TYPE_HASH;
 const POLYJUICE_SYSTEM_PREFIX = 255;
 const POLYJUICE_CONTRACT_CODE = 1;
-const POLYJUICE_DESTRUCTED = 2;
-const GW_KEY_BYTES = 32;
+// const POLYJUICE_DESTRUCTED = 2;
+// const GW_KEY_BYTES = 32;
 const GW_ACCOUNT_KV = 0;
-const CKB_SUDT_ID = '0x1';
-const CKB_PERSONALIZATION = 'ckb-default-hash';
-const SUDT_OPERATION_LOG_FLGA = '0x0';
-const SUDT_PAY_FEE_LOG_FLAG = '0x1';
-const POLYJUICE_SYSTEM_LOG_FLAG = '0x2';
-const POLYJUICE_USER_LOG_FLAG = '0x3';
+const CKB_SUDT_ID = "0x1";
+const CKB_PERSONALIZATION = "ckb-default-hash";
+const SUDT_OPERATION_LOG_FLGA = "0x0";
+const SUDT_PAY_FEE_LOG_FLAG = "0x1";
+const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
+const POLYJUICE_USER_LOG_FLAG = "0x3";
+
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
 
   rpc: RPC;
   constructor() {
-    this.knex = require('knex')({
-      client: 'postgresql',
-      connection: process.env.DATABASE_URL
+    this.knex = require("knex")({
+      client: "postgresql",
+      connection: process.env.DATABASE_URL,
     });
 
     this.filterManager = new FilterManager();
-    console.log('node_rpc', process.env.GODWOKEN_JSON_RPC);
+    console.log("node_rpc", process.env.GODWOKEN_JSON_RPC);
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
-      validators.defaultParameter
+      validators.defaultParameter,
     ]);
     // TODO: required 2 arguments
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
-      validators.blockHash
+      validators.blockHash,
     ]);
     // TODO: required 2 arguments
     this.getBalance = middleware(this.getBalance.bind(this), 1, [
-      validators.address
+      validators.address,
     ]);
     this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [
       validators.address,
-      validators.hexNumber
+      validators.hexNumber,
     ]);
     this.getTransactionCount = middleware(
       this.getTransactionCount.bind(this),
@@ -121,10 +121,10 @@ export class Eth {
     );
     this.call = middleware(this.call.bind(this), 1, [validators.ethCallParams]);
     this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
-      validators.ethCallParams
+      validators.ethCallParams,
     ]);
     this.newFilter = middleware(this.newFilter.bind(this), 1, [
-      validators.newFilterParams
+      validators.newFilterParams,
     ]);
 
     this.sendRawTransaction = middleware(
@@ -147,11 +147,10 @@ export class Eth {
     this.signTransaction = middleware(this.signTransaction.bind(this), 0);
 
     this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
-
   }
 
   chainId(args: [], callback: Callback) {
-    callback(null, '0x' + BigInt(process.env.CHAIN_ID!).toString(16));
+    callback(null, "0x" + BigInt(process.env.CHAIN_ID!).toString(16));
   }
 
   /**
@@ -161,8 +160,8 @@ export class Eth {
    * protocol version as the second argument
    */
   protocolVersion(args: [], callback: Callback) {
-    console.log('protocolVersion');
-    const version = '0x' + BigInt(Config.eth_protocolVersion).toString(16);
+    console.log("protocolVersion");
+    const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
     callback(null, version);
   }
 
@@ -177,16 +176,16 @@ export class Eth {
     // TODO get the latest L2 block number
     // const result = await this.rpc.last_synced();
     const blockData = await this.knex
-      .select('number')
-      .from('blocks')
-      .orderBy('number', 'desc')
+      .select("number")
+      .from("blocks")
+      .orderBy("number", "desc")
       .limit(1);
     if (blockData.length === 1) {
-      let blockHeight = '0x' + BigInt(blockData[0].number).toString(16);
+      let blockHeight = "0x" + BigInt(blockData[0].number).toString(16);
       const result = {
         startingBlock: blockHeight,
         currentBlock: blockHeight,
-        highestBlock: blockHeight
+        highestBlock: blockHeight,
       };
       callback(null, result);
     } else {
@@ -201,7 +200,7 @@ export class Eth {
    * 20 bytes 0 hex string as the second argument.
    */
   coinbase(args: [], callback: Callback) {
-    callback(null, '0x' + '0'.repeat(40));
+    callback(null, "0x" + "0".repeat(40));
   }
 
   /**
@@ -221,11 +220,11 @@ export class Eth {
    * 0x0 as the second argument.
    */
   hashrate(args: [], callback: Callback) {
-    callback(null, '0x0');
+    callback(null, "0x0");
   }
 
   async gasPrice(args: [], callback: Callback) {
-    callback(null, '0x1');
+    callback(null, "0x1");
   }
 
   /**
@@ -240,12 +239,12 @@ export class Eth {
 
   async blockNumber(args: [], callback: Callback) {
     const blockData = await this.knex
-      .select('number')
-      .from('blocks')
-      .orderBy('number', 'desc')
+      .select("number")
+      .from("blocks")
+      .orderBy("number", "desc")
       .limit(1);
     if (blockData.length === 1) {
-      let blockHeight = '0x' + BigInt(blockData[0].number).toString(16);
+      let blockHeight = "0x" + BigInt(blockData[0].number).toString(16);
       callback(null, blockHeight);
     } else {
       callback(null, null);
@@ -255,21 +254,21 @@ export class Eth {
   async sign(_args: any[], callback: Callback) {
     callback({
       code: METHOD_NOT_SUPPORT,
-      message: 'eth_sign is not supported!'
+      message: "eth_sign is not supported!",
     });
   }
 
   async signTransaction(_args: any[], callback: Callback) {
     callback({
       code: METHOD_NOT_SUPPORT,
-      message: 'eth_signTransaction is not supported!'
+      message: "eth_signTransaction is not supported!",
     });
   }
 
   async sendTransaction(_args: any[], callback: Callback) {
     callback({
       code: METHOD_NOT_SUPPORT,
-      message: 'eth_sendTransaction is not supported!'
+      message: "eth_sendTransaction is not supported!",
     });
   }
 
@@ -286,12 +285,12 @@ export class Eth {
         short_address,
         toHexNumber(CKB_SUDT_ID)
       );
-      const balanceHex = '0x' + BigInt(balance).toString(16);
-      callback(null, balanceHex); 
+      const balanceHex = "0x" + BigInt(balance).toString(16);
+      callback(null, balanceHex);
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -303,18 +302,18 @@ export class Eth {
       if (accountId === undefined || accountId === null) {
         return callback(
           null,
-          '0x0000000000000000000000000000000000000000000000000000000000000000'
+          "0x0000000000000000000000000000000000000000000000000000000000000000"
         );
       }
       const storagePosition = args[1];
       const key = buildStorageKey(storagePosition);
       const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
-    callback(null, value);
+      callback(null, value);
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -331,17 +330,17 @@ export class Eth {
         address
       );
       if (accountId === undefined || accountId === null) {
-        callback(null, '0x0');
+        callback(null, "0x0");
         return;
       }
       const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
-      const transactionCount = '0x' + BigInt(nonce).toString(16);
+      const transactionCount = "0x" + BigInt(nonce).toString(16);
       callback(null, transactionCount);
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -350,7 +349,7 @@ export class Eth {
       const address = args[0];
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
-        callback(null, '0x0');
+        callback(null, "0x0");
         return;
       }
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
@@ -363,8 +362,8 @@ export class Eth {
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      });   
+        message: error.message,
+      });
     }
   }
 
@@ -374,13 +373,13 @@ export class Eth {
       const runResult = await this.rpc.execute_raw_l2transaction(
         rawL2TransactionHex
       );
-      console.log('RunResult:', runResult);
+      console.log("RunResult:", runResult);
       callback(null, runResult.return_data);
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      }); 
+        message: error.message,
+      });
     }
   }
 
@@ -390,21 +389,25 @@ export class Eth {
       const runResult = await this.rpc.execute_raw_l2transaction(
         rawL2TransactionHex
       );
-      
+
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
         runResult.logs
       ) as PolyjuiceSystemLog;
 
       console.log(polyjuiceSystemLog);
 
-      console.log('eth_estimateGas RunResult:', runResult, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
-      
-      callback(null, '0x' + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      console.log(
+        "eth_estimateGas RunResult:",
+        runResult,
+        "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
+      );
+
+      callback(null, "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -413,11 +416,11 @@ export class Eth {
     try {
       const blockData = await this.knex
         .select()
-        .table('blocks')
+        .table("blocks")
         .where({ hash: args[0] });
       const transactionData = await this.knex
-        .select('hash')
-        .table('transactions')
+        .select("hash")
+        .table("transactions")
         .where({ block_hash: args[0] });
       if (blockData.length === 1) {
         const txHashes = transactionData.map((item) => item.hash);
@@ -430,8 +433,8 @@ export class Eth {
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
-      });  
+        message: error.message,
+      });
     }
   }
 
@@ -439,38 +442,37 @@ export class Eth {
     let block_number;
     // TODO handle "earliest", "latest" or "pending", only support latest now.
 
-    if(args[0] === "earliest" || args[0] === "pending"){
+    if (args[0] === "earliest" || args[0] === "pending") {
       return callback({
         code: WEB3_ERROR,
-        message: 'right now we only support latest tag in block parameter!' 
-      }); 
+        message: "right now we only support latest tag in block parameter!",
+      });
     }
 
-    if(args[0] === "latest"){
+    if (args[0] === "latest") {
       const tipNumber = await this.getTipNumber();
       console.log(tipNumber);
-      const tipNumberHex = '0x' + BigInt(tipNumber).toString(16);
+      const tipNumberHex = "0x" + BigInt(tipNumber).toString(16);
       block_number = BigInt(tipNumberHex);
-    }else{
+    } else {
       block_number = BigInt(args[0]);
     }
-    
 
     const blockData = await this.knex
       .select()
-      .table('blocks')
-      .where({ number: block_number});
+      .table("blocks")
+      .where({ number: block_number });
     if (blockData.length === 1) {
       const transactionData = await this.knex
-        .select('hash')
-        .table('transactions')
+        .select("hash")
+        .table("transactions")
         .where({ block_number: block_number });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
       block.transactions = txHashes as any;
       callback(null, block);
     } else {
-      console.log('no block.....')
+      console.log("no block.....");
       callback(null, null);
     }
   }
@@ -483,10 +485,10 @@ export class Eth {
   async getBlockTransactionCountByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .count()
-      .table('transactions')
+      .table("transactions")
       .where({ block_hash: args[0] });
     if (transactionData.length === 1) {
-      callback(null, '0x' + BigInt(transactionData[0].count).toString(16));
+      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
     } else {
       callback(null, null);
     }
@@ -502,11 +504,11 @@ export class Eth {
 
     const transactionData = await this.knex
       .count()
-      .table('transactions')
+      .table("transactions")
       .where({ block_number: BigInt(blockNumber) });
 
     if (transactionData.length === 1) {
-      callback(null, '0x' + BigInt(transactionData[0].count).toString(16));
+      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
     } else {
       callback(null, null);
     }
@@ -532,7 +534,7 @@ export class Eth {
    * @param callback
    */
   async getUncleCountByBlockHash(args: [string], callback: Callback) {
-    callback(null, '0x0');
+    callback(null, "0x0");
   }
 
   async getCompilers(args: [], callback: Callback) {
@@ -542,7 +544,7 @@ export class Eth {
   async getTransactionByHash(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .select()
-      .table('transactions')
+      .table("transactions")
       .where({ hash: args[0] });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -563,7 +565,7 @@ export class Eth {
   ) {
     const transactionData = await this.knex
       .select()
-      .table('transactions')
+      .table("transactions")
       .where({ block_hash: args[0], transaction_index: BigInt(args[1]) });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -579,10 +581,10 @@ export class Eth {
   ) {
     const transactionData = await this.knex
       .select()
-      .table('transactions')
+      .table("transactions")
       .where({
         block_number: BigInt(args[0]),
-        transaction_index: BigInt(args[1])
+        transaction_index: BigInt(args[1]),
       });
     if (transactionData.length === 1) {
       let transaction = dbTransactionToApiTransaction(transactionData[0]);
@@ -595,12 +597,12 @@ export class Eth {
   async getTransactionReceipt(args: [string], callback: Callback) {
     const transactionData = await this.knex
       .select()
-      .table('transactions')
+      .table("transactions")
       .where({ hash: args[0] });
     if (transactionData.length === 1) {
       const logsData = await this.knex
         .select()
-        .table('logs')
+        .table("logs")
         .where({ transaction_hash: args[0] });
       const logs = logsData.map((item) => dbLogToApiLog(item));
       let transactionReceipt = dbTransactionToApiTransactionReceipt(
@@ -644,7 +646,7 @@ export class Eth {
 
     if (filter === 1) {
       // block filter
-      const blocks = await this.knex.select().table('blocks').where({});
+      const blocks = await this.knex.select().table("blocks").where({});
       const block_hashes = blocks.map((block) => block.hash);
       return callback(null, block_hashes);
     }
@@ -670,9 +672,9 @@ export class Eth {
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.knex
         .select()
-        .table('blocks')
-        .where('number', '>', BigInt(last_poll_block_number!).toString())
-        .orderBy('number', 'desc');
+        .table("blocks")
+        .where("number", ">", BigInt(last_poll_block_number!).toString())
+        .orderBy("number", "desc");
 
       if (blocks.length === 0) return callback(null, []);
 
@@ -694,40 +696,40 @@ export class Eth {
     // filter non-empty query params
     const params = [
       {
-        name: 'address',
-        value: filter?.address
+        name: "address",
+        value: filter?.address,
       },
       {
-        name: 'blockHash',
-        value: filter?.blockHash
+        name: "blockHash",
+        value: filter?.blockHash,
       },
       {
-        name: 'fromBlock',
-        value: filter?.fromBlock
+        name: "fromBlock",
+        value: filter?.fromBlock,
       },
       {
-        name: 'toBlock',
-        value: filter?.toBlock
+        name: "toBlock",
+        value: filter?.toBlock,
       },
       {
-        name: 'topics',
-        value: filter?.topics
-      }
+        name: "topics",
+        value: filter?.topics,
+      },
     ]
       .filter((p) => p.value !== undefined)
       .map((p) => {
         return { [p.name]: p.value };
       });
-    var q = {};
-    var query = params.map((p) => Object.assign(q, p))[0];
+    let q = {};
+    let query = params.map((p) => Object.assign(q, p))[0];
 
     //@ts-ignore
     const topics: [] = query.topics ? query.topics : [];
     const from_block = handleBlockParamter(
-      filter.fromBlock ? filter.fromBlock : 'earliest'
+      filter.fromBlock ? filter.fromBlock : "earliest"
     );
     const to_block = handleBlockParamter(
-      filter.toBlock ? filter.toBlock : 'latest'
+      filter.toBlock ? filter.toBlock : "latest"
     );
 
     // we will pass query object dirrectly to knex where method.
@@ -740,11 +742,11 @@ export class Eth {
     if (filter.blockHash) {
       const logsData = await this.knex
         .select()
-        .table('logs')
+        .table("logs")
         .where(camelToSnake(query))
-        .where('topics', '@>', topics)
+        .where("topics", "@>", topics)
         // select the recent whose log_id is greater than lastPollCache's log_id
-        .where('id', '>', last_poll_log_id!.toString());
+        .where("id", ">", last_poll_log_id!.toString());
 
       if (logsData.length === 0) return callback(null, []);
 
@@ -758,7 +760,7 @@ export class Eth {
 
     const logsData = await this.knex
       .select()
-      .table('logs')
+      .table("logs")
       .where(camelToSnake(query))
       /*
           todo: incomplete topics query. (currently only impl a simple topic query method)
@@ -778,11 +780,11 @@ export class Eth {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
         */
-      .where('topics', '@>', topics)
-      .where('block_number', '>', from_block?.toString())
-      .where('block_number', '<', to_block?.toString())
+      .where("topics", "@>", topics)
+      .where("block_number", ">", from_block?.toString())
+      .where("block_number", "<", to_block?.toString())
       // select the recent whose log_id is greater than lastPollCache's log_id
-      .where('id', '>', last_poll_log_id!.toString());
+      .where("id", ">", last_poll_log_id!.toString());
 
     if (logsData.length === 0) return callback(null, []);
 
@@ -800,10 +802,10 @@ export class Eth {
     //@ts-ignore
     const topics: [] = filter.topics ? filter.topics : [];
     const from_block = handleBlockParamter(
-      filter.fromBlock ? filter.fromBlock : 'earliest'
+      filter.fromBlock ? filter.fromBlock : "earliest"
     );
     const to_block = handleBlockParamter(
-      filter.toBlock ? filter.toBlock : 'latest'
+      filter.toBlock ? filter.toBlock : "latest"
     );
 
     delete filter.fromBlock;
@@ -814,16 +816,16 @@ export class Eth {
     if (filter.blockHash) {
       const logsData = await this.knex
         .select()
-        .table('logs')
+        .table("logs")
         .where(camelToSnake(filter))
-        .where('topics', '@>', topics);
+        .where("topics", "@>", topics);
       const logs = logsData.map((log) => dbLogToApiLog(log));
       return callback(null, logs);
     }
 
     const logsData = await this.knex
       .select()
-      .table('logs')
+      .table("logs")
       .where(camelToSnake(filter))
       /*
           todo: incomplete topics matching. (currently only impl a simple topic query method)
@@ -843,9 +845,9 @@ export class Eth {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
         */
-      .where('topics', '@>', topics)
-      .where('block_number', '>', from_block?.toString())
-      .where('block_number', '<', to_block?.toString());
+      .where("topics", "@>", topics)
+      .where("block_number", ">", from_block?.toString())
+      .where("block_number", "<", to_block?.toString());
     const logs = logsData.map((log) => dbLogToApiLog(log));
     return callback(null, logs);
   }
@@ -853,31 +855,31 @@ export class Eth {
   async sendRawTransaction(args: [string], callback: Callback) {
     callback({
       code: METHOD_NOT_SUPPORT,
-      message: 'eth_sendRawTransaction is not supported!'
-    }); 
+      message: "eth_sendRawTransaction is not supported!",
+    });
   }
   /* #endregion */
 
   private async getTipNumber(): Promise<string> {
     const result = await this.knex
-      .table('blocks')
-      .max('number', { as: 'tipNumber' });
+      .table("blocks")
+      .max("number", { as: "tipNumber" });
     const tipNumber = result[0].tipNumber;
     return tipNumber;
   }
 
   private async getBlockNumberOrLatest(num: string): Promise<string> {
-    if (num === 'latest') {
+    if (num === "latest") {
       return await this.getTipNumber();
     }
     return num;
   }
 }
 
-const DEFAULT_LOGS_BLOOM = '0x' + '00'.repeat(256);
+const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 
 function transformLogsBloom(bloom: HexString) {
-  if (!bloom || bloom === '0x') {
+  if (!bloom || bloom === "0x") {
     return DEFAULT_LOGS_BLOOM;
   }
   return bloom;
@@ -885,46 +887,48 @@ function transformLogsBloom(bloom: HexString) {
 
 function dbBlockToApiBlock(block: any) {
   return {
-    number: '0x' + BigInt(block.number).toString(16),
+    number: "0x" + BigInt(block.number).toString(16),
     hash: block.hash,
     parentHash: block.parent_hash,
-    gasLimit: '0x' + BigInt(block.gas_limit).toString(16) === '0x0' ? '0xe4e1c0' : '0x' + BigInt(block.gas_limit).toString(16),
-    gasUsed: '0x' + BigInt(block.gas_used).toString(16),
+    gasLimit:
+      "0x" + BigInt(block.gas_limit).toString(16) === "0x0"
+        ? "0xe4e1c0"
+        : "0x" + BigInt(block.gas_limit).toString(16),
+    gasUsed: "0x" + BigInt(block.gas_used).toString(16),
     miner: block.miner,
-    size: '0x' + BigInt(block.size).toString(16),
+    size: "0x" + BigInt(block.size).toString(16),
     logsBloom: transformLogsBloom(block.logs_bloom),
     transactions: [],
-    timestamp: '0x' + (new Date(block.timestamp).getTime() / 1000).toString(16),
+    timestamp: "0x" + (new Date(block.timestamp).getTime() / 1000).toString(16),
     // use default value
-    mixHash: '0x' + '0'.repeat(64),
-    nonce: '0x' + '0'.repeat(16),
-    stateRoot: '0x' + '0'.repeat(64),
-    sha3Uncles: '0x' + '0'.repeat(64),
-    receiptsRoot: '0x' + '0'.repeat(64),
-    transactionsRoot: '0x' + '0'.repeat(64),
+    mixHash: "0x" + "0".repeat(64),
+    nonce: "0x" + "0".repeat(16),
+    stateRoot: "0x" + "0".repeat(64),
+    sha3Uncles: "0x" + "0".repeat(64),
+    receiptsRoot: "0x" + "0".repeat(64),
+    transactionsRoot: "0x" + "0".repeat(64),
     uncles: [],
-    totalDifficulty: '0x0',
-    extraData: '0x'
+    totalDifficulty: "0x0",
+    extraData: "0x",
   };
 }
-
 
 function dbTransactionToApiTransaction(transaction: any) {
   return {
     hash: transaction.hash,
     blockHash: transaction.block_hash,
-    blockNumber: '0x' + BigInt(transaction.block_number).toString(16),
-    transactionIndex: '0x' + BigInt(transaction.transaction_index).toString(16),
+    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
+    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
     from: transaction.from_address,
     to: transaction.to_address,
-    gas: '0x' + BigInt(transaction.gas_limit).toString(16),
-    gasPrice: '0x' + BigInt(transaction.gas_price).toString(16),
+    gas: "0x" + BigInt(transaction.gas_limit).toString(16),
+    gasPrice: "0x" + BigInt(transaction.gas_price).toString(16),
     input: transaction.input,
-    nonce: '0x' + BigInt(transaction.nonce).toString(16),
-    value: '0x' + BigInt(transaction.value).toString(16),
-    v: '0x' + BigInt(transaction.v).toString(16),
+    nonce: "0x" + BigInt(transaction.nonce).toString(16),
+    value: "0x" + BigInt(transaction.value).toString(16),
+    v: "0x" + BigInt(transaction.v).toString(16),
     r: transaction.r,
-    s: transaction.s
+    s: transaction.s,
   };
 }
 
@@ -932,15 +936,15 @@ function dbTransactionToApiTransactionReceipt(transaction: any) {
   return {
     transactionHash: transaction.hash,
     blockHash: transaction.block_hash,
-    blockNumber: '0x' + BigInt(transaction.block_number).toString(16),
-    transactionIndex: '0x' + BigInt(transaction.transaction_index).toString(16),
-    gasUsed: '0x' + BigInt(transaction.gas_used).toString(16),
+    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
+    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
+    gasUsed: "0x" + BigInt(transaction.gas_used).toString(16),
     cumulativeGasUsed:
-      '0x' + BigInt(transaction.cumulative_gas_used).toString(16),
+      "0x" + BigInt(transaction.cumulative_gas_used).toString(16),
     logsBloom: transformLogsBloom(transaction.logs_bloom),
     logs: [],
     contractAddress: transaction.contract_address,
-    status: transaction.status ? '0x1' : '0x0'
+    status: transaction.status ? "0x1" : "0x0",
   };
 }
 
@@ -948,13 +952,13 @@ function dbLogToApiLog(log: any) {
   return {
     address: log.address,
     blockHash: log.block_hash,
-    blockNumber: '0x' + BigInt(log.block_number).toString(16),
-    transactionIndex: '0x' + BigInt(log.transaction_index).toString(16),
+    blockNumber: "0x" + BigInt(log.block_number).toString(16),
+    transactionIndex: "0x" + BigInt(log.transaction_index).toString(16),
     transactionHash: log.transaction_hash,
-    data: log.data === '0x' ? '0x' + '00'.repeat(32) : log.data,
-    logIndex: '0x' + BigInt(log.transaction_index).toString(16),
+    data: log.data === "0x" ? "0x" + "00".repeat(32) : log.data,
+    logIndex: "0x" + BigInt(log.transaction_index).toString(16),
     topics: log.topics,
-    removed: false
+    removed: false,
   };
 }
 
@@ -973,8 +977,8 @@ async function allTypeEthAddressToShortAddress(
 function ethAddressToScriptHash(address: string) {
   const script: Script = {
     code_hash: ETH_ACCOUNT_LOCK_HASH as string,
-    hash_type: 'type',
-    args: ROLLUP_TYPE_HASH + address.slice(2)
+    hash_type: "type",
+    args: ROLLUP_TYPE_HASH + address.slice(2),
   };
   const scriptHash = utils.computeScriptHash(script);
   return scriptHash;
@@ -988,7 +992,7 @@ async function ethContractAddressToAccountId(
   if (address.length != 42) {
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
-  if (address === '0x0000000000000000000000000000000000000000') {
+  if (address === "0x0000000000000000000000000000000000000000") {
     return +(process.env.CREATOR_ACCOUNT_ID as string);
   }
   // todo: support create2 contract address in which case it has not been created.
@@ -1002,7 +1006,7 @@ async function ethContractAddressToAccountId(
   }
 }
 
-function gwBuildAccountKey(accountId: number, key: Uint8Array) {
+function _gwBuildAccountKey(accountId: number, key: Uint8Array) {
   const buffer = Buffer.from(CKB_PERSONALIZATION);
   const personal = new Uint8Array(buffer);
   let context = blake2b(32, null, null, personal);
@@ -1028,21 +1032,21 @@ function polyjuiceBuildSystemKey(accountId: number, fieldType: number) {
   key[3] = array[3];
   key[4] = POLYJUICE_SYSTEM_PREFIX;
   key[5] = fieldType;
-  return '0x' + Buffer.from(key).toString('hex');
+  return "0x" + Buffer.from(key).toString("hex");
 }
 
-function ethStoragePositionToRawKey(ethStoragePosition: string) {}
+// function ethStoragePositionToRawKey(ethStoragePosition: string) {}
 
 function uint32ToLeBytes(id: number) {
   let hex = id.toString(16);
   if (hex.length < 8) {
-    hex = '0'.repeat(8 - hex.length) + hex;
+    hex = "0".repeat(8 - hex.length) + hex;
   }
   const array = hex
     .match(/../g)
     ?.reverse()
     .map((x) => {
-      return parseInt('0x' + x);
+      return parseInt("0x" + x);
     });
   return array;
 }
@@ -1058,22 +1062,22 @@ function buildPolyjuiceArgs(
     0xff,
     0xff,
     0xff,
-    'P'.charCodeAt(0),
-    'O'.charCodeAt(0),
-    'L'.charCodeAt(0),
-    'Y'.charCodeAt(0)
+    "P".charCodeAt(0),
+    "O".charCodeAt(0),
+    "L".charCodeAt(0),
+    "Y".charCodeAt(0),
   ]);
   const callKind = toId === +(process.env.CREATOR_ACCOUNT_ID as string) ? 3 : 0;
   const gasLimitBuf = Buffer.alloc(8);
   gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
-  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
   gasPriceBuf.writeBigUInt64LE(gasPrice >> BigInt(64), 8);
   const valueBuf = Buffer.alloc(16);
-  valueBuf.writeBigUInt64LE(value & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  valueBuf.writeBigUInt64LE(value & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
   valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
   const dataSizeBuf = Buffer.alloc(4);
-  const dataBuf = Buffer.from(data.slice(2), 'hex');
+  const dataBuf = Buffer.from(data.slice(2), "hex");
   dataSizeBuf.writeUInt32LE(dataBuf.length);
 
   const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
@@ -1085,7 +1089,7 @@ function buildPolyjuiceArgs(
   valueBuf.copy(argsBuf, 32);
   dataSizeBuf.copy(argsBuf, 48);
   dataBuf.copy(argsBuf, 52);
-  const argsHex = '0x' + argsBuf.toString('hex');
+  const argsHex = "0x" + argsBuf.toString("hex");
   return argsHex;
 }
 
@@ -1096,10 +1100,10 @@ function buildRawL2Transaction(
   args: string
 ) {
   const rawL2Transaction = {
-    from_id: '0x' + BigInt(fromId).toString(16),
-    to_id: '0x' + BigInt(toId).toString(16),
-    nonce: '0x' + BigInt(nonce).toString(16),
-    args: args
+    from_id: "0x" + BigInt(fromId).toString(16),
+    to_id: "0x" + BigInt(toId).toString(16),
+    nonce: "0x" + BigInt(nonce).toString(16),
+    args: args,
   };
   return rawL2Transaction;
 }
@@ -1107,10 +1111,10 @@ function buildRawL2Transaction(
 function buildStorageKey(storagePosition: string) {
   let key = storagePosition.slice(2);
   if (key.length < 64) {
-    key = '0'.repeat(64 - key.length) + key;
+    key = "0".repeat(64 - key.length) + key;
   }
-  console.log('storage position:', key);
-  return '0x' + key;
+  console.log("storage position:", key);
+  return "0x" + key;
 }
 
 async function allTypeEthAddressToAccountId(
@@ -1126,24 +1130,24 @@ async function allTypeEthAddressToAccountId(
 }
 
 function toHexNumber(num: number | bigint | HexNumber): HexNumber {
-  if (num === 'latest' || num === 'earliest' || num === 'pending') {
+  if (num === "latest" || num === "earliest" || num === "pending") {
     return num;
   }
-  return '0x' + BigInt(num).toString(16);
+  return "0x" + BigInt(num).toString(16);
 }
 
 async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
   const fromAddress = txCallObj.from;
-  const toAddress = txCallObj.to || '0x' + '00'.repeat(20);
-  const gas = txCallObj.gas || '0x1000000';
-  const gasPrice = txCallObj.gasPrice || '0x1';
-  const value = txCallObj.value || '0x0';
-  const data = txCallObj.data || '0x0';
+  const toAddress = txCallObj.to || "0x" + "00".repeat(20);
+  const gas = txCallObj.gas || "0x1000000";
+  const gasPrice = txCallObj.gasPrice || "0x1";
+  const value = txCallObj.value || "0x0";
+  const data = txCallObj.data || "0x0";
   let fromId: number = 0;
   if (
     fromAddress != null &&
     fromAddress != undefined &&
-    typeof fromAddress === 'string'
+    typeof fromAddress === "string"
   ) {
     const fromScriptHash = ethAddressToScriptHash(fromAddress);
     fromId = await rpc.get_account_id_by_script_hash(fromScriptHash);
@@ -1151,7 +1155,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
   }
   const toId = await ethContractAddressToAccountId(toAddress, rpc);
   if (toId === undefined || toId === null) {
-    throw new Error('to id missing!');
+    throw new Error("to id missing!");
   }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
@@ -1178,7 +1182,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
   for (const logItem of logItems) {
-    if (logItem.service_flag === '0x2') {
+    if (logItem.service_flag === "0x2") {
       return parseLog(logItem);
     }
   }
@@ -1203,7 +1207,7 @@ function parseLog(logItem: LogItem): GodwokenLog {
   }
 }
 function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
-  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length != 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
@@ -1216,12 +1220,12 @@ function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
     sudtId: +logItem.account_id,
     fromId: fromId,
     toId: toId,
-    amount: amount
+    amount: amount,
   };
 }
 
 function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
-  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length != 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
@@ -1234,29 +1238,29 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
     sudtId: +logItem.account_id,
     fromId: fromId,
     blockProducerId: blockProducerId,
-    amount: amount
+    amount: amount,
   };
 }
 
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
-  let buf = Buffer.from(logItem.data.slice(2), 'hex');
+  let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length != 8 + 8 + 16 + 4 + 4) {
     throw new Error(`invalid system log raw data length: ${buf.length}`);
   }
   const gasUsed = buf.readBigUInt64LE(0);
   const cumulativeGasUsed = buf.readBigUInt64LE(8);
-  const createdAddress = '0x' + buf.slice(16, 32).toString('hex');
+  const createdAddress = "0x" + buf.slice(16, 32).toString("hex");
   const statusCode = buf.readUInt32LE(32);
   return {
     gasUsed: gasUsed,
     cumulativeGasUsed: cumulativeGasUsed,
     createdAddress: createdAddress,
-    statusCode: statusCode
+    statusCode: statusCode,
   };
 }
 
 function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
-  const buf = Buffer.from(logItem.data.slice(2), 'hex');
+  const buf = Buffer.from(logItem.data.slice(2), "hex");
   let offset = 0;
   const address = buf.slice(offset, offset + 20);
   offset += 20;
@@ -1270,7 +1274,7 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
   for (let i = 0; i < topics_count; i++) {
     const topic = buf.slice(offset, offset + 32);
     offset += 32;
-    topics.push('0x' + topic.toString('hex'));
+    topics.push("0x" + topic.toString("hex"));
   }
 
   if (offset != buf.length) {
@@ -1280,8 +1284,8 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
   }
 
   return {
-    address: '0x' + address.toString('hex'),
-    data: '0x' + logData.toString('hex'),
-    topics: topics
+    address: "0x" + address.toString("hex"),
+    data: "0x" + logData.toString("hex"),
+    topics: topics,
   };
 }

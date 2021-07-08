@@ -1,12 +1,5 @@
-import {
-  Hash,
-  HexNumber,
-  HexString,
-  Script,
-  denormalizers,
-} from "@ckb-lumos/base";
-import { normalizers, BigIntToHexString, Reader } from "ckb-js-toolkit";
-import * as schemas from "../schemas";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import { Reader } from "ckb-js-toolkit";
 
 // // Taken for now from https://github.com/xxuejie/ckb-js-toolkit/blob/68f5ff709f78eb188ee116b2887a362123b016cc/src/normalizers.js#L17-L69,
 // // later we can think about exposing those functions directly.
@@ -85,14 +78,11 @@ export interface L2Transaction {
   signature: HexString;
 }
 
-export function NormalizeFee(
-  fee: object,
-  { debugPath = "fee" } = {}
-) {
+export function NormalizeFee(fee: object, { debugPath = "fee" } = {}) {
   return normalizeObject(debugPath, fee, {
     sudt_id: normalizeHexNumber(4),
     amount: normalizeHexNumber(16),
-  })
+  });
 }
 
 export function NormalizeRawL2Transaction(

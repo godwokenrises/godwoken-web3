@@ -1,12 +1,12 @@
 import {
   ethAddressToPolyjuiceAddress,
-  polyjuiceAddressToEthAddress
-} from '../../convert-tx';
-import { RPC } from 'ckb-js-toolkit';
-import { Callback } from '../types';
-import { middleware, validators } from '../validator';
-import { HashMap } from '../../hashmap';
-import { INTERNAL_ERROR, INVALID_PARAMS, WEB3_ERROR } from '../error-code';
+  polyjuiceAddressToEthAddress,
+} from "../../convert-tx";
+import { RPC } from "ckb-js-toolkit";
+import { Callback } from "../types";
+import { middleware, validators } from "../validator";
+import { HashMap } from "../../hashmap";
+import { INTERNAL_ERROR, INVALID_PARAMS, WEB3_ERROR } from "../error-code";
 
 export class Poly {
   private rpc: RPC;
@@ -52,9 +52,9 @@ export class Poly {
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
+        message: error.message,
       });
-    } 
+    }
   }
 
   async polyjuiceAddressToEthAddress(args: [string], callback: Callback) {
@@ -68,7 +68,7 @@ export class Poly {
     } catch (error) {
       callback({
         code: WEB3_ERROR,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -80,14 +80,16 @@ export class Poly {
     try {
       const gw_short_adddress = args[0];
       const eth_addrss = await this.hashMap.query(gw_short_adddress);
-      console.log(`[from hash_map] eth address: ${eth_addrss}, short_address: ${gw_short_adddress}`);
+      console.log(
+        `[from hash_map] eth address: ${eth_addrss}, short_address: ${gw_short_adddress}`
+      );
       callback(null, eth_addrss);
     } catch (error) {
       console.log(error);
       if (error.notFound) {
         return callback({
           code: INVALID_PARAMS,
-          message: 'gw_short_address as key is not found on database.'
+          message: "gw_short_address as key is not found on database.",
         });
       }
 

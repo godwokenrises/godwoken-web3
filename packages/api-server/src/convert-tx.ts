@@ -1,10 +1,10 @@
-import { Hash, HexNumber, HexString, Script, utils } from '@ckb-lumos/base';
-import { RPC } from 'ckb-js-toolkit';
-import { rlp } from 'ethereumjs-util';
-import keccak256 from 'keccak256';
-import * as secp256k1 from 'secp256k1';
+import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
+import { RPC } from "ckb-js-toolkit";
+import { rlp } from "ethereumjs-util";
+import keccak256 from "keccak256";
+import * as secp256k1 from "secp256k1";
 
-export const EMPTY_ETH_ADDRESS = '0x' + '00'.repeat(20);
+export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
 
 export interface PolyjuiceTransaction {
   nonce: HexNumber;
@@ -41,15 +41,15 @@ function logger(level: string, ...messages: any[]) {
 }
 
 function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === 'true') {
-    logger('debug', '@convert-tx:', ...messages);
+  if (process.env.DEBUG_LOG === "true") {
+    logger("debug", "@convert-tx:", ...messages);
   }
 }
 
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
-    '0x' +
-    keccak256(Buffer.from(encodedSignedTx.slice(2), 'hex')).toString('hex');
+    "0x" +
+    keccak256(Buffer.from(encodedSignedTx.slice(2), "hex")).toString("hex");
   return ethTxHash;
 }
 
@@ -57,19 +57,19 @@ export async function generateRawTransaction(
   data: HexString,
   rpc: RPC
 ): Promise<GodwokenL2Transaction> {
-  debugLogger('origin data:', data);
+  debugLogger("origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
-  debugLogger('decoded polyjuice tx:', polyjuiceTx);
+  debugLogger("decoded polyjuice tx:", polyjuiceTx);
   const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
 
 function decodeRawTransactionData(dataParams: HexString) {
   const result: Buffer[] = rlp.decode(dataParams) as Buffer[];
-  const resultHex = result.map((r) => '0x' + Buffer.from(r).toString('hex'));
+  const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
 
   if (result.length !== 9) {
-    throw new Error('decode raw transaction data error');
+    throw new Error("decode raw transaction data error");
   }
 
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
@@ -83,27 +83,27 @@ function decodeRawTransactionData(dataParams: HexString) {
     data,
     v,
     r,
-    s
+    s,
   };
 
   return tx;
 }
 
 function numberToRlpEncode(num: HexString) {
-  if (num === '0x0' || num === '0x') {
-    return '0x';
+  if (num === "0x0" || num === "0x") {
+    return "0x";
   }
 
-  return '0x' + BigInt(num).toString(16);
+  return "0x" + BigInt(num).toString(16);
 }
 
 function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
   if (vInt % 2 === 0) {
-    finalVInt = '0x' + BigInt((vInt - 36) / 2).toString(16);
+    finalVInt = "0x" + BigInt((vInt - 36) / 2).toString(16);
   } else {
-    finalVInt = '0x' + BigInt((vInt - 35) / 2).toString(16);
+    finalVInt = "0x" + BigInt((vInt - 35) / 2).toString(16);
   }
 
   const rawTx: PolyjuiceTransaction = {
@@ -112,15 +112,15 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
     gasPrice: numberToRlpEncode(tx.gasPrice),
     gasLimit: numberToRlpEncode(tx.gasLimit),
     value: numberToRlpEncode(tx.value),
-    r: '0x',
-    s: '0x',
-    v: numberToRlpEncode(finalVInt)
+    r: "0x",
+    s: "0x",
+    v: numberToRlpEncode(finalVInt),
   };
 
   const encoded = encodePolyjuiceTransaction(rawTx);
 
   const message =
-    '0x' + keccak256(Buffer.from(encoded.slice(2), 'hex')).toString('hex');
+    "0x" + keccak256(Buffer.from(encoded.slice(2), "hex")).toString("hex");
 
   return message;
 }
@@ -131,18 +131,18 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   const beforeEncode = [nonce, gasPrice, gasLimit, to, value, data, v, r, s];
 
   const result = rlp.encode(beforeEncode);
-  return '0x' + result.toString('hex');
+  return "0x" + result.toString("hex");
 }
 
 async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const { nonce, gasPrice, gasLimit, to: toA, value, data, v, r, s } = rawTx;
 
-  let real_v = '0x00';
+  let real_v = "0x00";
   if (+v % 2 === 0) {
-    real_v = '0x01';
+    real_v = "0x01";
   }
 
-  const to = toA === '0x' ? EMPTY_ETH_ADDRESS : toA;
+  const to = toA === "0x" ? EMPTY_ETH_ADDRESS : toA;
 
   const signature = r + s.slice(2) + real_v.slice(2);
 
@@ -154,38 +154,38 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
 
   // header
   const args_0_7 =
-    '0x' +
-    Buffer.from('FFFFFF', 'hex').toString('hex') +
-    Buffer.from('POLY', 'utf8').toString('hex');
+    "0x" +
+    Buffer.from("FFFFFF", "hex").toString("hex") +
+    Buffer.from("POLY", "utf8").toString("hex");
   // gas limit
   const args_8_16 = UInt64ToLeBytes(BigInt(gasLimit));
   // gas price
   const args_16_32 = UInt128ToLeBytes(
-    gasPrice === '0x' ? BigInt(0) : BigInt(gasPrice)
+    gasPrice === "0x" ? BigInt(0) : BigInt(gasPrice)
   );
   // value
   const args_32_48 = UInt128ToLeBytes(
-    value === '0x' ? BigInt(0) : BigInt(value)
+    value === "0x" ? BigInt(0) : BigInt(value)
   );
 
-  const dataByteLength = Buffer.from(data.slice(2), 'hex').length;
+  const dataByteLength = Buffer.from(data.slice(2), "hex").length;
   // data length
   const args_48_52 = UInt32ToLeBytes(dataByteLength);
   // data
   const args_data = data;
 
-  let args_7 = '';
+  let args_7 = "";
   let toId = await getAccountIdByEthAddress(to, rpc);
   if (to === EMPTY_ETH_ADDRESS) {
-    args_7 = '0x03';
-    toId = '0x' + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16);
+    args_7 = "0x03";
+    toId = "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16);
   } else {
-    args_7 = '0x00';
+    args_7 = "0x00";
     toId = getToIdFromCallContract(to);
   }
 
   const args =
-    '0x' +
+    "0x" +
     args_0_7.slice(2) +
     args_7.slice(2) +
     args_8_16.slice(2) +
@@ -197,13 +197,13 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const godwokenRawL2Tx: GodwokenRawL2Transaction = {
     from_id: fromId,
     to_id: toId,
-    nonce: nonce === '0x' ? '0x0' : nonce,
-    args
+    nonce: nonce === "0x" ? "0x0" : nonce,
+    args,
   };
 
   const godwokenL2Tx: GodwokenL2Transaction = {
     raw: godwokenRawL2Tx,
-    signature
+    signature,
   };
 
   return godwokenL2Tx;
@@ -218,7 +218,7 @@ export async function ethAddressToPolyjuiceAddress(
   }
   const accountInfo = await getAccountInfoByEthAddress(ethAddress, rpc);
   const toAddress =
-    '0x' +
+    "0x" +
     accountInfo.script_hash.slice(2, 16 * 2 + 2) +
     UInt32ToLeBytes(+accountInfo.id);
   return toAddress;
@@ -231,11 +231,11 @@ export async function polyjuiceAddressToEthAddress(
   if (polyjuiceAddress === EMPTY_ETH_ADDRESS) {
     return EMPTY_ETH_ADDRESS;
   }
-  const accountIdLe = '0x' + polyjuiceAddress.slice(-8);
+  const accountIdLe = "0x" + polyjuiceAddress.slice(-8);
   const accountId = LeBytesToUInt32(accountIdLe);
-  const scriptHash = await rpc.get_script_hash('0x' + accountId.toString(16));
+  const scriptHash = await rpc.get_script_hash("0x" + accountId.toString(16));
   const script = await rpc.get_script(scriptHash);
-  const ethAddress = '0x' + script.args.slice(-40);
+  const ethAddress = "0x" + script.args.slice(-40);
   return ethAddress;
 }
 
@@ -255,8 +255,8 @@ async function getAccountInfoByEthAddress(
 ): Promise<AccountInfo> {
   const toScript: Script = {
     code_hash: process.env.ETH_ACCOUNT_LOCK_HASH as string,
-    hash_type: 'type',
-    args: process.env.ROLLUP_TYPE_HASH + to.slice(2)
+    hash_type: "type",
+    args: process.env.ROLLUP_TYPE_HASH + to.slice(2),
   };
 
   const toScriptHash = utils.computeScriptHash(toScript);
@@ -266,27 +266,27 @@ async function getAccountInfoByEthAddress(
   return {
     script: toScript,
     script_hash: toScriptHash,
-    id: accountId
+    id: accountId,
   };
 }
 
 function getToIdFromCallContract(toAddress: HexString): HexNumber {
-  const toIdLe = '0x' + toAddress.slice(-8);
+  const toIdLe = "0x" + toAddress.slice(-8);
   const toId = LeBytesToUInt32(toIdLe);
-  return '0x' + toId.toString(16);
+  return "0x" + toId.toString(16);
 }
 
 function UInt32ToLeBytes(num: number): HexString {
   const buf = Buffer.allocUnsafe(4);
   buf.writeUInt32LE(+num, 0);
-  return '0x' + buf.toString('hex');
+  return "0x" + buf.toString("hex");
 }
 
 function UInt64ToLeBytes(num: bigint): HexString {
   num = BigInt(num);
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64LE(num);
-  return `0x${buf.toString('hex')}`;
+  return `0x${buf.toString("hex")}`;
 }
 
 const U128_MIN = BigInt(0);
@@ -299,19 +299,19 @@ function UInt128ToLeBytes(u128: bigint): HexString {
     throw new Error(`u128 ${u128} too large`);
   }
   const buf = Buffer.alloc(16);
-  buf.writeBigUInt64LE(u128 & BigInt('0xFFFFFFFFFFFFFFFF'), 0);
+  buf.writeBigUInt64LE(u128 & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
   buf.writeBigUInt64LE(u128 >> BigInt(64), 8);
-  return '0x' + buf.toString('hex');
+  return "0x" + buf.toString("hex");
 }
 
 function LeBytesToUInt32(hex: HexString): number {
-  const buf = Buffer.from(hex.slice(2), 'hex');
+  const buf = Buffer.from(hex.slice(2), "hex");
   return buf.readUInt32LE();
 }
 
 function recoverPublicKey(signature: HexString, message: HexString) {
-  const sigBuffer = Buffer.from(signature.slice(2), 'hex');
-  const msgBuffer = Buffer.from(message.slice(2), 'hex');
+  const sigBuffer = Buffer.from(signature.slice(2), "hex");
+  const msgBuffer = Buffer.from(message.slice(2), "hex");
   const recoverId = sigBuffer[64];
   const publicKey = secp256k1.ecdsaRecover(
     sigBuffer.slice(0, -1),
@@ -319,18 +319,18 @@ function recoverPublicKey(signature: HexString, message: HexString) {
     msgBuffer,
     false
   );
-  const publicKeyHex = '0x' + Buffer.from(publicKey).toString('hex');
+  const publicKeyHex = "0x" + Buffer.from(publicKey).toString("hex");
 
-  debugLogger('recovered public key:', publicKeyHex);
+  debugLogger("recovered public key:", publicKeyHex);
 
   return publicKeyHex;
 }
 
 function publicKeyToEthAddress(publicKey: HexString): HexString {
   const ethAddress =
-    '0x' +
-    keccak256(Buffer.from(publicKey.slice(4), 'hex'))
+    "0x" +
+    keccak256(Buffer.from(publicKey.slice(4), "hex"))
       .slice(12)
-      .toString('hex');
+      .toString("hex");
   return ethAddress;
 }

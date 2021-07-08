@@ -1,185 +1,185 @@
-const test = require('ava');
-const { client } = require('../client');
-const EthConfig = require('../../config/eth.json');
+const test = require("ava");
+const { client } = require("../client");
+const EthConfig = require("../../config/eth.json");
 const SimpleStorageCodeBin =
-  '60806040526004361060295760003560e01c806360fe47b114602f5780636d4ce63c14605b576029565b60006000fd5b60596004803603602081101560445760006000fd5b81019080803590602001909291905050506084565b005b34801560675760006000fd5b50606e6094565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060a2565b9056fea2646970667358221220044daf4e34adffc61c3bb9e8f40061731972d32db5b8c2bc975123da9e988c3e64736f6c63430006060033';
-test.cb('eth_protocolVersion', (t) => {
-  client.request('eth_protocolVersion', [], function (err, response) {
+  "60806040526004361060295760003560e01c806360fe47b114602f5780636d4ce63c14605b576029565b60006000fd5b60596004803603602081101560445760006000fd5b81019080803590602001909291905050506084565b005b34801560675760006000fd5b50606e6094565b6040518082815260200191505060405180910390f35b8060006000508190909055505b50565b6000600060005054905060a2565b9056fea2646970667358221220044daf4e34adffc61c3bb9e8f40061731972d32db5b8c2bc975123da9e988c3e64736f6c63430006060033";
+test.cb("eth_protocolVersion", (t) => {
+  client.request("eth_protocolVersion", [], function (err, response) {
     if (err) throw err;
     t.is(response.result, EthConfig.eth_protocolVersion);
     t.end();
   });
 });
 
-test.cb('eth_coinbase', (t) => {
-  client.request('eth_coinbase', [], function (err, response) {
+test.cb("eth_coinbase", (t) => {
+  client.request("eth_coinbase", [], function (err, response) {
     if (err) throw err;
-    t.is(response.result, '0x' + '0'.repeat(40));
+    t.is(response.result, "0x" + "0".repeat(40));
     t.end();
   });
 });
 
-test.cb('eth_syncing', (t) => {
-  client.request('eth_syncing', [], function (err, response) {
+test.cb("eth_syncing", (t) => {
+  client.request("eth_syncing", [], function (err, response) {
     if (err) throw err;
-    t.is(response.result.currentBlock, '0xb71b00');
+    t.is(response.result.currentBlock, "0xb71b00");
     t.end();
   });
 });
 
-test.cb('eth_hashrate', (t) => {
-  client.request('eth_hashrate', [], function (err, response) {
+test.cb("eth_hashrate", (t) => {
+  client.request("eth_hashrate", [], function (err, response) {
     if (err) throw err;
-    t.is(response.result, '0x0');
+    t.is(response.result, "0x0");
     t.end();
   });
 });
 
-test.cb('eth_accounts', (t) => {
-  client.request('eth_accounts', [], function (err, response) {
+test.cb("eth_accounts", (t) => {
+  client.request("eth_accounts", [], function (err, response) {
     if (err) throw err;
     t.deepEqual(response.result, []);
     t.end();
   });
 });
 
-test.cb('eth_getBlockByHash', (t) => {
+test.cb("eth_getBlockByHash", (t) => {
   client.request(
-    'eth_getBlockByHash',
-    ['0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b'],
+    "eth_getBlockByHash",
+    ["0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b"],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result.hash,
-        '0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b'
+        "0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b"
       );
       t.end();
     }
   );
 });
 
-test.cb('eth_getBlockByNumber', (t) => {
+test.cb("eth_getBlockByNumber", (t) => {
   client.request(
-    'eth_getBlockByNumber',
-    ['0xb71b00'],
+    "eth_getBlockByNumber",
+    ["0xb71b00"],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result.number, '0xb71b00');
+      t.is(response.result.number, "0xb71b00");
       t.end();
     }
   );
 });
 
-test.cb('eth_getBlockTransactionCountByHash', (t) => {
+test.cb("eth_getBlockTransactionCountByHash", (t) => {
   client.request(
-    'eth_getBlockTransactionCountByHash',
-    ['0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b'],
+    "eth_getBlockTransactionCountByHash",
+    ["0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b"],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '0x107');
+      t.is(response.result, "0x107");
       t.end();
     }
   );
 });
 
-test.cb('eth_getBlockTransactionCountByNumber', (t) => {
+test.cb("eth_getBlockTransactionCountByNumber", (t) => {
   client.request(
-    'eth_getBlockTransactionCountByNumber',
-    ['0xb71b00'],
+    "eth_getBlockTransactionCountByNumber",
+    ["0xb71b00"],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '0x107');
+      t.is(response.result, "0x107");
       t.end();
     }
   );
 });
 
-test.cb('eth_getTransactionByBlockHashAndIndex', (t) => {
+test.cb("eth_getTransactionByBlockHashAndIndex", (t) => {
   client.request(
-    'eth_getTransactionByBlockHashAndIndex',
+    "eth_getTransactionByBlockHashAndIndex",
     [
-      '0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b',
-      '0x0'
+      "0x3c9c46a46b17361cd1ac3ed3401c9a268095c1810bf991c470c139f8441e1d0b",
+      "0x0",
     ],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result.hash,
-        '0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc'
+        "0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc"
       );
       t.end();
     }
   );
 });
 
-test.cb('eth_getTransactionByBlockNumberAndIndex', (t) => {
+test.cb("eth_getTransactionByBlockNumberAndIndex", (t) => {
   client.request(
-    'eth_getTransactionByBlockNumberAndIndex',
-    ['0xb71b00', '0x0'],
+    "eth_getTransactionByBlockNumberAndIndex",
+    ["0xb71b00", "0x0"],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result.hash,
-        '0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc'
+        "0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc"
       );
       t.end();
     }
   );
 });
 
-test.cb('eth_getTransactionByHash', (t) => {
+test.cb("eth_getTransactionByHash", (t) => {
   client.request(
-    'eth_getTransactionByHash',
-    ['0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc'],
+    "eth_getTransactionByHash",
+    ["0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc"],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result.hash,
-        '0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc'
+        "0x7e9455f7fe58f804991a720d5a6d30ab9aa18a36cf044db6a768ce9b0c7754fc"
       );
       t.end();
     }
   );
 });
 
-test.cb('eth_getTransactionReceipt', (t) => {
+test.cb("eth_getTransactionReceipt", (t) => {
   client.request(
-    'eth_getTransactionReceipt',
-    ['0x51d129664282ee9f05a1ec3982cb915f89f9d0577be0702ec1b31297921397ce'],
+    "eth_getTransactionReceipt",
+    ["0x51d129664282ee9f05a1ec3982cb915f89f9d0577be0702ec1b31297921397ce"],
     function (err, response) {
       if (err) throw err;
       t.is(
         response.result.transactionHash,
-        '0x51d129664282ee9f05a1ec3982cb915f89f9d0577be0702ec1b31297921397ce'
+        "0x51d129664282ee9f05a1ec3982cb915f89f9d0577be0702ec1b31297921397ce"
       );
       t.end();
     }
   );
 });
 
-test.cb('eth_blockNumber', (t) => {
-  client.request('eth_blockNumber', [], function (err, response) {
+test.cb("eth_blockNumber", (t) => {
+  client.request("eth_blockNumber", [], function (err, response) {
     if (err) throw err;
-    t.is(response.result, '0xb71b00');
+    t.is(response.result, "0xb71b00");
     t.end();
   });
 });
 
-test.cb('eth_mining', (t) => {
-  client.request('eth_mining', [], function (err, response) {
+test.cb("eth_mining", (t) => {
+  client.request("eth_mining", [], function (err, response) {
     if (err) throw err;
     t.is(response.result, false);
     t.end();
   });
 });
 
-test.cb('eth_getTransactionCount', (t) => {
+test.cb("eth_getTransactionCount", (t) => {
   client.request(
-    'eth_getTransactionCount',
-    ['0x3db4a5310fe102430eb457c257e695795985fd73', 'latest'],
+    "eth_getTransactionCount",
+    ["0x3db4a5310fe102430eb457c257e695795985fd73", "latest"],
     function (err, response) {
       if (err) throw err;
-      t.is(response.result, '');
+      t.is(response.result, "");
       t.end();
     }
   );

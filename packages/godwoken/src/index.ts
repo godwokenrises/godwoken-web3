@@ -1,6 +1,6 @@
 export * as types from "./types";
 export * as schemas from "../schemas";
-import { HexNumber, HexString, Hash, Script } from "@ckb-lumos/base";
+import { HexNumber, HexString, Hash } from "@ckb-lumos/base";
 
 export interface RunResult {
   read_values: Map<Hash, Hash>;
