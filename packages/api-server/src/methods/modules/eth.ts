@@ -148,32 +148,6 @@ export class Eth {
 
     this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
 
-    this.gw_executeL2Tranaction = middleware(
-      this.gw_executeL2Tranaction.bind(this),
-      0
-    );
-
-    this.gw_submitL2Transaction = middleware(
-      this.gw_submitL2Transaction.bind(this),
-      0
-    );
-
-    this.gw_getAccountIdByScriptHash = middleware(
-      this.gw_getAccountIdByScriptHash.bind(this),
-      0
-    );
-
-    this.gw_getScriptHashByAccountId = middleware(
-      this.gw_getScriptHashByAccountId.bind(this),
-      0
-    );
-
-    this.gw_getNonce = middleware(this.gw_getNonce.bind(this), 0);
-
-    this.gw_getTransactionReceipt = middleware(
-      this.gw_getTransactionReceipt.bind(this),
-      0
-    );
   }
 
   chainId(args: [], callback: Callback) {
@@ -432,37 +406,6 @@ export class Eth {
         message: error.message
       });  
     }
-  }
-
-  async gw_executeL2Tranaction(args: any[], callback: Callback) {
-    const result = await this.rpc.execute_l2transaction(...args);
-    callback(null, result);
-  }
-
-  async gw_submitL2Transaction(args: any[], callback: Callback) {
-    const result = await this.rpc.submit_l2transaction(...args);
-    callback(null, result);
-  }
-
-  async gw_getAccountIdByScriptHash(args: any[], callback: Callback) {
-    const result = await this.rpc.get_account_id_by_script_hash(...args);
-    callback(null, result);
-  }
-
-  async gw_getScriptHashByAccountId(args: any[], callback: Callback) {
-    const result = await this.rpc.get_script_hash(...args);
-    callback(null, result);
-  }
-
-  async gw_getNonce(args: any[], callback: Callback) {
-    console.log('get_nonce');
-    const result = await this.rpc.get_nonce(...args);
-    callback(null, result);
-  }
-
-  async gw_getTransactionReceipt(args: Hash[], callback: Callback) {
-    const result = await this.rpc.get_transaction_receipt(...args);
-    callback(null, result);
   }
 
   // TODO: second argument
