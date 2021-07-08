@@ -12,12 +12,13 @@ require('dotenv').config({ path: './.env' });
 const ETH_ACCOUNT_LOCK_HASH = process.env.ETH_ACCOUNT_LOCK_HASH;
 const ROLLUP_TYPE_HASH = process.env.ROLLUP_TYPE_HASH;
 
-const STORE_PATH = path.resolve(__dirname, './hashmap-db');
+const STORE_PATH = process.env.ADDRESS_STORE_PATH_ABSOLUTE || path.resolve(__dirname, './hashmap-db');
 
 export class HashMap {
   private db: LevelUp;
 
   constructor() {
+    console.log(`store path for short-address vs eth-address mapping: ${STORE_PATH}`);
     this.db = levelup(leveldown(STORE_PATH));
   }
 
