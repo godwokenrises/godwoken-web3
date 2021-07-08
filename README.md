@@ -14,6 +14,7 @@ ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 CHAIN_ID=<your chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
+ADDRESS_STORE_PATH_ABSOLUTE=<path for storing short-address vs eth-address mapping. if not provided, will use default path: api-server/lib/hashmap-db>
 EOF
 $ yarn
 // Only for test purpose
