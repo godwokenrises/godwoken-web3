@@ -17,7 +17,7 @@ export const TRANSACTION_REJECTED = -32003;
 export const METHOD_NOT_SUPPORT = -32004;
 export const LIMIT_EXCEEDED = -32005;
 
-// Polyjuice Chain custom error 
+// Polyjuice Chain custom error
 // TODO - WEB3_ERROR is pretty generalize error
 // later when we have more time, we can split into more detail one
 export const WEB3_ERROR = -32099;
