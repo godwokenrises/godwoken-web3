@@ -1,5 +1,6 @@
 import { INVALID_PARAMS } from "./error-code";
 import { validateHexNumber, validateHexString } from "../util";
+import { BlockParameter } from "./types";
 
 function defaultLogger(level: string, ...messages: any[]) {
   console.log(`[${level}] `, ...messages);
@@ -67,18 +68,14 @@ export const validators = {
     return verifyHexNumber(params[index], index);
   },
 
-  defaultParameter(params: any[], index: number): any {
-    return verifyDefaultParameter(params[index], index);
-  },
-
   /**
    * Hex number | "latest" | "earliest" | "pending"
    * @param params
    * @param index
    * @returns
    */
-  hexNumberOrTag(params: any[], index: number): any {
-    return verifyHexNumberOrTag(params[index], index);
+  blockParameter(params: any[], index: number): any {
+    return verifyBlockParameter(params[index], index);
   },
 
   /**
@@ -218,7 +215,7 @@ export const validators = {
 
     // validate `fromBlock`
     if (fromBlock !== undefined && fromBlock !== null) {
-      const fromBlockErr = verifyHexNumberOrTag(fromBlock, index);
+      const fromBlockErr = verifyBlockParameter(fromBlock, index);
       if (fromBlockErr !== undefined) {
         return fromBlockErr;
       }
@@ -226,7 +223,7 @@ export const validators = {
 
     // validate `toBlock`
     if (toBlock !== undefined && toBlock !== null) {
-      const toBlockErr = verifyHexNumberOrTag(toBlock, index);
+      const toBlockErr = verifyBlockParameter(toBlock, index);
       if (toBlockErr !== undefined) {
         return toBlockErr;
       }
@@ -287,44 +284,22 @@ function verifyHexNumber(hexNumber: string, index: number) {
   return undefined;
 }
 
-function verifyHexNumberOrTag(hexNumber: any, index: number): any {
-  // TODO: only support "latest" now
-  if (hexNumber === "latest") {
+function verifyBlockParameter(
+  blockParameter: BlockParameter,
+  index: number
+): any {
+  if (blockParameter === "latest" || blockParameter === "earliest") {
     return undefined;
   }
 
-  if (
-    typeof hexNumber !== "string" ||
-    hexNumber === "earliest" ||
-    hexNumber === "pending"
-  ) {
+  if (typeof blockParameter !== "string" || blockParameter === "pending") {
     return invalidParamsError(
       index,
-      `argument must be a hex string or "latest"`
+      `argument must be a hex number, "latest" or "earliest", and "pending" is not supported yet.`
     );
   }
 
-  return verifyHexNumber(hexNumber, index);
-}
-
-function verifyDefaultParameter(blockNumber: any, index: number): any {
-  // TODO: only support "latest" now
-  if (blockNumber === "latest") {
-    return undefined;
-  }
-
-  if (
-    typeof blockNumber !== "string" ||
-    blockNumber === "earliest" ||
-    blockNumber === "pending"
-  ) {
-    return invalidParamsError(
-      index,
-      `argument must be a hex string or "latest"`
-    );
-  }
-
-  return verifyHexNumber(blockNumber, index);
+  return verifyHexNumber(blockParameter, index);
 }
 
 function verifyHexString(hexString: any, index: number): any {

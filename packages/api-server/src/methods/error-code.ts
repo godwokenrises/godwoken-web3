@@ -13,3 +13,5 @@ export const METHOD_NOT_SUPPORT = -32000;
 export const WEB3_ERROR = -32001;
 
 export const GW_RPC_REQUEST_ERROR = -32002;
+
+export const HEADER_NOT_FOUND_ERROR = -32000;

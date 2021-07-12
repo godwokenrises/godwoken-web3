@@ -7,6 +7,7 @@ import {
   PolyjuiceUserLog,
   TransactionCallObject,
   SudtPayFeeLog,
+  BlockParameter,
 } from "../types";
 import * as Knex from "knex";
 import { RPC } from "ckb-js-toolkit";
@@ -18,7 +19,11 @@ import { utils, HexNumber, HexString } from "@ckb-lumos/base";
 import { Reader } from "ckb-js-toolkit";
 import { types, schemas } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
-import { METHOD_NOT_SUPPORT, WEB3_ERROR } from "../error-code";
+import {
+  METHOD_NOT_SUPPORT,
+  WEB3_ERROR,
+  HEADER_NOT_FOUND_ERROR,
+} from "../error-code";
 
 const Config = require("../../../config/eth.json");
 const blake2b = require("blake2b");
@@ -38,6 +43,8 @@ const SUDT_PAY_FEE_LOG_FLAG = "0x1";
 const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
 const POLYJUICE_USER_LOG_FLAG = "0x3";
 
+const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
+
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
@@ -54,24 +61,25 @@ export class Eth {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
-      validators.defaultParameter,
+      validators.blockParameter,
     ]);
     // TODO: required 2 arguments
     this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
       validators.blockHash,
     ]);
-    // TODO: required 2 arguments
-    this.getBalance = middleware(this.getBalance.bind(this), 1, [
+    this.getBalance = middleware(this.getBalance.bind(this), 2, [
       validators.address,
+      validators.blockParameter,
     ]);
-    this.getStorageAt = middleware(this.getStorageAt.bind(this), 2, [
+    this.getStorageAt = middleware(this.getStorageAt.bind(this), 3, [
       validators.address,
       validators.hexNumber,
+      validators.blockParameter,
     ]);
     this.getTransactionCount = middleware(
       this.getTransactionCount.bind(this),
-      1,
-      [validators.address]
+      2,
+      [validators.address, validators.blockParameter]
     );
     this.getBlockTransactionCountByHash = middleware(
       this.getBlockTransactionCountByHash.bind(this),
@@ -81,14 +89,22 @@ export class Eth {
     this.getBlockTransactionCountByNumber = middleware(
       this.getBlockTransactionCountByNumber.bind(this),
       1,
-      [validators.hexNumberOrTag]
+      [validators.blockParameter]
     );
     this.getUncleCountByBlockHash = middleware(
       this.getUncleCountByBlockHash.bind(this),
       1,
       [validators.blockHash]
     );
-    this.getCode = middleware(this.getCode.bind(this), 1, [validators.address]);
+    this.getUncleCountByBlockNumber = middleware(
+      this.getUncleCountByBlockNumber.bind(this),
+      1,
+      [validators.blockParameter]
+    );
+    this.getCode = middleware(this.getCode.bind(this), 2, [
+      validators.address,
+      validators.blockParameter,
+    ]);
     this.getTransactionByHash = middleware(
       this.getTransactionByHash.bind(this),
       1,
@@ -102,7 +118,7 @@ export class Eth {
     this.getTransactionByBlockNumberAndIndex = middleware(
       this.getTransactionByBlockNumberAndIndex.bind(this),
       2,
-      [validators.hexNumber, validators.hexNumber]
+      [validators.blockParameter, validators.hexNumber]
     );
     this.getTransactionReceipt = middleware(
       this.getTransactionReceipt.bind(this),
@@ -117,9 +133,12 @@ export class Eth {
     this.getUncleByBlockNumberAndIndex = middleware(
       this.getUncleByBlockNumberAndIndex.bind(this),
       2,
-      [validators.hexNumber, validators.hexNumber]
+      [validators.blockParameter, validators.hexNumber]
     );
-    this.call = middleware(this.call.bind(this), 1, [validators.ethCallParams]);
+    this.call = middleware(this.call.bind(this), 2, [
+      validators.ethCallParams,
+      validators.blockParameter,
+    ]);
     this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
       validators.ethCallParams,
     ]);
@@ -276,6 +295,16 @@ export class Eth {
   async getBalance(args: [string, string], callback: Callback) {
     try {
       const address = args[0];
+      const blockParameter = args[1];
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERROR,
+          message: err.message,
+        });
+      }
       const short_address = await allTypeEthAddressToShortAddress(
         this.rpc,
         address
@@ -283,7 +312,8 @@ export class Eth {
       console.log(`eth_address: ${address}, short_address: ${short_address}`);
       const balance = await this.rpc.get_balance(
         short_address,
-        toHexNumber(CKB_SUDT_ID)
+        toHexNumber(CKB_SUDT_ID),
+        blockNumber
       );
       const balanceHex = "0x" + BigInt(balance).toString(16);
       callback(null, balanceHex);
@@ -298,6 +328,17 @@ export class Eth {
   async getStorageAt(args: [string, string, string], callback: Callback) {
     try {
       const address = args[0];
+      const storagePosition = args[1];
+      const blockParameter = args[2];
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERROR,
+          message: err.message,
+        });
+      }
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
         return callback(
@@ -305,9 +346,13 @@ export class Eth {
           "0x0000000000000000000000000000000000000000000000000000000000000000"
         );
       }
-      const storagePosition = args[1];
+
       const key = buildStorageKey(storagePosition);
-      const value = await this.rpc.get_storage_at(toHexNumber(accountId), key);
+      const value = await this.rpc.get_storage_at(
+        toHexNumber(accountId),
+        key,
+        blockNumber
+      );
       callback(null, value);
     } catch (error) {
       callback({
@@ -325,6 +370,16 @@ export class Eth {
   async getTransactionCount(args: [string, string], callback: Callback) {
     try {
       const address = args[0];
+      const blockParameter = args[1];
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERROR,
+          message: err.message,
+        });
+      }
       const accountId: number | null = await allTypeEthAddressToAccountId(
         this.rpc,
         address
@@ -333,7 +388,10 @@ export class Eth {
         callback(null, "0x0");
         return;
       }
-      const nonce = await this.rpc.get_nonce(toHexNumber(accountId));
+      const nonce = await this.rpc.get_nonce(
+        toHexNumber(accountId),
+        blockNumber
+      );
       const transactionCount = "0x" + BigInt(nonce).toString(16);
       callback(null, transactionCount);
     } catch (error) {
@@ -347,6 +405,16 @@ export class Eth {
   async getCode(args: [string, string], callback: Callback) {
     try {
       const address = args[0];
+      const blockParameter = args[1];
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERROR,
+          message: err.message,
+        });
+      }
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
         callback(null, "0x0");
@@ -355,9 +423,10 @@ export class Eth {
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
       const dataHash = await this.rpc.get_storage_at(
         toHexNumber(accountId),
-        contractCodeKey
+        contractCodeKey,
+        blockNumber
       );
-      const data = await this.rpc.get_data(dataHash);
+      const data = await this.rpc.get_data(dataHash, blockNumber);
       callback(null, data);
     } catch (error) {
       callback({
@@ -367,11 +436,22 @@ export class Eth {
     }
   }
 
-  async call(args: [TransactionCallObject], callback: Callback) {
+  async call(args: [TransactionCallObject, string], callback: Callback) {
     try {
+      const blockParameter = args[1];
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERROR,
+          message: err.message,
+        });
+      }
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
       const runResult = await this.rpc.execute_raw_l2transaction(
-        rawL2TransactionHex
+        rawL2TransactionHex,
+        blockNumber
       );
       console.log("RunResult:", runResult);
       callback(null, runResult.return_data);
@@ -439,34 +519,26 @@ export class Eth {
   }
 
   async getBlockByNumber(args: [string], callback: Callback) {
-    let block_number;
-    // TODO handle "earliest", "latest" or "pending", only support latest now.
-
-    if (args[0] === "earliest" || args[0] === "pending") {
+    const blockParameter = args[0];
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
       return callback({
-        code: WEB3_ERROR,
-        message: "right now we only support latest tag in block parameter!",
+        code: HEADER_NOT_FOUND_ERROR,
+        message: err.message,
       });
-    }
-
-    if (args[0] === "latest") {
-      const tipNumber = await this.getTipNumber();
-      console.log(tipNumber);
-      const tipNumberHex = "0x" + BigInt(tipNumber).toString(16);
-      block_number = BigInt(tipNumberHex);
-    } else {
-      block_number = BigInt(args[0]);
     }
 
     const blockData = await this.knex
       .select()
       .table("blocks")
-      .where({ number: block_number });
+      .where({ number: BigInt(blockNumber) });
     if (blockData.length === 1) {
       const transactionData = await this.knex
         .select("hash")
         .table("transactions")
-        .where({ block_number: block_number });
+        .where({ block_number: BigInt(blockNumber) });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
       block.transactions = txHashes as any;
@@ -500,7 +572,16 @@ export class Eth {
    * @param callback
    */
   async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
-    const blockNumber = await this.getBlockNumberOrLatest(args[0]);
+    const blockParameter = args[0];
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
+      return callback({
+        code: HEADER_NOT_FOUND_ERROR,
+        message: err.message,
+      });
+    }
 
     const transactionData = await this.knex
       .count()
@@ -534,6 +615,15 @@ export class Eth {
    * @param callback
    */
   async getUncleCountByBlockHash(args: [string], callback: Callback) {
+    callback(null, "0x0");
+  }
+
+  /**
+   *
+   * @param args [blockNumber]
+   * @param callback
+   */
+  async getUncleCountByBlockNumber(args: [string], callback: Callback) {
     callback(null, "0x0");
   }
 
@@ -579,11 +669,22 @@ export class Eth {
     args: [string, string],
     callback: Callback
   ) {
+    const blockParameter = args[0];
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
+      return callback({
+        code: HEADER_NOT_FOUND_ERROR,
+        message: err.message,
+      });
+    }
+
     const transactionData = await this.knex
       .select()
       .table("transactions")
       .where({
-        block_number: BigInt(args[0]),
+        block_number: BigInt(blockNumber),
         transaction_index: BigInt(args[1]),
       });
     if (transactionData.length === 1) {
@@ -868,11 +969,37 @@ export class Eth {
     return tipNumber;
   }
 
-  private async getBlockNumberOrLatest(num: string): Promise<string> {
-    if (num === "latest") {
+  private async parseBlockParameter(
+    blockParameter: BlockParameter
+  ): Promise<HexNumber | undefined> {
+    switch (blockParameter) {
+      case "latest":
+        return undefined;
+      case "earliest":
+        return "0x0";
+      // It's supposed to be filtered in the validator, so throw an error if matched
+      case "pending":
+        throw new Error("block parameter should not be pending.");
+    }
+
+    const tipNumber = await this.getTipNumber();
+    const tipNumberHex = "0x" + BigInt(tipNumber).toString(16);
+    if (BigInt(tipNumberHex) < BigInt(blockParameter)) {
+      throw new Error(HEADER_NOT_FOUND_ERR_MESSAGE);
+    }
+    return blockParameter;
+  }
+
+  private async blockParameterToBlockNumber(
+    blockParameter: BlockParameter
+  ): Promise<HexNumber> {
+    const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
+      blockParameter
+    );
+    if (blockNumber === undefined) {
       return await this.getTipNumber();
     }
-    return num;
+    return blockNumber;
   }
 }
 
