@@ -39,6 +39,9 @@ const SUDT_PAY_FEE_LOG_FLAG = "0x1";
 const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
 const POLYJUICE_USER_LOG_FLAG = "0x3";
 
+const HEADER_NOT_FOUND_ERR_CODE = -32000;
+const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
+
 export class Eth {
   knex: Knex;
   private filterManager: FilterManager;
@@ -290,9 +293,15 @@ export class Eth {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERR_CODE,
+          message: err.message,
+        });
+      }
       const short_address = await allTypeEthAddressToShortAddress(
         this.rpc,
         address
@@ -318,9 +327,15 @@ export class Eth {
       const address = args[0];
       const storagePosition = args[1];
       const blockParameter = args[2];
-      const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERR_CODE,
+          message: err.message,
+        });
+      }
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
         return callback(
@@ -353,9 +368,15 @@ export class Eth {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERR_CODE,
+          message: err.message,
+        });
+      }
       const accountId: number | null = await allTypeEthAddressToAccountId(
         this.rpc,
         address
@@ -382,9 +403,15 @@ export class Eth {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERR_CODE,
+          message: err.message,
+        });
+      }
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
         callback(null, "0x0");
@@ -409,9 +436,15 @@ export class Eth {
   async call(args: [TransactionCallObject, string], callback: Callback) {
     try {
       const blockParameter = args[1];
-      const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      let blockNumber: HexNumber | undefined;
+      try {
+        blockNumber = await this.parseBlockParameter(blockParameter);
+      } catch (err) {
+        return callback({
+          code: HEADER_NOT_FOUND_ERR_CODE,
+          message: err.message,
+        });
+      }
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
       const runResult = await this.rpc.execute_raw_l2transaction(
         rawL2TransactionHex,
@@ -484,19 +517,25 @@ export class Eth {
 
   async getBlockByNumber(args: [string], callback: Callback) {
     const blockParameter = args[0];
-    const blockNumber: HexNumber = await this.blockParameterToBlockNumber(
-      blockParameter
-    );
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
+      return callback({
+        code: HEADER_NOT_FOUND_ERR_CODE,
+        message: err.message,
+      });
+    }
 
     const blockData = await this.knex
       .select()
       .table("blocks")
-      .where({ number: blockNumber });
+      .where({ number: BigInt(blockNumber) });
     if (blockData.length === 1) {
       const transactionData = await this.knex
         .select("hash")
         .table("transactions")
-        .where({ block_number: blockNumber });
+        .where({ block_number: BigInt(blockNumber) });
       const txHashes = transactionData.map((item) => item.hash);
       let block = dbBlockToApiBlock(blockData[0]);
       block.transactions = txHashes as any;
@@ -531,9 +570,15 @@ export class Eth {
    */
   async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
     const blockParameter = args[0];
-    const blockNumber: HexNumber = await this.blockParameterToBlockNumber(
-      blockParameter
-    );
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
+      return callback({
+        code: HEADER_NOT_FOUND_ERR_CODE,
+        message: err.message,
+      });
+    }
 
     const transactionData = await this.knex
       .count()
@@ -622,9 +667,15 @@ export class Eth {
     callback: Callback
   ) {
     const blockParameter = args[0];
-    const blockNumber: HexNumber = await this.blockParameterToBlockNumber(
-      blockParameter
-    );
+    let blockNumber: HexNumber | undefined;
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (err) {
+      return callback({
+        code: HEADER_NOT_FOUND_ERR_CODE,
+        message: err.message,
+      });
+    }
 
     const transactionData = await this.knex
       .select()
@@ -931,7 +982,7 @@ export class Eth {
     const tipNumber = await this.getTipNumber();
     const tipNumberHex = "0x" + BigInt(tipNumber).toString(16);
     if (BigInt(tipNumberHex) < BigInt(blockParameter)) {
-      return tipNumberHex;
+      throw new Error(HEADER_NOT_FOUND_ERR_MESSAGE);
     }
     return blockParameter;
   }
