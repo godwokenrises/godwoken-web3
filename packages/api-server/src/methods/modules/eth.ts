@@ -19,7 +19,11 @@ import { utils, HexNumber, HexString } from "@ckb-lumos/base";
 import { Reader } from "ckb-js-toolkit";
 import { types, schemas } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
-import { METHOD_NOT_SUPPORT, WEB3_ERROR } from "../error-code";
+import {
+  METHOD_NOT_SUPPORT,
+  WEB3_ERROR,
+  HEADER_NOT_FOUND_ERROR,
+} from "../error-code";
 
 const Config = require("../../../config/eth.json");
 const blake2b = require("blake2b");
@@ -39,7 +43,6 @@ const SUDT_PAY_FEE_LOG_FLAG = "0x1";
 const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
 const POLYJUICE_USER_LOG_FLAG = "0x3";
 
-const HEADER_NOT_FOUND_ERR_CODE = -32000;
 const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
 
 export class Eth {
@@ -298,7 +301,7 @@ export class Eth {
         blockNumber = await this.parseBlockParameter(blockParameter);
       } catch (err) {
         return callback({
-          code: HEADER_NOT_FOUND_ERR_CODE,
+          code: HEADER_NOT_FOUND_ERROR,
           message: err.message,
         });
       }
@@ -332,7 +335,7 @@ export class Eth {
         blockNumber = await this.parseBlockParameter(blockParameter);
       } catch (err) {
         return callback({
-          code: HEADER_NOT_FOUND_ERR_CODE,
+          code: HEADER_NOT_FOUND_ERROR,
           message: err.message,
         });
       }
@@ -373,7 +376,7 @@ export class Eth {
         blockNumber = await this.parseBlockParameter(blockParameter);
       } catch (err) {
         return callback({
-          code: HEADER_NOT_FOUND_ERR_CODE,
+          code: HEADER_NOT_FOUND_ERROR,
           message: err.message,
         });
       }
@@ -408,7 +411,7 @@ export class Eth {
         blockNumber = await this.parseBlockParameter(blockParameter);
       } catch (err) {
         return callback({
-          code: HEADER_NOT_FOUND_ERR_CODE,
+          code: HEADER_NOT_FOUND_ERROR,
           message: err.message,
         });
       }
@@ -441,7 +444,7 @@ export class Eth {
         blockNumber = await this.parseBlockParameter(blockParameter);
       } catch (err) {
         return callback({
-          code: HEADER_NOT_FOUND_ERR_CODE,
+          code: HEADER_NOT_FOUND_ERROR,
           message: err.message,
         });
       }
@@ -522,7 +525,7 @@ export class Eth {
       blockNumber = await this.blockParameterToBlockNumber(blockParameter);
     } catch (err) {
       return callback({
-        code: HEADER_NOT_FOUND_ERR_CODE,
+        code: HEADER_NOT_FOUND_ERROR,
         message: err.message,
       });
     }
@@ -575,7 +578,7 @@ export class Eth {
       blockNumber = await this.blockParameterToBlockNumber(blockParameter);
     } catch (err) {
       return callback({
-        code: HEADER_NOT_FOUND_ERR_CODE,
+        code: HEADER_NOT_FOUND_ERROR,
         message: err.message,
       });
     }
@@ -672,7 +675,7 @@ export class Eth {
       blockNumber = await this.blockParameterToBlockNumber(blockParameter);
     } catch (err) {
       return callback({
-        code: HEADER_NOT_FOUND_ERR_CODE,
+        code: HEADER_NOT_FOUND_ERROR,
         message: err.message,
       });
     }
