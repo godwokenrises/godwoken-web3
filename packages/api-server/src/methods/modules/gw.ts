@@ -53,10 +53,7 @@ export class Gw {
       const result = await this.rpc.ping(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -65,10 +62,7 @@ export class Gw {
       const result = await this.rpc.get_tip_block_hash(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -77,10 +71,7 @@ export class Gw {
       const result = await this.rpc.get_block_hash(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -89,10 +80,7 @@ export class Gw {
       const result = await this.rpc.get_block(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -101,10 +89,7 @@ export class Gw {
       const result = await this.rpc.get_block_by_number(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -113,10 +98,7 @@ export class Gw {
       const result = await this.rpc.get_balance(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -125,10 +107,7 @@ export class Gw {
       const result = await this.rpc.get_storage_at(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -137,10 +116,7 @@ export class Gw {
       const result = await this.rpc.get_account_id_by_script_hash(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -149,10 +125,7 @@ export class Gw {
       const result = await this.rpc.get_nonce(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -161,10 +134,7 @@ export class Gw {
       const result = await this.rpc.get_script(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -173,10 +143,7 @@ export class Gw {
       const result = await this.rpc.get_script_hash(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -185,10 +152,7 @@ export class Gw {
       const result = await this.rpc.get_data(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -197,10 +161,7 @@ export class Gw {
       const result = await this.rpc.get_transaction_receipt(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -209,10 +170,7 @@ export class Gw {
       const result = await this.rpc.execute_l2transaction(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -221,10 +179,7 @@ export class Gw {
       const result = await this.rpc.execute_raw_l2transaction(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -233,10 +188,7 @@ export class Gw {
       const result = await this.rpc.submit_l2transaction(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -245,10 +197,7 @@ export class Gw {
       const result = await this.rpc.submit_withdrawal_request(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
 
@@ -257,10 +206,25 @@ export class Gw {
       const result = await this.rpc.get_script_hash_by_short_address(...args);
       callback(null, result);
     } catch (error) {
-      callback({
-        code: GW_RPC_REQUEST_ERROR,
-        message: error.message,
-      });
+      callback(parseError(error));
     }
   }
+}
+
+function parseError(error: any): { code: number; message: string } {
+  const prefix = "JSONRPCError: server error ";
+  let message: string = error.message;
+  if (message.startsWith(prefix)) {
+    const jsonErr = message.slice(prefix.length);
+    const err = JSON.parse(jsonErr);
+    return {
+      code: err.code,
+      message: err.message,
+    };
+  }
+
+  return {
+    code: GW_RPC_REQUEST_ERROR,
+    message: error.message,
+  };
 }
