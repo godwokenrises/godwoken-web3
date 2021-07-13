@@ -7,6 +7,7 @@ import { Callback } from "../types";
 import { middleware, validators } from "../validator";
 import { HashMap } from "../../hashmap";
 import { INTERNAL_ERROR, INVALID_PARAMS, WEB3_ERROR } from "../error-code";
+require("dotenv").config({ path: "./.env" });
 
 export class Poly {
   private rpc: RPC;
@@ -113,6 +114,19 @@ export class Poly {
     } catch (error) {
       console.log(error);
       callback({ code: INVALID_PARAMS, message: error.message }, null);
+    }
+  }
+
+  async getCreatorId(args: [], callback: Callback) {
+    try {
+      const creator_id_hex =
+        "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID!).toString(16);
+      callback(null, creator_id_hex);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message,
+      });
     }
   }
 }
