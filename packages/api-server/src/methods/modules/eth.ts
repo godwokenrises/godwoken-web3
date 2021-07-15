@@ -1264,7 +1264,7 @@ function toHexNumber(num: number | bigint | HexNumber): HexNumber {
 }
 
 async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
-  const fromAddress = txCallObj.from;
+  const fromAddress = txCallObj.from || process.env.DEFAULT_FROM_ADDRESS;
   const toAddress = txCallObj.to || "0x" + "00".repeat(20);
   const gas = txCallObj.gas || "0x1000000";
   const gasPrice = txCallObj.gasPrice || "0x1";
