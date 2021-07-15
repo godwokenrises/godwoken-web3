@@ -129,4 +129,9 @@ export class Poly {
       });
     }
   }
+
+  // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
+  async getDefaultFromAddress(args: [], callback: Callback) {
+    callback(null, process.env.DEFAULT_FROM_ADDRESS);
+  }
 }
