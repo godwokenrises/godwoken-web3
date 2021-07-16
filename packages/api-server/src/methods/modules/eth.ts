@@ -1070,7 +1070,7 @@ function dbBlockToApiBlock(block: any) {
     receiptsRoot: "0x" + "0".repeat(64),
     transactionsRoot: "0x" + "0".repeat(64),
     uncles: [],
-    totalDifficulty: "0x" + BigInt(POLY_BLOCK_DIFFICULTY).toString(16),
+    totalDifficulty: "0x" + POLY_BLOCK_DIFFICULTY.toString(16),
     extraData: "0x",
   };
 }
