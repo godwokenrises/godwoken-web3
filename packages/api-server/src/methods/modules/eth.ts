@@ -24,6 +24,20 @@ import {
   WEB3_ERROR,
   HEADER_NOT_FOUND_ERROR,
 } from "../error-code";
+import {
+  CKB_SUDT_ID,
+  HEADER_NOT_FOUND_ERR_MESSAGE,
+  CKB_PERSONALIZATION,
+  GW_ACCOUNT_KV,
+  POLYJUICE_CONTRACT_CODE,
+  POLYJUICE_SYSTEM_PREFIX,
+  SUDT_OPERATION_LOG_FLGA,
+  SUDT_PAY_FEE_LOG_FLAG,
+  POLYJUICE_SYSTEM_LOG_FLAG,
+  POLYJUICE_USER_LOG_FLAG,
+  POLY_MAX_BLOCK_GAS_LIMIT,
+  POLY_BLOCK_DIFFICULTY,
+} from "../constant";
 
 const Config = require("../../../config/eth.json");
 const blake2b = require("blake2b");
@@ -31,19 +45,6 @@ require("dotenv").config({ path: "./.env" });
 
 const ETH_ACCOUNT_LOCK_HASH = process.env.ETH_ACCOUNT_LOCK_HASH;
 const ROLLUP_TYPE_HASH = process.env.ROLLUP_TYPE_HASH;
-const POLYJUICE_SYSTEM_PREFIX = 255;
-const POLYJUICE_CONTRACT_CODE = 1;
-// const POLYJUICE_DESTRUCTED = 2;
-// const GW_KEY_BYTES = 32;
-const GW_ACCOUNT_KV = 0;
-const CKB_SUDT_ID = "0x1";
-const CKB_PERSONALIZATION = "ckb-default-hash";
-const SUDT_OPERATION_LOG_FLGA = "0x0";
-const SUDT_PAY_FEE_LOG_FLAG = "0x1";
-const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
-const POLYJUICE_USER_LOG_FLAG = "0x3";
-
-const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
 
 export class Eth {
   knex: Knex;
@@ -1053,7 +1054,7 @@ function dbBlockToApiBlock(block: any) {
     parentHash: block.parent_hash,
     gasLimit:
       "0x" + BigInt(block.gas_limit).toString(16) === "0x0"
-        ? "0xe4e1c0"
+        ? "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16)
         : "0x" + BigInt(block.gas_limit).toString(16),
     gasUsed: "0x" + BigInt(block.gas_used).toString(16),
     miner: block.miner,
@@ -1069,7 +1070,7 @@ function dbBlockToApiBlock(block: any) {
     receiptsRoot: "0x" + "0".repeat(64),
     transactionsRoot: "0x" + "0".repeat(64),
     uncles: [],
-    totalDifficulty: "0x0",
+    totalDifficulty: "0x" + POLY_BLOCK_DIFFICULTY.toString(16),
     extraData: "0x",
   };
 }
