@@ -1014,7 +1014,8 @@ export class Eth {
         return "0x0";
       // It's supposed to be filtered in the validator, so throw an error if matched
       case "pending":
-        throw new Error("block parameter should not be pending.");
+        //throw new Error("block parameter should not be pending.");
+        return undefined;
     }
 
     const tipNumber = await this.getTipNumber();
