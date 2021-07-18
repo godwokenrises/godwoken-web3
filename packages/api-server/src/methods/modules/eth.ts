@@ -1163,7 +1163,7 @@ async function ethContractAddressToAccountId(
     const scriptHash = await rpc.get_script_hash_by_short_address(address);
     const accountId = await rpc.get_account_id_by_script_hash(scriptHash);
     console.log(`eth contract address: ${address}, account id: ${accountId}`);
-    return accountId;
+    return accountId == null ? undefined : +accountId;
   } catch (error) {
     return undefined;
   }
