@@ -405,6 +405,8 @@ export class Eth {
 
   async getCode(args: [string, string], callback: Callback) {
     try {
+      const defaultResult = "0x";
+
       const address = args[0];
       const blockParameter = args[1];
       let blockNumber: HexNumber | undefined;
@@ -418,7 +420,7 @@ export class Eth {
       }
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId === undefined || accountId === null) {
-        callback(null, "0x0");
+        callback(null, defaultResult);
         return;
       }
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
@@ -428,7 +430,7 @@ export class Eth {
         blockNumber
       );
       const data = await this.rpc.get_data(dataHash, blockNumber);
-      callback(null, data);
+      callback(null, data || defaultResult);
     } catch (error) {
       callback({
         code: WEB3_ERROR,
