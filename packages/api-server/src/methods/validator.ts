@@ -288,14 +288,18 @@ function verifyBlockParameter(
   blockParameter: BlockParameter,
   index: number
 ): any {
-  if (blockParameter === "latest" || blockParameter === "earliest") {
+  if (
+    blockParameter === "latest" ||
+    blockParameter === "earliest" ||
+    blockParameter === "pending"
+  ) {
     return undefined;
   }
 
-  if (typeof blockParameter !== "string" || blockParameter === "pending") {
+  if (typeof blockParameter !== "string") {
     return invalidParamsError(
       index,
-      `argument must be a hex number, "latest" or "earliest", and "pending" is not supported yet.`
+      `argument must be a hex number, "latest", "earliest" or "pending".`
     );
   }
 
