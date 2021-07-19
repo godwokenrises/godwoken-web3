@@ -18,6 +18,15 @@ app.use(express.json());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false }));
 
+app.use(function (req, _res, next) {
+  if (process.env.WEB3_LOG_REQUEST_BODY) {
+    console.log("request.body:", req.body);
+  } else {
+    console.log("request.method:", req.body.method);
+  }
+  next();
+});
+
 app.use("/", jaysonMiddleware);
 
 // catch 404 and forward to error handler
