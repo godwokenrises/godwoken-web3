@@ -311,7 +311,7 @@ export class Eth {
         address
       );
       console.log(`eth_address: ${address}, short_address: ${short_address}`);
-      const balance = await this.rpc.get_balance(
+      const balance = await this.rpc.gw_get_balance(
         short_address,
         toHexNumber(CKB_SUDT_ID),
         blockNumber
@@ -349,7 +349,7 @@ export class Eth {
       }
 
       const key = buildStorageKey(storagePosition);
-      const value = await this.rpc.get_storage_at(
+      const value = await this.rpc.gw_get_storage_at(
         toHexNumber(accountId),
         key,
         blockNumber
@@ -389,7 +389,7 @@ export class Eth {
         callback(null, "0x0");
         return;
       }
-      const nonce = await this.rpc.get_nonce(
+      const nonce = await this.rpc.gw_get_nonce(
         toHexNumber(accountId),
         blockNumber
       );
@@ -424,12 +424,12 @@ export class Eth {
         return;
       }
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-      const dataHash = await this.rpc.get_storage_at(
+      const dataHash = await this.rpc.gw_get_storage_at(
         toHexNumber(accountId),
         contractCodeKey,
         blockNumber
       );
-      const data = await this.rpc.get_data(dataHash, blockNumber);
+      const data = await this.rpc.gw_get_data(dataHash, blockNumber);
       callback(null, data || defaultResult);
     } catch (error) {
       callback({
@@ -452,7 +452,7 @@ export class Eth {
         });
       }
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.execute_raw_l2transaction(
+      const runResult = await this.rpc.gw_execute_raw_l2transaction(
         rawL2TransactionHex,
         blockNumber
       );
@@ -469,7 +469,7 @@ export class Eth {
   async estimateGas(args: [TransactionCallObject], callback: Callback) {
     try {
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.execute_raw_l2transaction(
+      const runResult = await this.rpc.gw_execute_raw_l2transaction(
         rawL2TransactionHex
       );
 
