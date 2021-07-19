@@ -61,12 +61,13 @@ export class Eth {
     console.log("node_rpc", process.env.GODWOKEN_JSON_RPC);
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
 
-    this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 1, [
+    this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
+      validators.bool,
     ]);
-    // TODO: required 2 arguments
-    this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 1, [
+    this.getBlockByHash = middleware(this.getBlockByHash.bind(this), 2, [
       validators.blockHash,
+      validators.bool,
     ]);
     this.getBalance = middleware(this.getBalance.bind(this), 2, [
       validators.address,
@@ -494,21 +495,27 @@ export class Eth {
     }
   }
 
-  // TODO: second argument
-  async getBlockByHash(args: [string], callback: Callback) {
+  async getBlockByHash(args: [string, boolean], callback: Callback) {
     try {
+      const blockHash = args[0];
+      const isFullTransaction = args[1];
+
       const blockData = await this.knex
         .select()
         .table("blocks")
-        .where({ hash: args[0] });
+        .where({ hash: blockHash });
+
       const transactionData = await this.knex
-        .select("hash")
+        .select(isFullTransaction ? "*" : "hash")
         .table("transactions")
-        .where({ block_hash: args[0] });
+        .where({ block_hash: blockHash });
       if (blockData.length === 1) {
-        const txHashes = transactionData.map((item) => item.hash);
+        const txOrHashes = transactionData.map((item) =>
+          isFullTransaction ? dbTransactionToApiTransaction(item) : item.hash
+        );
+
         let block = dbBlockToApiBlock(blockData[0]);
-        block.transactions = txHashes as any;
+        block.transactions = txOrHashes as any;
         callback(null, block);
       } else {
         callback(null, null);
@@ -521,8 +528,9 @@ export class Eth {
     }
   }
 
-  async getBlockByNumber(args: [string], callback: Callback) {
+  async getBlockByNumber(args: [string, boolean], callback: Callback) {
     const blockParameter = args[0];
+    const isFullTransaction = args[1];
     let blockNumber: HexNumber | undefined;
     try {
       blockNumber = await this.blockParameterToBlockNumber(blockParameter);
@@ -539,12 +547,15 @@ export class Eth {
       .where({ number: BigInt(blockNumber) });
     if (blockData.length === 1) {
       const transactionData = await this.knex
-        .select("hash")
+        .select(isFullTransaction ? "*" : "hash")
         .table("transactions")
         .where({ block_number: BigInt(blockNumber) });
-      const txHashes = transactionData.map((item) => item.hash);
+
+      const txOrHashes = transactionData.map((item) =>
+        isFullTransaction ? dbTransactionToApiTransaction(item) : item.hash
+      );
       let block = dbBlockToApiBlock(blockData[0]);
-      block.transactions = txHashes as any;
+      block.transactions = txOrHashes as any;
       callback(null, block);
     } else {
       console.log("no block.....");
