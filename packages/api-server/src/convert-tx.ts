@@ -178,7 +178,7 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   let toId = await getAccountIdByEthAddress(to, rpc);
   if (to === EMPTY_ETH_ADDRESS) {
     args_7 = "0x03";
-    toId = "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID).toString(16);
+    toId = "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID!).toString(16);
   } else {
     args_7 = "0x00";
     toId = getToIdFromCallContract(to);
