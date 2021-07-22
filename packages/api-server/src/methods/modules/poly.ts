@@ -134,4 +134,34 @@ export class Poly {
   async getDefaultFromAddress(args: [], callback: Callback) {
     callback(null, process.env.DEFAULT_FROM_ADDRESS);
   }
+
+  async getContractValidatorTypeHash(args: [], callback: Callback) {
+    if (process.env.POLYJUICE_VALIDATOR_TYPE_HASH)
+      callback(null, process.env.POLYJUICE_VALIDATOR_TYPE_HASH!);
+    else
+      callback({
+        code: WEB3_ERROR,
+        message: "POLYJUICE_VALIDATOR_TYPE_HASH not found!",
+      });
+  }
+
+  async getRollupTypeHash(args: [], callback: Callback) {
+    if (process.env.ROLLUP_TYPE_HASH)
+      callback(null, process.env.ROLLUP_TYPE_HASH!);
+    else
+      callback({
+        code: WEB3_ERROR,
+        message: "ROLLUP_TYPE_HASH not found!",
+      });
+  }
+
+  async getEthAccountLockHash(args: [], callback: Callback) {
+    if (process.env.ETH_ACCOUNT_LOCK_HASH)
+      callback(null, process.env.ETH_ACCOUNT_LOCK_HASH!);
+    else
+      callback({
+        code: WEB3_ERROR,
+        message: "ETH_ACCOUNT_LOCK_HASH not found!",
+      });
+  }
 }
