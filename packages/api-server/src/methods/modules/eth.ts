@@ -1173,8 +1173,8 @@ async function ethContractAddressToAccountId(
   }
   // todo: support create2 contract address in which case it has not been created.
   try {
-    const scriptHash = await rpc.get_script_hash_by_short_address(address);
-    const accountId = await rpc.get_account_id_by_script_hash(scriptHash);
+    const scriptHash = await rpc.gw_get_script_hash_by_short_address(address);
+    const accountId = await rpc.gw_get_account_id_by_script_hash(scriptHash);
     console.log(`eth contract address: ${address}, account id: ${accountId}`);
     return accountId == null ? undefined : +accountId;
   } catch (error) {
@@ -1298,7 +1298,7 @@ async function allTypeEthAddressToAccountId(
   address: string
 ): Promise<number | null> {
   const scriptHash = ethAddressToScriptHash(address);
-  let accountId = await rpc.get_account_id_by_script_hash(scriptHash);
+  let accountId = await rpc.gw_get_account_id_by_script_hash(scriptHash);
   if (accountId === null || accountId === undefined) {
     accountId = await ethContractAddressToAccountId(address, rpc);
   }
@@ -1326,7 +1326,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
     typeof fromAddress === "string"
   ) {
     const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    fromId = await rpc.get_account_id_by_script_hash(fromScriptHash);
+    fromId = await rpc.gw_get_account_id_by_script_hash(fromScriptHash);
     console.log(`fromId: ${fromId}`);
   }
   const toId = await ethContractAddressToAccountId(toAddress, rpc);
