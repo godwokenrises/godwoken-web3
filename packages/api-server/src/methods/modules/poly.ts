@@ -135,18 +135,6 @@ export class Poly {
     callback(null, process.env.DEFAULT_FROM_ADDRESS);
   }
 
-  async getChainId(args: [], callback: Callback) {
-    try {
-      const chain_id_hex = "0x" + BigInt(process.env.CHAIN_ID!).toString(16);
-      callback(null, chain_id_hex);
-    } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
-    }
-  }
-
   async getContractValidatorTypeHash(args: [], callback: Callback) {
     if (process.env.POLYJUICE_VALIDATOR_TYPE_HASH)
       callback(null, process.env.POLYJUICE_VALIDATOR_TYPE_HASH!);
