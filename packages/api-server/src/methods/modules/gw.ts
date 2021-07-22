@@ -50,7 +50,7 @@ export class Gw {
 
   async ping(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.ping(...args);
+      const result = await this.rpc.gw_ping(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -59,7 +59,7 @@ export class Gw {
 
   async get_tip_block_hash(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_tip_block_hash(...args);
+      const result = await this.rpc.gw_get_tip_block_hash(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -68,7 +68,7 @@ export class Gw {
 
   async get_block_hash(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_block_hash(...args);
+      const result = await this.rpc.gw_get_block_hash(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -77,7 +77,7 @@ export class Gw {
 
   async get_block(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_block(...args);
+      const result = await this.rpc.gw_get_block(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -86,7 +86,7 @@ export class Gw {
 
   async get_block_by_number(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_block_by_number(...args);
+      const result = await this.rpc.gw_get_block_by_number(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -95,7 +95,7 @@ export class Gw {
 
   async get_balance(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_balance(...args);
+      const result = await this.rpc.gw_get_balance(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -104,7 +104,7 @@ export class Gw {
 
   async get_storage_at(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_storage_at(...args);
+      const result = await this.rpc.gw_get_storage_at(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -113,7 +113,7 @@ export class Gw {
 
   async get_account_id_by_script_hash(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_account_id_by_script_hash(...args);
+      const result = await this.rpc.gw_get_account_id_by_script_hash(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -122,7 +122,7 @@ export class Gw {
 
   async get_nonce(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_nonce(...args);
+      const result = await this.rpc.gw_get_nonce(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -131,7 +131,7 @@ export class Gw {
 
   async get_script(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_script(...args);
+      const result = await this.rpc.gw_get_script(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -140,7 +140,7 @@ export class Gw {
 
   async get_script_hash(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_script_hash(...args);
+      const result = await this.rpc.gw_get_script_hash(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -149,7 +149,7 @@ export class Gw {
 
   async get_data(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_data(...args);
+      const result = await this.rpc.gw_get_data(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -158,7 +158,7 @@ export class Gw {
 
   async get_transaction_receipt(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_transaction_receipt(...args);
+      const result = await this.rpc.gw_get_transaction_receipt(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -167,7 +167,7 @@ export class Gw {
 
   async execute_l2transaction(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.execute_l2transaction(...args);
+      const result = await this.rpc.gw_execute_l2transaction(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -176,7 +176,7 @@ export class Gw {
 
   async execute_raw_l2transaction(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.execute_raw_l2transaction(...args);
+      const result = await this.rpc.gw_execute_raw_l2transaction(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -185,7 +185,7 @@ export class Gw {
 
   async submit_l2transaction(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.submit_l2transaction(...args);
+      const result = await this.rpc.gw_submit_l2transaction(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -194,7 +194,7 @@ export class Gw {
 
   async submit_withdrawal_request(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.submit_withdrawal_request(...args);
+      const result = await this.rpc.gw_submit_withdrawal_request(...args);
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
@@ -203,7 +203,9 @@ export class Gw {
 
   async get_script_hash_by_short_address(args: any[], callback: Callback) {
     try {
-      const result = await this.rpc.get_script_hash_by_short_address(...args);
+      const result = await this.rpc.gw_get_script_hash_by_short_address(
+        ...args
+      );
       callback(null, result);
     } catch (error) {
       callback(parseError(error));
