@@ -4,8 +4,18 @@
   "license": "MIT",
   "private": true,
   "workspaces": [
+    "packages/godwoken",
+    "packages/api-server",
     "packages/*"
   ],
+  "scripts": {
+    "build:godwoken": "yarn workspace @godwoken-web3/godwoken run build",
+    "build:api-server": "yarn workspace @godwoken-web3/api-server run build",
+    "build": "yarn workspaces run build",
+    "fmt": "yarn workspaces run fmt",
+    "lint": "yarn workspaces run lint",
+    "start": "yarn workspace @godwoken-web3/api-server run start"
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.28.2",
     "@typescript-eslint/parser": "^4.28.2",
