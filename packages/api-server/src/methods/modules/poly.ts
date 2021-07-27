@@ -1,7 +1,3 @@
-import {
-  ethAddressToPolyjuiceAddress,
-  polyjuiceAddressToEthAddress,
-} from "../../convert-tx";
 import { RPC } from "ckb-js-toolkit";
 import { Callback } from "../types";
 import { middleware, validators } from "../validator";
@@ -17,18 +13,6 @@ export class Poly {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
     this.hashMap = new HashMap();
 
-    this.ethAddressToPolyjuiceAddress = middleware(
-      this.ethAddressToPolyjuiceAddress.bind(this),
-      1,
-      [validators.address]
-    );
-
-    this.polyjuiceAddressToEthAddress = middleware(
-      this.polyjuiceAddressToEthAddress.bind(this),
-      1,
-      [validators.address]
-    );
-
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
       1,
@@ -40,38 +24,6 @@ export class Poly {
       2,
       [validators.address, validators.address]
     );
-  }
-
-  async ethAddressToPolyjuiceAddress(args: [string], callback: Callback) {
-    try {
-      const ethAddress = args[0];
-      const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
-        ethAddress,
-        this.rpc
-      );
-      callback(null, polyjuiceAddress);
-    } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
-    }
-  }
-
-  async polyjuiceAddressToEthAddress(args: [string], callback: Callback) {
-    try {
-      const polyjuiceAddress = args[0];
-      const ethAddress = await polyjuiceAddressToEthAddress(
-        polyjuiceAddress,
-        this.rpc
-      );
-      callback(null, ethAddress);
-    } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
-    }
   }
 
   async getEthAddressByGodwokenShortAddress(
@@ -155,6 +107,16 @@ export class Poly {
       });
   }
 
+  async getRollupConfigHash(args: [], callback: Callback) {
+    if (process.env.ROLLUP_TYPE_HASH)
+      callback(null, process.env.ROLLUP_CONFIG_HASH!);
+    else
+      callback({
+        code: WEB3_ERROR,
+        message: "ROLLUP_CONFIG_HASH not found!",
+      });
+  }
+
   async getEthAccountLockHash(args: [], callback: Callback) {
     if (process.env.ETH_ACCOUNT_LOCK_HASH)
       callback(null, process.env.ETH_ACCOUNT_LOCK_HASH!);
@@ -163,5 +125,24 @@ export class Poly {
         code: WEB3_ERROR,
         message: "ETH_ACCOUNT_LOCK_HASH not found!",
       });
+  }
+
+  async getChainInfo(args: [], callback: Callback) {
+    try {
+      const chainInfo = {
+        rollupScriptHash: process.env.ROLLUP_TYPE_HASH,
+        rollupConfigHash: process.env.ROLLUP_CONFIG_HASH,
+        ethAccountLockTypeHash: process.env.ETH_ACCOUNT_LOCK_HASH,
+        polyjuiceContractTypeHash: process.env.POLYJUICE_VALIDATOR_TYPE_HASH,
+        polyjuiceCreatorId: process.env.CREATOR_ACCOUNT_ID,
+        chainId: process.env.CHAIN_ID,
+      };
+      callback(null, chainInfo);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message,
+      });
+    }
   }
 }
