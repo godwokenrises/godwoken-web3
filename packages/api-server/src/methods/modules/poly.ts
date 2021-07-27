@@ -164,4 +164,23 @@ export class Poly {
         message: "ETH_ACCOUNT_LOCK_HASH not found!",
       });
   }
+
+  async getChainInfo(args: [], callback: Callback) {
+    try {
+      const chainInfo = {
+        rollupScriptHash: process.env.ROLLUP_TYPE_HASH,
+        rollupConfigHash: process.env.ROLLUP_CONFIG_HASH,
+        ethAccountLockTypeHash: process.env.ETH_ACCOUNT_LOCK_HASH,
+        polyjuiceContractTypeHash: process.env.POLYJUICE_VALIDATOR_TYPE_HASH,
+        polyjuiceCreatorId: process.env.CREATOR_ACCOUNT_ID,
+        chainId: process.env.CHAIN_ID,
+      };
+      callback(null, chainInfo);
+    } catch (error) {
+      callback({
+        code: WEB3_ERROR,
+        message: error.message,
+      });
+    }
+  }
 }
