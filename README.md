@@ -112,8 +112,16 @@ yarn workspace @godwoken-web3/api-server start
 - gw_submit_withdrawal_request
 
 ### poly
-- poly_ethAddressToPolyjuiceAddress
-- poly_polyjuiceAddressToEthAddress
+- poly_getEthAddressByGodwokenShortAddress
+- poly_saveEthAddressGodwokenShortAddressMapping
+- poly_getChainInfo
+- poly_getDefaultFromAddress
+- poly_getContractValidatorTypeHash
+- poly_getRollupTypeHash
+- poly_getRollupConfigHash
+- poly_getEthAccountLockHash
+- poly_getCreatorId
+
 ## Examples
 ### web3_clientVersion
 
