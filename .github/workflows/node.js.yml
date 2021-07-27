@@ -27,8 +27,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'yarn'
     - run: yarn install
-    - run: yarn workspace @godwoken-web3/godwoken tsc
-    - run: yarn workspace @godwoken-web3/api-server tsc
-    - run: yarn workspaces run fmt
-    - run: yarn workspaces run lint
+    - run: yarn run build
+    - run: yarn run fmt
+    - run: yarn run lint
     - run: git diff --exit-code
