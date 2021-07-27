@@ -1,7 +1,3 @@
-import {
-  ethAddressToPolyjuiceAddress,
-  polyjuiceAddressToEthAddress,
-} from "../../convert-tx";
 import { RPC } from "ckb-js-toolkit";
 import { Callback } from "../types";
 import { middleware, validators } from "../validator";
@@ -17,18 +13,6 @@ export class Poly {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
     this.hashMap = new HashMap();
 
-    this.ethAddressToPolyjuiceAddress = middleware(
-      this.ethAddressToPolyjuiceAddress.bind(this),
-      1,
-      [validators.address]
-    );
-
-    this.polyjuiceAddressToEthAddress = middleware(
-      this.polyjuiceAddressToEthAddress.bind(this),
-      1,
-      [validators.address]
-    );
-
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
       1,
@@ -40,38 +24,6 @@ export class Poly {
       2,
       [validators.address, validators.address]
     );
-  }
-
-  async ethAddressToPolyjuiceAddress(args: [string], callback: Callback) {
-    try {
-      const ethAddress = args[0];
-      const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
-        ethAddress,
-        this.rpc
-      );
-      callback(null, polyjuiceAddress);
-    } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
-    }
-  }
-
-  async polyjuiceAddressToEthAddress(args: [string], callback: Callback) {
-    try {
-      const polyjuiceAddress = args[0];
-      const ethAddress = await polyjuiceAddressToEthAddress(
-        polyjuiceAddress,
-        this.rpc
-      );
-      callback(null, ethAddress);
-    } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
-    }
   }
 
   async getEthAddressByGodwokenShortAddress(
