@@ -155,6 +155,16 @@ export class Poly {
       });
   }
 
+  async getRollupConfigHash(args: [], callback: Callback) {
+    if (process.env.ROLLUP_TYPE_HASH)
+      callback(null, process.env.ROLLUP_CONFIG_HASH!);
+    else
+      callback({
+        code: WEB3_ERROR,
+        message: "ROLLUP_CONFIG_HASH not found!",
+      });
+  }
+
   async getEthAccountLockHash(args: [], callback: Callback) {
     if (process.env.ETH_ACCOUNT_LOCK_HASH)
       callback(null, process.env.ETH_ACCOUNT_LOCK_HASH!);
