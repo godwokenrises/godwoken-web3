@@ -1,6 +1,6 @@
 import { RPC } from "ckb-js-toolkit";
+import { RpcError } from "../error";
 import { GW_RPC_REQUEST_ERROR } from "../error-code";
-import { Callback } from "../types";
 import { middleware } from "../validator";
 
 export class Gw {
@@ -48,185 +48,179 @@ export class Gw {
     );
   }
 
-  async ping(args: any[], callback: Callback) {
+  async ping(args: any[]) {
     try {
       const result = await this.rpc.gw_ping(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_tip_block_hash(args: any[], callback: Callback) {
+  async get_tip_block_hash(args: any[]) {
     try {
       const result = await this.rpc.gw_get_tip_block_hash(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_block_hash(args: any[], callback: Callback) {
+  async get_block_hash(args: any[]) {
     try {
       const result = await this.rpc.gw_get_block_hash(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_block(args: any[], callback: Callback) {
+  async get_block(args: any[]) {
     try {
       const result = await this.rpc.gw_get_block(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_block_by_number(args: any[], callback: Callback) {
+  async get_block_by_number(args: any[]) {
     try {
       const result = await this.rpc.gw_get_block_by_number(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_balance(args: any[], callback: Callback) {
+  async get_balance(args: any[]) {
     try {
       const result = await this.rpc.gw_get_balance(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_storage_at(args: any[], callback: Callback) {
+  async get_storage_at(args: any[]) {
     try {
       const result = await this.rpc.gw_get_storage_at(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_account_id_by_script_hash(args: any[], callback: Callback) {
+  async get_account_id_by_script_hash(args: any[]) {
     try {
       const result = await this.rpc.gw_get_account_id_by_script_hash(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_nonce(args: any[], callback: Callback) {
+  async get_nonce(args: any[]) {
     try {
       const result = await this.rpc.gw_get_nonce(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_script(args: any[], callback: Callback) {
+  async get_script(args: any[]) {
     try {
       const result = await this.rpc.gw_get_script(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_script_hash(args: any[], callback: Callback) {
+  async get_script_hash(args: any[]) {
     try {
       const result = await this.rpc.gw_get_script_hash(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_data(args: any[], callback: Callback) {
+  async get_data(args: any[]) {
     try {
       const result = await this.rpc.gw_get_data(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_transaction_receipt(args: any[], callback: Callback) {
+  async get_transaction_receipt(args: any[]) {
     try {
       const result = await this.rpc.gw_get_transaction_receipt(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async execute_l2transaction(args: any[], callback: Callback) {
+  async execute_l2transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_execute_l2transaction(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async execute_raw_l2transaction(args: any[], callback: Callback) {
+  async execute_raw_l2transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_execute_raw_l2transaction(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async submit_l2transaction(args: any[], callback: Callback) {
+  async submit_l2transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_submit_l2transaction(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async submit_withdrawal_request(args: any[], callback: Callback) {
+  async submit_withdrawal_request(args: any[]) {
     try {
       const result = await this.rpc.gw_submit_withdrawal_request(...args);
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 
-  async get_script_hash_by_short_address(args: any[], callback: Callback) {
+  async get_script_hash_by_short_address(args: any[]) {
     try {
       const result = await this.rpc.gw_get_script_hash_by_short_address(
         ...args
       );
-      callback(null, result);
+      return result;
     } catch (error) {
-      callback(parseError(error));
+      parseError(error);
     }
   }
 }
 
-function parseError(error: any): { code: number; message: string } {
+function parseError(error: any): void {
   const prefix = "JSONRPCError: server error ";
   let message: string = error.message;
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
-    return {
-      code: err.code,
-      message: err.message,
-    };
+    throw new RpcError(err.code, err.message);
   }
 
-  return {
-    code: GW_RPC_REQUEST_ERROR,
-    message: error.message,
-  };
+  throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
 }

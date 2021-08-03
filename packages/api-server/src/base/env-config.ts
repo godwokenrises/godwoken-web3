@@ -11,6 +11,7 @@ export const envConfig = {
   creatorAccountId: getRequired("CREATOR_ACCOUNT_ID"),
   chainId: getRequired("CHAIN_ID"),
   defaultFromAddress: getRequired("DEFAULT_FROM_ADDRESS"),
+  polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
 };
 
 function getRequired(name: string): string {
@@ -20,4 +21,8 @@ function getRequired(name: string): string {
   }
 
   return value;
+}
+
+function getOptional(name: string): string | undefined {
+  return env[name];
 }

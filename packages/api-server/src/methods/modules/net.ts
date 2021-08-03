@@ -1,6 +1,6 @@
-import { Callback } from "../types";
+import { HexNumber } from "@ckb-lumos/base";
+import { envConfig } from "../../base/env-config";
 const server = require("../../../bin/www");
-require("dotenv").config({ path: "./.env" });
 
 export class Net {
   constructor() {}
@@ -11,8 +11,8 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * net version as the second argument
    */
-  version(args: [], callback: Callback) {
-    callback(null, "0x" + BigInt(process.env.CHAIN_ID!).toString(16));
+  version(args: []): HexNumber {
+    return "0x" + BigInt(envConfig.chainId).toString(16);
   }
 
   /**
@@ -21,8 +21,8 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * current peer nodes number as the second argument
    */
-  peerCount(args: [], callback: Callback) {
-    callback(null, "0x0");
+  peerCount(args: []): HexNumber {
+    return "0x0";
   }
 
   /**
@@ -31,7 +31,7 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * boolean as the second argument
    */
-  listening(args: [], callback: Callback) {
-    callback(null, server.isListening());
+  listening(args: []): boolean {
+    return server.isListening();
   }
 }
