@@ -12,6 +12,7 @@ export const envConfig = {
   chainId: getRequired("CHAIN_ID"),
   defaultFromAddress: getRequired("DEFAULT_FROM_ADDRESS"),
   polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
+  rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
 };
 
 function getRequired(name: string): string {

@@ -1,8 +1,3 @@
-import {
-  ethAddressToPolyjuiceAddress,
-  polyjuiceAddressToEthAddress,
-} from "../../convert-tx";
-import { RPC } from "ckb-js-toolkit";
 import { middleware, validators } from "../validator";
 import { HashMap } from "../../hashmap";
 import { Hash, HexNumber, Address } from "@ckb-lumos/base";
@@ -11,24 +6,10 @@ import { envConfig } from "../../base/env-config";
 import { InternalError, InvalidParamsError, Web3Error } from "../error";
 
 export class Poly {
-  private rpc: RPC;
   private hashMap: HashMap;
 
   constructor() {
-    this.rpc = new RPC(envConfig.godwokenJsonRpc);
     this.hashMap = new HashMap();
-
-    this.ethAddressToPolyjuiceAddress = middleware(
-      this.ethAddressToPolyjuiceAddress.bind(this),
-      1,
-      [validators.address]
-    );
-
-    this.polyjuiceAddressToEthAddress = middleware(
-      this.polyjuiceAddressToEthAddress.bind(this),
-      1,
-      [validators.address]
-    );
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
@@ -41,32 +22,6 @@ export class Poly {
       2,
       [validators.address, validators.address]
     );
-  }
-
-  async ethAddressToPolyjuiceAddress(args: [string]): Promise<Address> {
-    try {
-      const ethAddress = args[0];
-      const polyjuiceAddress = await ethAddressToPolyjuiceAddress(
-        ethAddress,
-        this.rpc
-      );
-      return polyjuiceAddress;
-    } catch (error) {
-      throw new Web3Error(error.message);
-    }
-  }
-
-  async polyjuiceAddressToEthAddress(args: [string]): Promise<Address> {
-    try {
-      const polyjuiceAddress = args[0];
-      const ethAddress = await polyjuiceAddressToEthAddress(
-        polyjuiceAddress,
-        this.rpc
-      );
-      return ethAddress;
-    } catch (error) {
-      throw new Web3Error(error.message);
-    }
   }
 
   async getEthAddressByGodwokenShortAddress(args: [string]): Promise<Address> {
@@ -135,10 +90,33 @@ export class Poly {
     throw new Web3Error("ROLLUP_TYPE_HASH not found!");
   }
 
+  async getRollupConfigHash(args: []): Promise<Hash> {
+    if (envConfig.rollupTypeHash) {
+      return envConfig.rollupTypeHash;
+    }
+    throw new Web3Error("ROLLUP_CONFIG_HASH not found!");
+  }
+
   async getEthAccountLockHash(args: []): Promise<Hash> {
     if (envConfig.ethAccountLockHash) {
       return envConfig.ethAccountLockHash;
     }
     throw new Web3Error("ETH_ACCOUNT_LOCK_HASH not found!");
+  }
+
+  async getChainInfo(args: []): Promise<any> {
+    try {
+      const chainInfo = {
+        rollupScriptHash: envConfig.rollupTypeHash,
+        rollupConfigHash: envConfig.rollupConfigHash,
+        ethAccountLockTypeHash: envConfig.ethAccountLockHash,
+        polyjuiceContractTypeHash: envConfig.polyjuiceValidatorTypeHash,
+        polyjuiceCreatorId: envConfig.creatorAccountId,
+        chainId: envConfig.chainId,
+      };
+      return chainInfo;
+    } catch (error) {
+      throw new Web3Error(error.message);
+    }
   }
 }
