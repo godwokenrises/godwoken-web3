@@ -91,8 +91,8 @@ export class Poly {
   }
 
   async getRollupConfigHash(args: []): Promise<Hash> {
-    if (envConfig.rollupTypeHash) {
-      return envConfig.rollupTypeHash;
+    if (envConfig.rollupConfigHash) {
+      return envConfig.rollupConfigHash;
     }
     throw new Web3Error("ROLLUP_CONFIG_HASH not found!");
   }
@@ -107,12 +107,12 @@ export class Poly {
   async getChainInfo(args: []): Promise<any> {
     try {
       const chainInfo = {
-        rollupScriptHash: envConfig.rollupTypeHash,
-        rollupConfigHash: envConfig.rollupConfigHash,
-        ethAccountLockTypeHash: envConfig.ethAccountLockHash,
-        polyjuiceContractTypeHash: envConfig.polyjuiceValidatorTypeHash,
-        polyjuiceCreatorId: envConfig.creatorAccountId,
-        chainId: envConfig.chainId,
+        rollupScriptHash: envConfig.rollupTypeHash || null,
+        rollupConfigHash: envConfig.rollupConfigHash || null,
+        ethAccountLockTypeHash: envConfig.ethAccountLockHash || null,
+        polyjuiceContractTypeHash: envConfig.polyjuiceValidatorTypeHash || null,
+        polyjuiceCreatorId: envConfig.creatorAccountId || null,
+        chainId: envConfig.chainId || null,
       };
       return chainInfo;
     } catch (error) {

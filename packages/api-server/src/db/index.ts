@@ -97,7 +97,11 @@ export class Query {
       .where(params)
       .first();
 
-    return transaction;
+    if (transaction == null) {
+      return undefined;
+    }
+
+    return formatTransaction(transaction);
   }
 
   async getTransactionHashesByBlockHash(blockHash: Hash): Promise<Hash[]> {
