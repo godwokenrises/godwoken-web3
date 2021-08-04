@@ -1,5 +1,4 @@
 import {
-  Callback,
   GodwokenLog,
   LogItem,
   SudtOperationLog,
@@ -11,17 +10,11 @@ import {
 } from "../types";
 import { middleware, validators } from "../validator";
 import { FilterObject } from "../../cache/types";
-import { utils, HexNumber, Hash } from "@ckb-lumos/base";
+import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
 import {
-  METHOD_NOT_SUPPORT,
-  WEB3_ERROR,
-  HEADER_NOT_FOUND_ERROR,
-} from "../error-code";
-import {
   CKB_SUDT_ID,
-  HEADER_NOT_FOUND_ERR_MESSAGE,
   POLYJUICE_CONTRACT_CODE,
   POLYJUICE_SYSTEM_PREFIX,
   SUDT_OPERATION_LOG_FLGA,
@@ -39,6 +32,16 @@ import {
   toApiTransaction,
   toApiTransactioReceipt,
 } from "../../db/types";
+import {
+  HeaderNotFoundError,
+  MethodNotSupportError,
+  Web3Error,
+} from "../error";
+import {
+  EthBlock,
+  EthTransaction,
+  EthTransactionReceipt,
+} from "../../base/types/api";
 
 const Config = require("../../../config/eth.json");
 
@@ -164,8 +167,8 @@ export class Eth {
     this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
   }
 
-  chainId(args: [], callback: Callback) {
-    callback(null, "0x" + BigInt(envConfig.chainId).toString(16));
+  chainId(args: []): HexNumber {
+    return "0x" + BigInt(envConfig.chainId).toString(16);
   }
 
   /**
@@ -174,9 +177,9 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * protocol version as the second argument
    */
-  protocolVersion(args: [], callback: Callback) {
+  protocolVersion(args: []): HexNumber {
     const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
-    callback(null, version);
+    return version;
   }
 
   /**
@@ -186,11 +189,11 @@ export class Eth {
    * SyningStatus as the second argument.
    *    SyningStatus: false or { startingBlock, currentBlock, highestBlock }
    */
-  async syncing(args: [], callback: Callback) {
+  async syncing(args: []): Promise<any> {
     // TODO get the latest L2 block number
     const tipNumber = await this.query.getTipBlockNumber();
     if (tipNumber == null) {
-      return callback(null, false);
+      return false;
     }
     const blockHeight: HexNumber = new Uint64(tipNumber).toHex();
     const result = {
@@ -198,7 +201,7 @@ export class Eth {
       currentBlock: blockHeight,
       highestBlock: blockHeight,
     };
-    callback(null, result);
+    return result;
   }
 
   /**
@@ -207,8 +210,8 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * 20 bytes 0 hex string as the second argument.
    */
-  coinbase(args: [], callback: Callback) {
-    callback(null, EMPTY_ADDRESS);
+  coinbase(args: []): Address {
+    return EMPTY_ADDRESS;
   }
 
   /**
@@ -217,8 +220,8 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * false as the second argument.
    */
-  mining(args: [], callback: Callback) {
-    callback(null, false);
+  mining(args: []): boolean {
+    return false;
   }
 
   /**
@@ -227,12 +230,12 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * 0x0 as the second argument.
    */
-  hashrate(args: [], callback: Callback) {
-    callback(null, "0x0");
+  hashrate(args: []): HexNumber {
+    return "0x0";
   }
 
-  async gasPrice(args: [], callback: Callback) {
-    callback(null, "0x1");
+  async gasPrice(args: []): Promise<HexNumber> {
+    return "0x1";
   }
 
   /**
@@ -241,60 +244,45 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * [] as the second argument.
    */
-  accounts(args: [], callback: Callback) {
-    callback(null, []);
+  accounts(args: []): [] {
+    return [];
   }
 
-  async blockNumber(args: [], callback: Callback) {
+  async blockNumber(args: []): Promise<HexNumber | null> {
     const tipBlockNumber = await this.query.getTipBlockNumber();
     if (tipBlockNumber == null) {
-      return callback(null, null);
+      return null;
     }
     const blockHeight: HexNumber = new Uint64(tipBlockNumber).toHex();
-    callback(null, blockHeight);
+    return blockHeight;
   }
 
-  async sign(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sign is not supported!",
-    });
+  async sign(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_sign is not supported!");
   }
 
-  async signTransaction(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_signTransaction is not supported!",
-    });
+  async signTransaction(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_signTransaction is not supported!");
   }
 
-  async sendTransaction(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sendTransaction is not supported!",
-    });
+  async sendTransaction(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_sendTransaction is not supported!");
   }
 
   // TODO: second arguments
-  async getBalance(args: [string, string], callback: Callback) {
+  async getBalance(args: [string, string]): Promise<HexNumber> {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: bigint | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const shortAddress = await allTypeEthAddressToShortAddress(
         this.rpc,
         address
       );
       if (shortAddress == null) {
-        return callback(null, "0x0");
+        return "0x0";
       }
       console.log(`eth_address: ${address}, short_address: ${shortAddress}`);
       const balance = await this.rpc.getBalance(
@@ -303,48 +291,33 @@ export class Eth {
         blockNumber
       );
       const balanceHex = new Uint128(balance).toHex();
-      callback(null, balanceHex);
+      return balanceHex;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getStorageAt(args: [string, string, string], callback: Callback) {
+  async getStorageAt(args: [string, string, string]): Promise<HexString> {
     try {
       const address = args[0];
       const storagePosition = args[1];
       const blockParameter = args[2];
-      let blockNumber: U64 | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const accountId: U32 | undefined = await ethContractAddressToAccountId(
         address,
         this.rpc
       );
       if (accountId == null) {
-        return callback(
-          null,
-          "0x0000000000000000000000000000000000000000000000000000000000000000"
-        );
+        return "0x0000000000000000000000000000000000000000000000000000000000000000";
       }
 
       const key = buildStorageKey(storagePosition);
       const value = await this.rpc.getStorageAt(accountId, key, blockNumber);
-      callback(null, value);
+      return value;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
@@ -353,57 +326,40 @@ export class Eth {
    * @param args [address, QUANTITY|TAG]
    * @param callback
    */
-  async getTransactionCount(args: [string, string], callback: Callback) {
+  async getTransactionCount(args: [string, string]): Promise<HexNumber> {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: U64 | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const accountId: number | undefined = await allTypeEthAddressToAccountId(
         this.rpc,
         address
       );
       if (accountId == null) {
-        callback(null, "0x0");
-        return;
+        return "0x0";
       }
       const nonce = await this.rpc.getNonce(accountId, blockNumber);
       const transactionCount = new Uint32(nonce).toHex();
-      callback(null, transactionCount);
+      return transactionCount;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getCode(args: [string, string], callback: Callback) {
+  async getCode(args: [string, string]): Promise<HexString> {
     try {
       const defaultResult = "0x";
 
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: U64 | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId == null) {
-        callback(null, defaultResult);
-        return;
+        return defaultResult;
       }
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
       const dataHash = await this.rpc.getStorageAt(
@@ -412,43 +368,31 @@ export class Eth {
         blockNumber
       );
       const data = await this.rpc.getData(dataHash, blockNumber);
-      callback(null, data || defaultResult);
+      return data || defaultResult;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async call(args: [TransactionCallObject, string], callback: Callback) {
+  async call(args: [TransactionCallObject, string]): Promise<HexString> {
     try {
       const blockParameter = args[1];
-      let blockNumber: U64 | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
       const runResult = await this.rpc.executeRawL2Transaction(
         rawL2TransactionHex,
         blockNumber
       );
       console.log("RunResult:", runResult);
-      callback(null, runResult.return_data);
+      return runResult.return_data;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async estimateGas(args: [TransactionCallObject], callback: Callback) {
+  async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
       const rawL2Transaction = await buildEthCallTx(args[0], this.rpc);
       const runResult = await this.rpc.executeRawL2Transaction(
@@ -467,60 +411,48 @@ export class Eth {
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
       );
 
-      callback(null, "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getBlockByHash(args: [string, boolean], callback: Callback) {
+  async getBlockByHash(args: [string, boolean]): Promise<EthBlock | null> {
     try {
       const blockHash = args[0];
       const isFullTransaction = args[1];
 
       const block = await this.query.getBlockByHash(blockHash);
       if (block == null) {
-        return callback(null, null);
+        return null;
       }
 
       if (isFullTransaction) {
         const txs = await this.query.getTransactionsByBlockHash(blockHash);
         const apiTxs = txs.map((tx) => toApiTransaction(tx));
         const apiBlock = toApiBlock(block, apiTxs);
-        callback(null, apiBlock);
+        return apiBlock;
       } else {
         const txHashes: Hash[] =
           await this.query.getTransactionHashesByBlockHash(blockHash);
         const apiBlock = toApiBlock(block, txHashes);
-        callback(null, apiBlock);
+        return apiBlock;
       }
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getBlockByNumber(args: [string, boolean], callback: Callback) {
+  async getBlockByNumber(args: [string, boolean]): Promise<EthBlock | null> {
     const blockParameter = args[0];
     const isFullTransaction = args[1];
-    let blockNumber: U64 | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
-    }
+    const blockNumber: U64 | undefined = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
 
     const block = await this.query.getBlockByNumber(blockNumber);
     if (block == null) {
-      return callback(null, null);
+      return null;
     }
 
     const apiBlock = toApiBlock(block);
@@ -533,7 +465,7 @@ export class Eth {
         await this.query.getTransactionHashesByBlockNumber(blockNumber);
       apiBlock.transactions = txHashes;
     }
-    callback(null, apiBlock);
+    return apiBlock;
   }
 
   /**
@@ -541,13 +473,13 @@ export class Eth {
    * @param args [blockHash]
    * @param callback
    */
-  async getBlockTransactionCountByHash(args: [string], callback: Callback) {
+  async getBlockTransactionCountByHash(args: [string]): Promise<HexNumber> {
     const blockHash: Hash = args[0];
 
     const txCount = await this.query.getBlockTransactionCountByHash(blockHash);
     const txCountHex = new Uint32(txCount).toHex();
 
-    callback(null, txCountHex);
+    return txCountHex;
   }
 
   /**
@@ -555,37 +487,25 @@ export class Eth {
    * @param args [blockNumber]
    * @param callback
    */
-  async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
+  async getBlockTransactionCountByNumber(args: [string]): Promise<HexNumber> {
     const blockParameter = args[0];
-    let blockNumber: U64 | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
-    }
+    const blockNumber: U64 | undefined = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
 
     const txCount = await this.query.getBlockTransactionCountByNumber(
       blockNumber
     );
     const txCountHex: HexNumber = new Uint32(txCount).toHex();
-    callback(null, txCountHex);
+    return txCountHex;
   }
 
-  async getUncleByBlockHashAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
-    callback(null, null);
+  async getUncleByBlockHashAndIndex(args: [string, string]): Promise<null> {
+    return null;
   }
 
-  async getUncleByBlockNumberAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
-    callback(null, null);
+  async getUncleByBlockNumberAndIndex(args: [string, string]): Promise<null> {
+    return null;
   }
 
   /**
@@ -593,8 +513,8 @@ export class Eth {
    * @param args [blockHash]
    * @param callback
    */
-  async getUncleCountByBlockHash(args: [string], callback: Callback) {
-    callback(null, "0x0");
+  async getUncleCountByBlockHash(args: [string]): Promise<HexNumber> {
+    return "0x0";
   }
 
   /**
@@ -602,23 +522,28 @@ export class Eth {
    * @param args [blockNumber]
    * @param callback
    */
-  async getUncleCountByBlockNumber(args: [string], callback: Callback) {
-    callback(null, "0x0");
+  async getUncleCountByBlockNumber(args: [string]): Promise<HexNumber> {
+    return "0x0";
   }
 
-  async getCompilers(args: [], callback: Callback) {
-    callback(null, []);
+  /**
+   *
+   * @param args
+   * @returns always empty array
+   */
+  async getCompilers(args: []): Promise<[]> {
+    return [];
   }
 
-  async getTransactionByHash(args: [string], callback: Callback) {
+  async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
     const txHash: Hash = args[0];
 
     const tx = await this.query.getTransactionByHash(txHash);
     if (tx == null) {
-      return callback(null, null);
+      return null;
     }
     const apiTx = toApiTransaction(tx);
-    callback(null, apiTx);
+    return apiTx;
   }
 
   /**
@@ -627,9 +552,8 @@ export class Eth {
    * @param callback
    */
   async getTransactionByBlockHashAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
+    args: [string, string]
+  ): Promise<EthTransaction | null> {
     const blockHash: Hash = args[0];
     const index = +args[1];
 
@@ -638,27 +562,20 @@ export class Eth {
       index
     );
     if (tx == null) {
-      return callback(null, null);
+      return null;
     }
     const apiTx = toApiTransaction(tx);
-    callback(null, apiTx);
+    return apiTx;
   }
 
   async getTransactionByBlockNumberAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
+    args: [string, string]
+  ): Promise<EthTransaction | null> {
     const blockParameter = args[0];
     const index: U32 = +args[1];
-    let blockNumber: U64 | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
-    }
+    const blockNumber: U64 = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
 
     const tx = await this.query.getTransactionByBlockNumberAndIndex(
       blockNumber,
@@ -666,82 +583,62 @@ export class Eth {
     );
 
     if (tx == null) {
-      return callback(null, null);
+      return null;
     }
 
     const apiTx = toApiTransaction(tx);
-    callback(null, apiTx);
+    return apiTx;
   }
 
-  async getTransactionReceipt(args: [string], callback: Callback) {
+  async getTransactionReceipt(
+    args: [string]
+  ): Promise<EthTransactionReceipt | null> {
     const txHash: Hash = args[0];
 
     const data = await this.query.getTransactionAndLogsByHash(txHash);
     if (data == null) {
-      return callback(null, null);
+      return null;
     }
 
     const [tx, logs] = data;
     const apiLogs = logs.map((log) => toApiLog(log));
     const transactionReceipt = toApiTransactioReceipt(tx, apiLogs);
-    callback(null, transactionReceipt);
+    return transactionReceipt;
   }
 
   /* #region filter-related api methods */
-  newFilter(args: [FilterObject], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newFilter is not supported!",
-    });
+  newFilter(args: [FilterObject]): void {
+    throw new MethodNotSupportError("eth_newFilter is not supported!");
   }
 
-  newBlockFilter(args: [], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newBlockFilter is not supported!",
-    });
+  newBlockFilter(args: []): void {
+    throw new MethodNotSupportError("eth_newBlockFilter is not supported!");
   }
 
-  newPendingTransactionFilter(args: [], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newPendingTransactionFilter is not supported!",
-    });
+  newPendingTransactionFilter(args: []): void {
+    throw new MethodNotSupportError(
+      "eth_newPendingTransactionFilter is not supported!"
+    );
   }
 
-  uninstallFilter(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_uninstallFilter is not supported!",
-    });
+  uninstallFilter(args: [string]): void {
+    throw new MethodNotSupportError("eth_uninstallFilter is not supported!");
   }
 
-  async getFilterLogs(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getFilterLogs is not supported!",
-    });
+  async getFilterLogs(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_getFilterLogs is not supported!");
   }
 
-  async getFilterChanges(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getFilterChanges is not supported!",
-    });
+  async getFilterChanges(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_getFilterChanges is not supported!");
   }
 
-  async getLogs(args: [FilterObject], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getLogs is not supported!",
-    });
+  async getLogs(args: [FilterObject]): Promise<void> {
+    throw new MethodNotSupportError("eth_getLogs is not supported!");
   }
 
-  async sendRawTransaction(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sendRawTransaction is not supported!",
-    });
+  async sendRawTransaction(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_sendRawTransaction is not supported!");
   }
   /* #endregion */
 
@@ -770,7 +667,7 @@ export class Eth {
     const tipNumber: bigint = await this.getTipNumber();
     const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
     if (tipNumber < blockNumber) {
-      throw new Error(HEADER_NOT_FOUND_ERR_MESSAGE);
+      throw new HeaderNotFoundError();
     }
     return blockNumber;
   }
@@ -816,7 +713,7 @@ async function ethContractAddressToAccountId(
   address: string,
   rpc: GodwokenClient
 ): Promise<number | undefined> {
-  if (address.length != 42) {
+  if (address.length !== 42) {
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
   if (address === "0x0000000000000000000000000000000000000000") {
@@ -1041,7 +938,7 @@ function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
 
 function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length != 4 + 4 + 16) {
+  if (buf.length !== 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
     );
@@ -1059,7 +956,7 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
 
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length != 8 + 8 + 16 + 4 + 4) {
+  if (buf.length !== 8 + 8 + 16 + 4 + 4) {
     throw new Error(`invalid system log raw data length: ${buf.length}`);
   }
   const gasUsed = buf.readBigUInt64LE(0);
@@ -1092,7 +989,7 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
     topics.push("0x" + topic.toString("hex"));
   }
 
-  if (offset != buf.length) {
+  if (offset !== buf.length) {
     throw new Error(
       `Too many bytes for polyjuice user log data: offset=${offset}, data.len()=${buf.length}`
     );

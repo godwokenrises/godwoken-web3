@@ -1,4 +1,5 @@
 import * as modules from "./modules";
+import { Callback } from "./types";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -22,7 +23,20 @@ function getMethods() {
       .filter((methodName: string) => methodName !== "constructor")
       .forEach((methodName: string) => {
         const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
-        methods[concatedMethodName] = mod[methodName].bind(mod);
+        methods[concatedMethodName] = async (args: any[], cb: Callback) => {
+          try {
+            const result = await mod[methodName].bind(mod)(args);
+            cb(null, result);
+          } catch (err) {
+            if (err.name === "RpcError") {
+              return cb({
+                code: err.code,
+                message: err.message,
+              });
+            }
+            throw err;
+          }
+        };
       });
   });
 
