@@ -11,6 +11,9 @@ export const envConfig = {
   creatorAccountId: getRequired("CREATOR_ACCOUNT_ID"),
   chainId: getRequired("CHAIN_ID"),
   defaultFromAddress: getRequired("DEFAULT_FROM_ADDRESS"),
+  l2SudtValidatorScriptTypeHash: getRequired(
+    "L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH"
+  ),
   polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
 };
