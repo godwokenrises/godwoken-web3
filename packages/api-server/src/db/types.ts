@@ -146,7 +146,7 @@ export function toApiLog(l: Log): EthLog {
   };
 }
 
-const EMPTY_HASH = "0x" + "00".repeat(64);
+const EMPTY_HASH = "0x" + "00".repeat(32);
 
 const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 function transformLogsBloom(bloom: HexString) {

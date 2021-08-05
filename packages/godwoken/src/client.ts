@@ -8,7 +8,7 @@ import {
   U32,
   U64,
 } from "./types";
-import { SerializeL2Transaction, SerializeRawTransaction } from "../schemas";
+import { SerializeL2Transaction, SerializeRawL2Transaction } from "../schemas";
 import {
   NormalizeL2Transaction,
   NormalizeRawL2Transaction,
@@ -88,9 +88,9 @@ export class GodwokenClient {
     blockNumber?: U64
   ): Promise<RunResult> {
     const data: HexString = new Reader(
-      SerializeRawTransaction(NormalizeRawL2Transaction(rawL2tx))
+      SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
     ).serializeJson();
-    return await this.rpc.gw_execute_raw_l2_transaction(
+    return await this.rpc.gw_execute_raw_l2transaction(
       data,
       toHex(blockNumber)
     );
