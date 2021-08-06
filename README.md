@@ -27,8 +27,8 @@ $ yarn workspace @godwoken-web3/api-server reset_database
 ### Start API server
 
 ```
-yarn workspace @godwoken-web3/godwoken tsc
-yarn workspace @godwoken-web3/api-server start
+yarn run build:godwoken
+yarn run start
 ```
 
 ## Web3 RPC Modules

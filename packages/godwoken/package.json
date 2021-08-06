@@ -5,10 +5,11 @@
   "main": "lib/index.js",
   "scripts": {
     "fmt": "prettier --write \"src/**/*.ts\" package.json",
-    "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\""
+    "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
+    "build": "tsc"
   },
   "dependencies": {
-    "@ckb-lumos/base": "^0.14.2-rc6",
+    "@ckb-lumos/base": "^0.16.0",
     "ckb-js-toolkit": "^0.9.3"
   }
 }

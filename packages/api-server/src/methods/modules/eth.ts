@@ -1,5 +1,4 @@
 import {
-  Callback,
   GodwokenLog,
   LogItem,
   SudtOperationLog,
@@ -9,57 +8,55 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import * as Knex from "knex";
-import { RPC } from "ckb-js-toolkit";
 import { middleware, validators } from "../validator";
-import { FilterManager } from "../../cache/index";
 import { FilterObject } from "../../cache/types";
-// import { camelToSnake, toHex, handleBlockParamter } from "../../util";
-import { utils, HexNumber, HexString } from "@ckb-lumos/base";
-import { Reader } from "ckb-js-toolkit";
-import { types, schemas } from "@godwoken-web3/godwoken";
+import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
+import { RawL2Transaction } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
 import {
-  METHOD_NOT_SUPPORT,
-  WEB3_ERROR,
-  HEADER_NOT_FOUND_ERROR,
-} from "../error-code";
-import {
   CKB_SUDT_ID,
-  HEADER_NOT_FOUND_ERR_MESSAGE,
-  CKB_PERSONALIZATION,
-  GW_ACCOUNT_KV,
   POLYJUICE_CONTRACT_CODE,
   POLYJUICE_SYSTEM_PREFIX,
   SUDT_OPERATION_LOG_FLGA,
   SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
-  POLY_MAX_BLOCK_GAS_LIMIT,
-  POLY_BLOCK_DIFFICULTY,
 } from "../constant";
+import { Query } from "../../db";
+import { envConfig } from "../../base/env-config";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
+import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
+import {
+  toApiBlock,
+  toApiLog,
+  toApiTransaction,
+  toApiTransactioReceipt,
+} from "../../db/types";
+import {
+  HeaderNotFoundError,
+  MethodNotSupportError,
+  Web3Error,
+} from "../error";
+import {
+  EthBlock,
+  EthTransaction,
+  EthTransactionReceipt,
+} from "../../base/types/api";
 
 const Config = require("../../../config/eth.json");
-const blake2b = require("blake2b");
-require("dotenv").config({ path: "./.env" });
 
-const ETH_ACCOUNT_LOCK_HASH = process.env.ETH_ACCOUNT_LOCK_HASH;
-const ROLLUP_TYPE_HASH = process.env.ROLLUP_TYPE_HASH;
+type U32 = number;
+type U64 = bigint;
+
+const EMPTY_ADDRESS = "0x" + "00".repeat(20);
 
 export class Eth {
-  knex: Knex;
-  private filterManager: FilterManager;
+  private query: Query;
+  private rpc: GodwokenClient;
 
-  rpc: RPC;
   constructor() {
-    this.knex = require("knex")({
-      client: "postgresql",
-      connection: process.env.DATABASE_URL,
-    });
-
-    this.filterManager = new FilterManager();
-    console.log("node_rpc", process.env.GODWOKEN_JSON_RPC);
-    this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
+    this.query = new Query(envConfig.databaseUrl);
+    this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -170,8 +167,8 @@ export class Eth {
     this.sendTransaction = middleware(this.sendTransaction.bind(this), 0);
   }
 
-  chainId(args: [], callback: Callback) {
-    callback(null, "0x" + BigInt(process.env.CHAIN_ID!).toString(16));
+  chainId(args: []): HexNumber {
+    return "0x" + BigInt(envConfig.chainId).toString(16);
   }
 
   /**
@@ -180,10 +177,9 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * protocol version as the second argument
    */
-  protocolVersion(args: [], callback: Callback) {
-    console.log("protocolVersion");
+  protocolVersion(args: []): HexNumber {
     const version = "0x" + BigInt(Config.eth_protocolVersion).toString(16);
-    callback(null, version);
+    return version;
   }
 
   /**
@@ -193,25 +189,19 @@ export class Eth {
    * SyningStatus as the second argument.
    *    SyningStatus: false or { startingBlock, currentBlock, highestBlock }
    */
-  async syncing(args: [], callback: Callback) {
+  async syncing(args: []): Promise<any> {
     // TODO get the latest L2 block number
-    // const result = await this.rpc.last_synced();
-    const blockData = await this.knex
-      .select("number")
-      .from("blocks")
-      .orderBy("number", "desc")
-      .limit(1);
-    if (blockData.length === 1) {
-      let blockHeight = "0x" + BigInt(blockData[0].number).toString(16);
-      const result = {
-        startingBlock: blockHeight,
-        currentBlock: blockHeight,
-        highestBlock: blockHeight,
-      };
-      callback(null, result);
-    } else {
-      callback(null, false);
+    const tipNumber = await this.query.getTipBlockNumber();
+    if (tipNumber == null) {
+      return false;
     }
+    const blockHeight: HexNumber = new Uint64(tipNumber).toHex();
+    const result = {
+      startingBlock: blockHeight,
+      currentBlock: blockHeight,
+      highestBlock: blockHeight,
+    };
+    return result;
   }
 
   /**
@@ -220,8 +210,8 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * 20 bytes 0 hex string as the second argument.
    */
-  coinbase(args: [], callback: Callback) {
-    callback(null, "0x" + "0".repeat(40));
+  coinbase(args: []): Address {
+    return EMPTY_ADDRESS;
   }
 
   /**
@@ -230,8 +220,8 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * false as the second argument.
    */
-  mining(args: [], callback: Callback) {
-    callback(null, false);
+  mining(args: []): boolean {
+    return false;
   }
 
   /**
@@ -240,12 +230,12 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * 0x0 as the second argument.
    */
-  hashrate(args: [], callback: Callback) {
-    callback(null, "0x0");
+  hashrate(args: []): HexNumber {
+    return "0x0";
   }
 
-  async gasPrice(args: [], callback: Callback) {
-    callback(null, "0x1");
+  async gasPrice(args: []): Promise<HexNumber> {
+    return "0x1";
   }
 
   /**
@@ -254,113 +244,80 @@ export class Eth {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * [] as the second argument.
    */
-  accounts(args: [], callback: Callback) {
-    callback(null, []);
+  accounts(args: []): [] {
+    return [];
   }
 
-  async blockNumber(args: [], callback: Callback) {
-    const blockData = await this.knex
-      .select("number")
-      .from("blocks")
-      .orderBy("number", "desc")
-      .limit(1);
-    if (blockData.length === 1) {
-      let blockHeight = "0x" + BigInt(blockData[0].number).toString(16);
-      callback(null, blockHeight);
-    } else {
-      callback(null, null);
+  async blockNumber(args: []): Promise<HexNumber | null> {
+    const tipBlockNumber = await this.query.getTipBlockNumber();
+    if (tipBlockNumber == null) {
+      return null;
     }
+    const blockHeight: HexNumber = new Uint64(tipBlockNumber).toHex();
+    return blockHeight;
   }
 
-  async sign(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sign is not supported!",
-    });
+  async sign(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_sign is not supported!");
   }
 
-  async signTransaction(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_signTransaction is not supported!",
-    });
+  async signTransaction(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_signTransaction is not supported!");
   }
 
-  async sendTransaction(_args: any[], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sendTransaction is not supported!",
-    });
+  async sendTransaction(_args: any[]): Promise<void> {
+    throw new MethodNotSupportError("eth_sendTransaction is not supported!");
   }
 
   // TODO: second arguments
-  async getBalance(args: [string, string], callback: Callback) {
+  async getBalance(args: [string, string]): Promise<HexNumber> {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: HexNumber | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
-      const short_address = await allTypeEthAddressToShortAddress(
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
+      const shortAddress = await allTypeEthAddressToShortAddress(
         this.rpc,
         address
       );
-      console.log(`eth_address: ${address}, short_address: ${short_address}`);
-      const balance = await this.rpc.gw_get_balance(
-        short_address,
-        toHexNumber(CKB_SUDT_ID),
+      if (shortAddress == null) {
+        return "0x0";
+      }
+      console.log(`eth_address: ${address}, short_address: ${shortAddress}`);
+      const balance = await this.rpc.getBalance(
+        shortAddress,
+        +CKB_SUDT_ID,
         blockNumber
       );
-      const balanceHex = "0x" + BigInt(balance).toString(16);
-      callback(null, balanceHex);
+      const balanceHex = new Uint128(balance).toHex();
+      return balanceHex;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getStorageAt(args: [string, string, string], callback: Callback) {
+  async getStorageAt(args: [string, string, string]): Promise<HexString> {
     try {
       const address = args[0];
       const storagePosition = args[1];
       const blockParameter = args[2];
-      let blockNumber: HexNumber | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
-      const accountId = await ethContractAddressToAccountId(address, this.rpc);
-      if (accountId === undefined || accountId === null) {
-        return callback(
-          null,
-          "0x0000000000000000000000000000000000000000000000000000000000000000"
-        );
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
+      const accountId: U32 | undefined = await ethContractAddressToAccountId(
+        address,
+        this.rpc
+      );
+      if (accountId == null) {
+        return "0x0000000000000000000000000000000000000000000000000000000000000000";
       }
 
       const key = buildStorageKey(storagePosition);
-      const value = await this.rpc.gw_get_storage_at(
-        toHexNumber(accountId),
-        key,
-        blockNumber
-      );
-      callback(null, value);
+      const value = await this.rpc.getStorageAt(accountId, key, blockNumber);
+      return value;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
@@ -369,109 +326,77 @@ export class Eth {
    * @param args [address, QUANTITY|TAG]
    * @param callback
    */
-  async getTransactionCount(args: [string, string], callback: Callback) {
+  async getTransactionCount(args: [string, string]): Promise<HexNumber> {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: HexNumber | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
-      const accountId: number | null = await allTypeEthAddressToAccountId(
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
+      const accountId: number | undefined = await allTypeEthAddressToAccountId(
         this.rpc,
         address
       );
-      if (accountId === undefined || accountId === null) {
-        callback(null, "0x0");
-        return;
+      if (accountId == null) {
+        return "0x0";
       }
-      const nonce = await this.rpc.gw_get_nonce(
-        toHexNumber(accountId),
-        blockNumber
-      );
-      const transactionCount = "0x" + BigInt(nonce).toString(16);
-      callback(null, transactionCount);
+      const nonce = await this.rpc.getNonce(accountId, blockNumber);
+      const transactionCount = new Uint32(nonce).toHex();
+      return transactionCount;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getCode(args: [string, string], callback: Callback) {
+  async getCode(args: [string, string]): Promise<HexString> {
     try {
       const defaultResult = "0x";
 
       const address = args[0];
       const blockParameter = args[1];
-      let blockNumber: HexNumber | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
-      if (accountId === undefined || accountId === null) {
-        callback(null, defaultResult);
-        return;
+      if (accountId == null) {
+        return defaultResult;
       }
       const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-      const dataHash = await this.rpc.gw_get_storage_at(
-        toHexNumber(accountId),
+      const dataHash = await this.rpc.getStorageAt(
+        accountId,
         contractCodeKey,
         blockNumber
       );
-      const data = await this.rpc.gw_get_data(dataHash, blockNumber);
-      callback(null, data || defaultResult);
+      const data = await this.rpc.getData(dataHash, blockNumber);
+      return data || defaultResult;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async call(args: [TransactionCallObject, string], callback: Callback) {
+  async call(args: [TransactionCallObject, string]): Promise<HexString> {
     try {
       const blockParameter = args[1];
-      let blockNumber: HexNumber | undefined;
-      try {
-        blockNumber = await this.parseBlockParameter(blockParameter);
-      } catch (err) {
-        return callback({
-          code: HEADER_NOT_FOUND_ERROR,
-          message: err.message,
-        });
-      }
+      const blockNumber: U64 | undefined = await this.parseBlockParameter(
+        blockParameter
+      );
       const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.gw_execute_raw_l2transaction(
+      const runResult = await this.rpc.executeRawL2Transaction(
         rawL2TransactionHex,
         blockNumber
       );
       console.log("RunResult:", runResult);
-      callback(null, runResult.return_data);
+      return runResult.return_data;
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async estimateGas(args: [TransactionCallObject], callback: Callback) {
+  async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
-      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.gw_execute_raw_l2transaction(
-        rawL2TransactionHex
+      const rawL2Transaction = await buildEthCallTx(args[0], this.rpc);
+      const runResult = await this.rpc.executeRawL2Transaction(
+        rawL2Transaction
       );
 
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
@@ -486,81 +411,61 @@ export class Eth {
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
       );
 
-      callback(null, "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16));
+      return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getBlockByHash(args: [string, boolean], callback: Callback) {
+  async getBlockByHash(args: [string, boolean]): Promise<EthBlock | null> {
     try {
       const blockHash = args[0];
       const isFullTransaction = args[1];
 
-      const blockData = await this.knex
-        .select()
-        .table("blocks")
-        .where({ hash: blockHash });
+      const block = await this.query.getBlockByHash(blockHash);
+      if (block == null) {
+        return null;
+      }
 
-      const transactionData = await this.knex
-        .select(isFullTransaction ? "*" : "hash")
-        .table("transactions")
-        .where({ block_hash: blockHash });
-      if (blockData.length === 1) {
-        const txOrHashes = transactionData.map((item) =>
-          isFullTransaction ? dbTransactionToApiTransaction(item) : item.hash
-        );
-
-        let block = dbBlockToApiBlock(blockData[0]);
-        block.transactions = txOrHashes as any;
-        callback(null, block);
+      if (isFullTransaction) {
+        const txs = await this.query.getTransactionsByBlockHash(blockHash);
+        const apiTxs = txs.map((tx) => toApiTransaction(tx));
+        const apiBlock = toApiBlock(block, apiTxs);
+        return apiBlock;
       } else {
-        callback(null, null);
+        const txHashes: Hash[] =
+          await this.query.getTransactionHashesByBlockHash(blockHash);
+        const apiBlock = toApiBlock(block, txHashes);
+        return apiBlock;
       }
     } catch (error) {
-      callback({
-        code: WEB3_ERROR,
-        message: error.message,
-      });
+      throw new Web3Error(error.message);
     }
   }
 
-  async getBlockByNumber(args: [string, boolean], callback: Callback) {
+  async getBlockByNumber(args: [string, boolean]): Promise<EthBlock | null> {
     const blockParameter = args[0];
     const isFullTransaction = args[1];
-    let blockNumber: HexNumber | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
+    const blockNumber: U64 | undefined = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
+
+    const block = await this.query.getBlockByNumber(blockNumber);
+    if (block == null) {
+      return null;
     }
 
-    const blockData = await this.knex
-      .select()
-      .table("blocks")
-      .where({ number: BigInt(blockNumber) });
-    if (blockData.length === 1) {
-      const transactionData = await this.knex
-        .select(isFullTransaction ? "*" : "hash")
-        .table("transactions")
-        .where({ block_number: BigInt(blockNumber) });
-
-      const txOrHashes = transactionData.map((item) =>
-        isFullTransaction ? dbTransactionToApiTransaction(item) : item.hash
-      );
-      let block = dbBlockToApiBlock(blockData[0]);
-      block.transactions = txOrHashes as any;
-      callback(null, block);
+    const apiBlock = toApiBlock(block);
+    if (isFullTransaction) {
+      const txs = await this.query.getTransactionsByBlockNumber(blockNumber);
+      const apiTxs = txs.map((tx) => toApiTransaction(tx));
+      apiBlock.transactions = apiTxs;
     } else {
-      console.log("no block.....");
-      callback(null, null);
+      const txHashes: Hash[] =
+        await this.query.getTransactionHashesByBlockNumber(blockNumber);
+      apiBlock.transactions = txHashes;
     }
+    return apiBlock;
   }
 
   /**
@@ -568,16 +473,13 @@ export class Eth {
    * @param args [blockHash]
    * @param callback
    */
-  async getBlockTransactionCountByHash(args: [string], callback: Callback) {
-    const transactionData = await this.knex
-      .count()
-      .table("transactions")
-      .where({ block_hash: args[0] });
-    if (transactionData.length === 1) {
-      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
-    } else {
-      callback(null, null);
-    }
+  async getBlockTransactionCountByHash(args: [string]): Promise<HexNumber> {
+    const blockHash: Hash = args[0];
+
+    const txCount = await this.query.getBlockTransactionCountByHash(blockHash);
+    const txCountHex = new Uint32(txCount).toHex();
+
+    return txCountHex;
   }
 
   /**
@@ -585,42 +487,25 @@ export class Eth {
    * @param args [blockNumber]
    * @param callback
    */
-  async getBlockTransactionCountByNumber(args: [string], callback: Callback) {
+  async getBlockTransactionCountByNumber(args: [string]): Promise<HexNumber> {
     const blockParameter = args[0];
-    let blockNumber: HexNumber | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
-    }
+    const blockNumber: U64 | undefined = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
 
-    const transactionData = await this.knex
-      .count()
-      .table("transactions")
-      .where({ block_number: BigInt(blockNumber) });
-
-    if (transactionData.length === 1) {
-      callback(null, "0x" + BigInt(transactionData[0].count).toString(16));
-    } else {
-      callback(null, null);
-    }
+    const txCount = await this.query.getBlockTransactionCountByNumber(
+      blockNumber
+    );
+    const txCountHex: HexNumber = new Uint32(txCount).toHex();
+    return txCountHex;
   }
 
-  async getUncleByBlockHashAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
-    callback(null, null);
+  async getUncleByBlockHashAndIndex(args: [string, string]): Promise<null> {
+    return null;
   }
 
-  async getUncleByBlockNumberAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
-    callback(null, null);
+  async getUncleByBlockNumberAndIndex(args: [string, string]): Promise<null> {
+    return null;
   }
 
   /**
@@ -628,8 +513,8 @@ export class Eth {
    * @param args [blockHash]
    * @param callback
    */
-  async getUncleCountByBlockHash(args: [string], callback: Callback) {
-    callback(null, "0x0");
+  async getUncleCountByBlockHash(args: [string]): Promise<HexNumber> {
+    return "0x0";
   }
 
   /**
@@ -637,25 +522,28 @@ export class Eth {
    * @param args [blockNumber]
    * @param callback
    */
-  async getUncleCountByBlockNumber(args: [string], callback: Callback) {
-    callback(null, "0x0");
+  async getUncleCountByBlockNumber(args: [string]): Promise<HexNumber> {
+    return "0x0";
   }
 
-  async getCompilers(args: [], callback: Callback) {
-    callback(null, []);
+  /**
+   *
+   * @param args
+   * @returns always empty array
+   */
+  async getCompilers(args: []): Promise<[]> {
+    return [];
   }
 
-  async getTransactionByHash(args: [string], callback: Callback) {
-    const transactionData = await this.knex
-      .select()
-      .table("transactions")
-      .where({ hash: args[0] });
-    if (transactionData.length === 1) {
-      let transaction = dbTransactionToApiTransaction(transactionData[0]);
-      callback(null, transaction);
-    } else {
-      callback(null, null);
+  async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
+    const txHash: Hash = args[0];
+
+    const tx = await this.query.getTransactionByHash(txHash);
+    if (tx == null) {
+      return null;
     }
+    const apiTx = toApiTransaction(tx);
+    return apiTx;
   }
 
   /**
@@ -664,385 +552,130 @@ export class Eth {
    * @param callback
    */
   async getTransactionByBlockHashAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
-    const transactionData = await this.knex
-      .select()
-      .table("transactions")
-      .where({ block_hash: args[0], transaction_index: BigInt(args[1]) });
-    if (transactionData.length === 1) {
-      let transaction = dbTransactionToApiTransaction(transactionData[0]);
-      callback(null, transaction);
-    } else {
-      callback(null, null);
+    args: [string, string]
+  ): Promise<EthTransaction | null> {
+    const blockHash: Hash = args[0];
+    const index = +args[1];
+
+    const tx = await this.query.getTransactionByBlockHashAndIndex(
+      blockHash,
+      index
+    );
+    if (tx == null) {
+      return null;
     }
+    const apiTx = toApiTransaction(tx);
+    return apiTx;
   }
 
   async getTransactionByBlockNumberAndIndex(
-    args: [string, string],
-    callback: Callback
-  ) {
+    args: [string, string]
+  ): Promise<EthTransaction | null> {
     const blockParameter = args[0];
-    let blockNumber: HexNumber | undefined;
-    try {
-      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (err) {
-      return callback({
-        code: HEADER_NOT_FOUND_ERROR,
-        message: err.message,
-      });
+    const index: U32 = +args[1];
+    const blockNumber: U64 = await this.blockParameterToBlockNumber(
+      blockParameter
+    );
+
+    const tx = await this.query.getTransactionByBlockNumberAndIndex(
+      blockNumber,
+      index
+    );
+
+    if (tx == null) {
+      return null;
     }
 
-    const transactionData = await this.knex
-      .select()
-      .table("transactions")
-      .where({
-        block_number: BigInt(blockNumber),
-        transaction_index: BigInt(args[1]),
-      });
-    if (transactionData.length === 1) {
-      let transaction = dbTransactionToApiTransaction(transactionData[0]);
-      callback(null, transaction);
-    } else {
-      callback(null, null);
-    }
+    const apiTx = toApiTransaction(tx);
+    return apiTx;
   }
 
-  async getTransactionReceipt(args: [string], callback: Callback) {
-    const transactionData = await this.knex
-      .select()
-      .table("transactions")
-      .where({ hash: args[0] });
-    if (transactionData.length === 1) {
-      const logsData = await this.knex
-        .select()
-        .table("logs")
-        .where({ transaction_hash: args[0] });
-      const logs = logsData.map((item) => dbLogToApiLog(item));
-      let transactionReceipt = dbTransactionToApiTransactionReceipt(
-        transactionData[0]
-      );
-      transactionReceipt.logs = logs as any;
-      callback(null, transactionReceipt);
-    } else {
-      callback(null, null);
+  async getTransactionReceipt(
+    args: [string]
+  ): Promise<EthTransactionReceipt | null> {
+    const txHash: Hash = args[0];
+
+    const data = await this.query.getTransactionAndLogsByHash(txHash);
+    if (data == null) {
+      return null;
     }
+
+    const [tx, logs] = data;
+    const apiLogs = logs.map((log) => toApiLog(log));
+    const transactionReceipt = toApiTransactioReceipt(tx, apiLogs);
+    return transactionReceipt;
   }
 
   /* #region filter-related api methods */
-  newFilter(args: [FilterObject], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newFilter is not supported!",
-    });
-    // const filter = args[0];
-    // const filter_id = this.filterManager.install(filter);
-    // callback(null, toHex(filter_id));
+  newFilter(args: [FilterObject]): void {
+    throw new MethodNotSupportError("eth_newFilter is not supported!");
   }
 
-  newBlockFilter(args: [], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newBlockFilter is not supported!",
-    });
-    // const filter_id = this.filterManager.install(1); // 1 for block filter
-    // callback(null, toHex(filter_id));
+  newBlockFilter(args: []): void {
+    throw new MethodNotSupportError("eth_newBlockFilter is not supported!");
   }
 
-  newPendingTransactionFilter(args: [], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_newPendingTransactionFilter is not supported!",
-    });
-    // const filter_id = this.filterManager.install(2); // 2 for pending tx filter
-    // callback(null, toHex(filter_id));
+  newPendingTransactionFilter(args: []): void {
+    throw new MethodNotSupportError(
+      "eth_newPendingTransactionFilter is not supported!"
+    );
   }
 
-  uninstallFilter(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_uninstallFilter is not supported!",
-    });
-    // const filter_id = parseInt(args[0], 16);
-    // const isUninstalled = this.filterManager.uninstall(filter_id);
-    // callback(null, isUninstalled);
+  uninstallFilter(args: [string]): void {
+    throw new MethodNotSupportError("eth_uninstallFilter is not supported!");
   }
 
-  async getFilterLogs(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getFilterLogs is not supported!",
-    });
-    // const filter_id = parseInt(args[0], 16);
-    // const filter = this.filterManager.get(filter_id);
-
-    // if (!filter) return callback(null, []);
-
-    // if (filter === 1) {
-    //   // block filter
-    //   const blocks = await this.knex.select().table("blocks").where({});
-    //   const block_hashes = blocks.map((block) => block.hash);
-    //   return callback(null, block_hashes);
-    // }
-
-    // if (filter === 2) {
-    //   // pending tx filter, not supported.
-    //   return callback(null, []);
-    // }
-
-    // return this.getLogs([filter!], callback);
+  async getFilterLogs(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_getFilterLogs is not supported!");
   }
 
-  async getFilterChanges(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getFilterChanges is not supported!",
-    });
+  async getFilterChanges(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_getFilterChanges is not supported!");
   }
 
-  // async getFilterChanges(args: [string], callback: Callback) {
-  //   const filter_id = parseInt(args[0], 16);
-  //   const filter = this.filterManager.get(filter_id);
-
-  //   if (!filter) return callback(null, []);
-
-  //   //***** handle block-filter
-  //   if (filter === 1) {
-  //     const last_poll_block_number = this.filterManager.getLastPoll(filter_id);
-  //     // get all block occured since last poll
-  //     // ( block_number > last_poll_cache_block_number )
-  //     const blocks = await this.knex
-  //       .select()
-  //       .table("blocks")
-  //       .where("number", ">", BigInt(last_poll_block_number!).toString())
-  //       .orderBy("number", "desc");
-
-  //     if (blocks.length === 0) return callback(null, []);
-
-  //     // remember to update the last poll cache
-  //     // blocks[0] is now the higest block number(meaning it is the newest cache block number)
-  //     this.filterManager.updateLastPoll(filter_id, blocks[0].number);
-  //     const block_hashes = blocks.map((block) => block.hash);
-  //     return callback(null, block_hashes);
-  //   }
-
-  //   //***** handle pending-tx-filter, currently not supported.
-  //   if (filter === 2) {
-  //     return callback(null, []);
-  //   }
-
-  //   //***** handle normal-filter
-  //   const last_poll_log_id = this.filterManager.getLastPoll(filter_id);
-
-  //   // filter non-empty query params
-  //   const params = [
-  //     {
-  //       name: "address",
-  //       value: filter?.address,
-  //     },
-  //     {
-  //       name: "blockHash",
-  //       value: filter?.blockHash,
-  //     },
-  //     {
-  //       name: "fromBlock",
-  //       value: filter?.fromBlock,
-  //     },
-  //     {
-  //       name: "toBlock",
-  //       value: filter?.toBlock,
-  //     },
-  //     {
-  //       name: "topics",
-  //       value: filter?.topics,
-  //     },
-  //   ]
-  //     .filter((p) => p.value !== undefined)
-  //     .map((p) => {
-  //       return { [p.name]: p.value };
-  //     });
-  //   let q = {};
-  //   let query = params.map((p) => Object.assign(q, p))[0];
-
-  //   //@ts-ignore
-  //   const topics: [] = query.topics ? query.topics : [];
-  //   const from_block = handleBlockParamter(
-  //     filter.fromBlock ? filter.fromBlock : "earliest"
-  //   );
-  //   const to_block = handleBlockParamter(
-  //     filter.toBlock ? filter.toBlock : "latest"
-  //   );
-
-  //   // we will pass query object dirrectly to knex where method.
-  //   // so here need to delete the un-querable key.
-  //   delete query.fromBlock;
-  //   delete query.toBlock;
-  //   delete query.topics;
-
-  //   // if blockHash exits, fromBlock and toBlock is not allowed.
-  //   if (filter.blockHash) {
-  //     const logsData = await this.knex
-  //       .select()
-  //       .table("logs")
-  //       .where(camelToSnake(query))
-  //       .where("topics", "@>", topics)
-  //       // select the recent whose log_id is greater than lastPollCache's log_id
-  //       .where("id", ">", last_poll_log_id!.toString());
-
-  //     if (logsData.length === 0) return callback(null, []);
-
-  //     // remember to update the last poll cache
-  //     // logsData[0] is now the higest log id(meaning it is the newest cache log id)
-  //     this.filterManager.updateLastPoll(filter_id, logsData[0].id);
-
-  //     const logs = logsData.map((log) => dbLogToApiLog(log));
-  //     return callback(null, logs);
-  //   }
-
-  //   const logsData = await this.knex
-  //     .select()
-  //     .table("logs")
-  //     .where(camelToSnake(query))
-  //     /*
-  //         todo: incomplete topics query. (currently only impl a simple topic query method)
-  //         Topics are order-dependent.
-  //         Each topic can also be an array of DATA with “or” options.
-
-  //         [example]:
-
-  //           A transaction with a log with topics [A, B],
-  //           will be matched by the following topic filters:
-
-  //             1. [] “anything”
-  //             2. [A] “A in first position (and anything after)”
-  //             3. [null, B] “anything in first position AND B in second position (and anything after)”
-  //             4. [A, B] “A in first position AND B in second position (and anything after)”
-  //             5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
-
-  //         source: https://eth.wiki/json-rpc/API#eth_newFilter
-  //       */
-  //     .where("topics", "@>", topics)
-  //     .where("block_number", ">", from_block?.toString())
-  //     .where("block_number", "<", to_block?.toString())
-  //     // select the recent whose log_id is greater than lastPollCache's log_id
-  //     .where("id", ">", last_poll_log_id!.toString());
-
-  //   if (logsData.length === 0) return callback(null, []);
-
-  //   // remember to update the last poll cache
-  //   // logsData[0] is now the higest log id(meaning it is the newest cache log id)
-  //   this.filterManager.updateLastPoll(filter_id, logsData[0].id);
-
-  //   const logs = logsData.map((log) => dbLogToApiLog(log));
-  //   return callback(null, logs);
-  // }
-
-  async getLogs(args: [FilterObject], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_getLogs is not supported!",
-    });
+  async getLogs(args: [FilterObject]): Promise<void> {
+    throw new MethodNotSupportError("eth_getLogs is not supported!");
   }
 
-  // async getLogs(args: [FilterObject], callback: Callback) {
-  //   const filter = args[0];
-
-  //   //@ts-ignore
-  //   const topics: [] = filter.topics ? filter.topics : [];
-  //   const from_block = handleBlockParamter(
-  //     filter.fromBlock ? filter.fromBlock : "earliest"
-  //   );
-  //   const to_block = handleBlockParamter(
-  //     filter.toBlock ? filter.toBlock : "latest"
-  //   );
-
-  //   delete filter.fromBlock;
-  //   delete filter.toBlock;
-  //   delete filter.topics;
-
-  //   // if blockHash exits, fromBlock and toBlock is not allowed.
-  //   if (filter.blockHash) {
-  //     const logsData = await this.knex
-  //       .select()
-  //       .table("logs")
-  //       .where(camelToSnake(filter))
-  //       .where("topics", "@>", topics);
-  //     const logs = logsData.map((log) => dbLogToApiLog(log));
-  //     return callback(null, logs);
-  //   }
-
-  //   const logsData = await this.knex
-  //     .select()
-  //     .table("logs")
-  //     .where(camelToSnake(filter))
-  //     /*
-  //         todo: incomplete topics matching. (currently only impl a simple topic query method)
-  //         Topics are order-dependent.
-  //         Each topic can also be an array of DATA with “or” options.
-
-  //         [example]:
-
-  //           A transaction with a log with topics [A, B],
-  //           will be matched by the following topic filters:
-
-  //             1. [] “anything”
-  //             2. [A] “A in first position (and anything after)”
-  //             3. [null, B] “anything in first position AND B in second position (and anything after)”
-  //             4. [A, B] “A in first position AND B in second position (and anything after)”
-  //             5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
-
-  //         source: https://eth.wiki/json-rpc/API#eth_newFilter
-  //       */
-  //     .where("topics", "@>", topics)
-  //     .where("block_number", ">", from_block?.toString())
-  //     .where("block_number", "<", to_block?.toString());
-  //   const logs = logsData.map((log) => dbLogToApiLog(log));
-  //   return callback(null, logs);
-  // }
-
-  async sendRawTransaction(args: [string], callback: Callback) {
-    callback({
-      code: METHOD_NOT_SUPPORT,
-      message: "eth_sendRawTransaction is not supported!",
-    });
+  async sendRawTransaction(args: [string]): Promise<void> {
+    throw new MethodNotSupportError("eth_sendRawTransaction is not supported!");
   }
   /* #endregion */
 
-  private async getTipNumber(): Promise<string> {
-    const result = await this.knex
-      .table("blocks")
-      .max("number", { as: "tipNumber" });
-    const tipNumber = result[0].tipNumber;
-    return tipNumber;
+  private async getTipNumber(): Promise<U64> {
+    const num = await this.query.getTipBlockNumber();
+    if (num == null) {
+      throw new Error("tip block number not found!!");
+    }
+    return num;
   }
 
   private async parseBlockParameter(
     blockParameter: BlockParameter
-  ): Promise<HexNumber | undefined> {
+  ): Promise<bigint | undefined> {
     switch (blockParameter) {
       case "latest":
         return undefined;
       case "earliest":
-        return "0x0";
+        return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
       case "pending":
         //throw new Error("block parameter should not be pending.");
         return undefined;
     }
 
-    const tipNumber = await this.getTipNumber();
-    const tipNumberHex = "0x" + BigInt(tipNumber).toString(16);
-    if (BigInt(tipNumberHex) < BigInt(blockParameter)) {
-      throw new Error(HEADER_NOT_FOUND_ERR_MESSAGE);
+    const tipNumber: bigint = await this.getTipNumber();
+    const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
+    if (tipNumber < blockNumber) {
+      throw new HeaderNotFoundError();
     }
-    return blockParameter;
+    return blockNumber;
   }
 
   private async blockParameterToBlockNumber(
     blockParameter: BlockParameter
-  ): Promise<HexNumber> {
-    const blockNumber: HexNumber | undefined = await this.parseBlockParameter(
+  ): Promise<U64> {
+    const blockNumber: U64 | undefined = await this.parseBlockParameter(
       blockParameter
     );
     if (blockNumber === undefined) {
@@ -1052,109 +685,24 @@ export class Eth {
   }
 }
 
-const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
-
-function transformLogsBloom(bloom: HexString) {
-  if (!bloom || bloom === "0x") {
-    return DEFAULT_LOGS_BLOOM;
-  }
-  return bloom;
-}
-
-function dbBlockToApiBlock(block: any) {
-  return {
-    number: "0x" + BigInt(block.number).toString(16),
-    hash: block.hash,
-    parentHash: block.parent_hash,
-    gasLimit:
-      "0x" + BigInt(block.gas_limit).toString(16) === "0x0"
-        ? "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16)
-        : "0x" + BigInt(block.gas_limit).toString(16),
-    gasUsed: "0x" + BigInt(block.gas_used).toString(16),
-    miner: block.miner,
-    size: "0x" + BigInt(block.size).toString(16),
-    logsBloom: transformLogsBloom(block.logs_bloom),
-    transactions: [],
-    timestamp: "0x" + (new Date(block.timestamp).getTime() / 1000).toString(16),
-    // use default value
-    mixHash: "0x" + "0".repeat(64),
-    nonce: "0x" + "0".repeat(16),
-    stateRoot: "0x" + "0".repeat(64),
-    sha3Uncles: "0x" + "0".repeat(64),
-    receiptsRoot: "0x" + "0".repeat(64),
-    transactionsRoot: "0x" + "0".repeat(64),
-    uncles: [],
-    totalDifficulty: "0x" + POLY_BLOCK_DIFFICULTY.toString(16),
-    extraData: "0x",
-  };
-}
-
-function dbTransactionToApiTransaction(transaction: any) {
-  return {
-    hash: transaction.hash,
-    blockHash: transaction.block_hash,
-    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
-    from: transaction.from_address,
-    to: transaction.to_address,
-    gas: "0x" + BigInt(transaction.gas_limit).toString(16),
-    gasPrice: "0x" + BigInt(transaction.gas_price).toString(16),
-    input: transaction.input,
-    nonce: "0x" + BigInt(transaction.nonce).toString(16),
-    value: "0x" + BigInt(transaction.value).toString(16),
-    v: "0x" + BigInt(transaction.v).toString(16),
-    r: transaction.r,
-    s: transaction.s,
-  };
-}
-
-function dbTransactionToApiTransactionReceipt(transaction: any) {
-  return {
-    transactionHash: transaction.hash,
-    blockHash: transaction.block_hash,
-    blockNumber: "0x" + BigInt(transaction.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(transaction.transaction_index).toString(16),
-    gasUsed: "0x" + BigInt(transaction.gas_used).toString(16),
-    cumulativeGasUsed:
-      "0x" + BigInt(transaction.cumulative_gas_used).toString(16),
-    logsBloom: transformLogsBloom(transaction.logs_bloom),
-    logs: [],
-    contractAddress: transaction.contract_address,
-    status: transaction.status ? "0x1" : "0x0",
-  };
-}
-
-function dbLogToApiLog(log: any) {
-  return {
-    address: log.address,
-    blockHash: log.block_hash,
-    blockNumber: "0x" + BigInt(log.block_number).toString(16),
-    transactionIndex: "0x" + BigInt(log.transaction_index).toString(16),
-    transactionHash: log.transaction_hash,
-    data: log.data === "0x" ? "0x" + "00".repeat(32) : log.data,
-    logIndex: "0x" + BigInt(log.transaction_index).toString(16),
-    topics: log.topics,
-    removed: false,
-  };
-}
-
 async function allTypeEthAddressToShortAddress(
-  rpc: RPC,
+  rpc: GodwokenClient,
   address: string
 ): Promise<string | null> {
   const accountId = await ethContractAddressToAccountId(address, rpc);
-  if (accountId === null || accountId === undefined) {
+  if (accountId == null) {
     const short_address = ethAddressToScriptHash(address).slice(0, 42);
     return short_address;
   }
+  // TODO: another type ?
   return address;
 }
 
 function ethAddressToScriptHash(address: string) {
   const script: Script = {
-    code_hash: ETH_ACCOUNT_LOCK_HASH as string,
+    code_hash: envConfig.ethAccountLockHash as string,
     hash_type: "type",
-    args: ROLLUP_TYPE_HASH + address.slice(2),
+    args: envConfig.rollupTypeHash + address.slice(2),
   };
   const scriptHash = utils.computeScriptHash(script);
   return scriptHash;
@@ -1163,9 +711,9 @@ function ethAddressToScriptHash(address: string) {
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/7a04c9274c559e91b677ff3ea2198b58ba0003e7/polyjuice-tests/src/helper.rs#L239
 async function ethContractAddressToAccountId(
   address: string,
-  rpc: RPC
+  rpc: GodwokenClient
 ): Promise<number | undefined> {
-  if (address.length != 42) {
+  if (address.length !== 42) {
     throw new Error(`Invalid eth address length: ${address.length}`);
   }
   if (address === "0x0000000000000000000000000000000000000000") {
@@ -1173,26 +721,18 @@ async function ethContractAddressToAccountId(
   }
   // todo: support create2 contract address in which case it has not been created.
   try {
-    const scriptHash = await rpc.gw_get_script_hash_by_short_address(address);
-    const accountId = await rpc.gw_get_account_id_by_script_hash(scriptHash);
+    const scriptHash: Hash | undefined = await rpc.getScriptHashByShortAddress(
+      address
+    );
+    if (scriptHash == null) {
+      return undefined;
+    }
+    const accountId = await rpc.getAccountIdByScriptHash(scriptHash);
     console.log(`eth contract address: ${address}, account id: ${accountId}`);
     return accountId == null ? undefined : +accountId;
   } catch (error) {
     return undefined;
   }
-}
-
-function _gwBuildAccountKey(accountId: number, key: Uint8Array) {
-  const buffer = Buffer.from(CKB_PERSONALIZATION);
-  const personal = new Uint8Array(buffer);
-  let context = blake2b(32, null, null, personal);
-  const accountIdArray = new Uint8Array(uint32ToLeBytes(accountId) as number[]);
-  const type = new Uint8Array([GW_ACCOUNT_KV]);
-  context = context.update(accountIdArray);
-  context = context.update(type);
-  context = context.update(key);
-  const hash = context.digest();
-  return hash;
 }
 
 function polyjuiceBuildContractCodeKey(accountId: number) {
@@ -1294,43 +834,44 @@ function buildStorageKey(storagePosition: string) {
 }
 
 async function allTypeEthAddressToAccountId(
-  rpc: RPC,
+  rpc: GodwokenClient,
   address: string
-): Promise<number | null> {
+): Promise<number | undefined> {
   const scriptHash = ethAddressToScriptHash(address);
-  let accountId = await rpc.gw_get_account_id_by_script_hash(scriptHash);
+  let accountId = await rpc.getAccountIdByScriptHash(scriptHash);
   if (accountId === null || accountId === undefined) {
     accountId = await ethContractAddressToAccountId(address, rpc);
   }
   return accountId;
 }
 
-function toHexNumber(num: number | bigint | HexNumber): HexNumber {
-  if (num === "latest" || num === "earliest" || num === "pending") {
-    return num;
-  }
-  return "0x" + BigInt(num).toString(16);
-}
-
-async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
-  const fromAddress = txCallObj.from || process.env.DEFAULT_FROM_ADDRESS;
+async function buildEthCallTx(
+  txCallObj: TransactionCallObject,
+  rpc: GodwokenClient
+): Promise<RawL2Transaction> {
+  const fromAddress = txCallObj.from || envConfig.defaultFromAddress;
   const toAddress = txCallObj.to || "0x" + "00".repeat(20);
   const gas = txCallObj.gas || "0x1000000";
   const gasPrice = txCallObj.gasPrice || "0x1";
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x0";
-  let fromId: number = 0;
+  let fromId: number | undefined;
   if (
     fromAddress != null &&
     fromAddress != undefined &&
     typeof fromAddress === "string"
   ) {
     const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    fromId = await rpc.gw_get_account_id_by_script_hash(fromScriptHash);
+    fromId = await rpc.getAccountIdByScriptHash(fromScriptHash);
     console.log(`fromId: ${fromId}`);
   }
+
+  if (fromId == null) {
+    throw new Error("from id not found!");
+  }
+
   const toId = await ethContractAddressToAccountId(toAddress, rpc);
-  if (toId === undefined || toId === null) {
+  if (toId == null) {
     throw new Error("to id missing!");
   }
   const nonce = 0;
@@ -1348,12 +889,7 @@ async function buildEthCallTx(txCallObj: TransactionCallObject, rpc: RPC) {
     polyjuiceArgs
   );
   console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
-  const rawL2TransactionHex = new Reader(
-    schemas.SerializeRawL2Transaction(
-      types.NormalizeRawL2Transaction(rawL2Transaction)
-    )
-  ).serializeJson();
-  return rawL2TransactionHex;
+  return rawL2Transaction;
 }
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
@@ -1384,7 +920,7 @@ function parseLog(logItem: LogItem): GodwokenLog {
 }
 function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length != 4 + 4 + 16) {
+  if (buf.length !== 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
     );
@@ -1402,7 +938,7 @@ function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
 
 function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length != 4 + 4 + 16) {
+  if (buf.length !== 4 + 4 + 16) {
     throw new Error(
       `invalid sudt operation log raw data length: ${buf.length}`
     );
@@ -1420,7 +956,7 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
 
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length != 8 + 8 + 16 + 4 + 4) {
+  if (buf.length !== 8 + 8 + 16 + 4 + 4) {
     throw new Error(`invalid system log raw data length: ${buf.length}`);
   }
   const gasUsed = buf.readBigUInt64LE(0);
@@ -1453,7 +989,7 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
     topics.push("0x" + topic.toString("hex"));
   }
 
-  if (offset != buf.length) {
+  if (offset !== buf.length) {
     throw new Error(
       `Too many bytes for polyjuice user log data: offset=${offset}, data.len()=${buf.length}`
     );

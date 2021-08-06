@@ -1,10 +1,7 @@
-import { INVALID_PARAMS } from "./error-code";
 import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
-
-function defaultLogger(level: string, ...messages: any[]) {
-  console.log(`[${level}] `, ...messages);
-}
+import { logger } from "../base/logger";
+import { InvalidParamsError, RpcError } from "./error";
 
 /**
  * middleware for parameters validation
@@ -13,37 +10,35 @@ function defaultLogger(level: string, ...messages: any[]) {
  * @param {Function[]} validators      array of validator
  */
 export function middleware(
-  method: any,
+  method: (args: any[] | any) => any | Promise<any>,
   requiredParamsCount: number,
   validators: any[] = []
 ): any {
-  return async function (
-    params: any[] = [],
-    cb: (err: any, val?: any) => void
-  ) {
+  return async function (params: any[] = []): Promise<any> {
     if (params.length < requiredParamsCount) {
-      const err = {
-        code: INVALID_PARAMS,
-        message: `missing value for required argument ${params.length}`,
-      };
-      return cb(err);
+      throw new InvalidParamsError(
+        `missing value for required argument ${params.length}`
+      );
     }
 
     for (let i = 0; i < validators.length; i++) {
-      if (!validators[i]) return cb(null);
+      if (!validators[i]) {
+        throw new Error(`validator ${i} not found!`);
+      }
 
       const err = validators[i](params, i);
-      if (err) return cb(err);
+      if (err) {
+        throw new RpcError(err.code, err.message);
+      }
     }
 
     try {
-      return await method(params, cb);
+      return await method(params);
     } catch (err) {
-      defaultLogger(
-        "error",
+      logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
       );
-      return cb(err);
+      throw new RpcError(err.code, err.message);
     }
   };
 }
@@ -326,9 +321,6 @@ function validateAddress(address: string): boolean {
   return /^0x[0-9a-fA-F]+$/.test(address) && address.length === 42;
 }
 
-function invalidParamsError(index: number, message: string) {
-  return {
-    code: INVALID_PARAMS,
-    message: `invalid argument ${index}: ${message}`,
-  };
+function invalidParamsError(index: number, message: string): void {
+  throw new InvalidParamsError(`invalid argument ${index}: ${message}`);
 }
