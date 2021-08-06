@@ -31,6 +31,10 @@ yarn run build:godwoken
 yarn run start
 ```
 
+Normal mode: http://your-url/
+
+Eth wallet mode: http://your-url/eth-wallet
+
 ## Web3 RPC Modules
 
 ### net
