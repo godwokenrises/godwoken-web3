@@ -913,7 +913,7 @@ async function ethCallTx(
 
   const abiItem = abi.get_intereted_abi_item_by_encoded_data(data);
 
-  if (isEthWallet) {
+  if ( abiItem && isEthWallet) {
     const returnDataWithShortAddress =
       await abi.refactor_return_value_with_short_address(
         runResult.return_data,
