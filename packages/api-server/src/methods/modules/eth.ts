@@ -53,8 +53,10 @@ const EMPTY_ADDRESS = "0x" + "00".repeat(20);
 export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
+  private ethWallet: boolean;
 
-  constructor() {
+  constructor(ethWallet: boolean = false) {
+    this.ethWallet = ethWallet;
     this.query = new Query(envConfig.databaseUrl);
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
 
@@ -290,6 +292,12 @@ export class Eth {
         +CKB_SUDT_ID,
         blockNumber
       );
+
+      if (this.ethWallet) {
+        const balanceHex = new Uint128(balance * 10n ** 10n).toHex();
+        return balanceHex;
+      }
+
       const balanceHex = new Uint128(balance).toHex();
       return balanceHex;
     } catch (error) {
@@ -375,6 +383,9 @@ export class Eth {
   }
 
   async call(args: [TransactionCallObject, string]): Promise<HexString> {
+    if (this.ethWallet) {
+      throw new MethodNotSupportError("eth_call is not supported!");
+    }
     try {
       const blockParameter = args[1];
       const blockNumber: U64 | undefined = await this.parseBlockParameter(
@@ -393,6 +404,9 @@ export class Eth {
   }
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
+    if (this.ethWallet) {
+      throw new MethodNotSupportError("eth_estimateGas is not supported!");
+    }
     try {
       const rawL2Transaction = await buildEthCallTx(args[0], this.rpc);
       const runResult = await this.rpc.executeRawL2Transaction(

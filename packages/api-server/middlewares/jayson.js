@@ -1,6 +1,12 @@
-var jayson = require('jayson');
-var methods = require('../lib/methods/index');
+const jayson = require('jayson');
+const { methods, ethWalletMethods } = require('../lib/methods/index');
 
-var server = jayson.server(methods);
+const server = jayson.server(methods);
+const ethWalletServer = jayson.server(ethWalletMethods);
 
-module.exports = server.middleware()
+module.exports = function (req, res, next) {
+  if (req.url.endsWith("/eth-wallet") && req.body.method.startsWith("eth_")) {
+    return ethWalletServer.middleware()(req, res, next)
+  }
+  return server.middleware()(req, res, next)
+}
