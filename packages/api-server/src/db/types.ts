@@ -111,7 +111,7 @@ export function toApiTransaction(t: Transaction): EthTransaction {
   };
 }
 
-export function toApiTransactioReceipt(
+export function toApiTransactionReceipt(
   t: Transaction,
   logs: EthLog[] = []
 ): EthTransactionReceipt {
@@ -155,3 +155,8 @@ function transformLogsBloom(bloom: HexString) {
   }
   return bloom;
 }
+
+export type LogQueryOption = {
+  address?: HexString;
+  topics?: HexString[];
+};

@@ -1,11 +1,12 @@
+import { HexString } from "@ckb-lumos/base";
 import { BlockParameter } from "../methods/types";
 
 export interface FilterObject {
-  address?: string;
+  address?: HexString;
   fromBlock?: BlockParameter;
   toBlock?: BlockParameter;
-  topics?: string[];
-  blockHash?: string;
+  topics?: HexString[];
+  blockHash?: HexString;
 }
 
 export type FilterType = FilterObject | 1 | 2; // 1: block filter 2: pending transaction filter

@@ -1,6 +1,7 @@
-import { Hash, HexNumber } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import { Block, Transaction, Log } from "./types";
 import Knex, { Knex as KnexType } from "knex";
+import { LogQueryOption } from "./types";
 
 export class Query {
   private knex: KnexType;
@@ -42,6 +43,17 @@ export class Query {
       return undefined;
     }
     return formatBlock(block);
+  }
+
+  async getBlocksAfterBlockNumber(
+    number: BigInt,
+    _order?: "desc" | "asc"
+  ): Promise<Block[]> {
+    const order = _order || "desc";
+    const blocks = await this.knex<Block>("blocks")
+      .where("number", ">", number.toString())
+      .orderBy("number", order);
+    return blocks.map((block) => formatBlock(block));
   }
 
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
@@ -169,6 +181,95 @@ export class Query {
     });
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
+  }
+
+  getLogs(
+    option: LogQueryOption,
+    fromBlock: BigInt,
+    toBlock: BigInt
+  ): Promise<Log[]>;
+
+  getLogs(option: LogQueryOption, blockHash: HexString): Promise<Log[]>;
+
+  async getLogs(
+    option: LogQueryOption,
+    blockHashOrFromBlock: HexString | BigInt,
+    toBlock?: BigInt
+  ): Promise<Log[]> {
+    const address = option.address;
+    const topics = option.topics || [];
+
+    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+      const logs = await this.knex
+        .select()
+        .table("logs")
+        .where({ address })
+        .where("topics", "@>", topics!)
+        .where("block_hash", blockHashOrFromBlock);
+      return logs;
+    }
+
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+      const logs = await this.knex
+        .select()
+        .table("logs")
+        .where({ address })
+        .where("topics", "@>", topics!)
+        .where("block_number", ">", blockHashOrFromBlock.toString())
+        .where("block_number", "<", toBlock.toString());
+      return logs;
+    }
+
+    throw new Error("invalid params!");
+  }
+
+  getLogsAfterLastPoll(
+    lastPollId: string,
+    option: LogQueryOption,
+    blockHash: HexString
+  ): Promise<Log[]>;
+
+  getLogsAfterLastPoll(
+    lastPollId: string,
+    option: LogQueryOption,
+    fromBlock: BigInt,
+    toBlock: BigInt
+  ): Promise<Log[]>;
+
+  async getLogsAfterLastPoll(
+    lastPollId: string,
+    option: LogQueryOption,
+    blockHashOrFromBlock: HexString | BigInt,
+    toBlock?: BigInt
+  ): Promise<Log[]> {
+    const address = option.address;
+    const topics = option.topics || [];
+
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+      const logs = await this.knex
+        .select()
+        .table("logs")
+        .where({ address })
+        .where("topics", "@>", topics!)
+        // todo: incomplete topics matching. (currently only impl a simple topic query method)
+        .where("block_number", ">", blockHashOrFromBlock.toString())
+        .where("block_number", "<", toBlock.toString())
+        .where("id", ">", lastPollId);
+      return logs;
+    }
+
+    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+      const logs = await this.knex
+        .select()
+        .table("logs")
+        .where({ address })
+        .where("topics", "@>", topics!)
+        .where("block_hash", ">", blockHashOrFromBlock)
+        .where("id", ">", lastPollId);
+      return logs;
+    }
+
+    throw new Error("invalid params!");
   }
 }
 

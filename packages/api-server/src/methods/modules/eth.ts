@@ -17,7 +17,7 @@ import {
   CKB_SUDT_ID,
   POLYJUICE_CONTRACT_CODE,
   POLYJUICE_SYSTEM_PREFIX,
-  SUDT_OPERATION_LOG_FLGA,
+  SUDT_OPERATION_LOG_FLAG,
   SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
@@ -27,10 +27,12 @@ import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
 import {
+  Log,
+  LogQueryOption,
   toApiBlock,
   toApiLog,
   toApiTransaction,
-  toApiTransactioReceipt,
+  toApiTransactionReceipt,
 } from "../../db/types";
 import {
   HeaderNotFoundError,
@@ -39,11 +41,15 @@ import {
 } from "../error";
 import {
   EthBlock,
+  EthLog,
   EthTransaction,
   EthTransactionReceipt,
 } from "../../base/types/api";
 import { Abi } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
+import { FilterManager } from "../../cache";
+import { toHex } from "../../util";
+import { Knex } from "knex";
 
 const Config = require("../../../config/eth.json");
 
@@ -56,11 +62,13 @@ export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
   private ethWallet: boolean;
+  private filterManager: FilterManager;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
     this.query = new Query(envConfig.databaseUrl);
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
+    this.filterManager = new FilterManager();
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -145,9 +153,9 @@ export class Eth {
     this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
       validators.ethCallParams,
     ]);
-    // this.newFilter = middleware(this.newFilter.bind(this), 1, [
-    //   validators.newFilterParams,
-    // ]);
+    this.newFilter = middleware(this.newFilter.bind(this), 1, [
+      validators.newFilterParams,
+    ]);
 
     this.sendRawTransaction = middleware(
       this.sendRawTransaction.bind(this),
@@ -187,11 +195,11 @@ export class Eth {
   }
 
   /**
-   * Returns block syning info
+   * Returns block syncing info
    * @param  {Array<*>} [params] An empty array
    * @param  {Function} [cb] A function with an error object as the first argument and the
-   * SyningStatus as the second argument.
-   *    SyningStatus: false or { startingBlock, currentBlock, highestBlock }
+   * SyncingStatus as the second argument.
+   *    SyncingStatus: false or { startingBlock, currentBlock, highestBlock }
    */
   async syncing(args: []): Promise<any> {
     // TODO get the latest L2 block number
@@ -618,45 +626,164 @@ export class Eth {
 
     const [tx, logs] = data;
     const apiLogs = logs.map((log) => toApiLog(log));
-    const transactionReceipt = toApiTransactioReceipt(tx, apiLogs);
+    const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
     return transactionReceipt;
   }
 
   /* #region filter-related api methods */
-  newFilter(args: [FilterObject]): void {
-    throw new MethodNotSupportError("eth_newFilter is not supported!");
+  newFilter(args: [FilterObject]): HexNumber {
+    const filter_id = this.filterManager.install(args[0]);
+    return toHex(filter_id);
   }
 
-  newBlockFilter(args: []): void {
-    throw new MethodNotSupportError("eth_newBlockFilter is not supported!");
+  newBlockFilter(args: []): HexNumber {
+    const filter_id = this.filterManager.install(1); // 1 for block filter
+    return toHex(filter_id);
   }
 
-  newPendingTransactionFilter(args: []): void {
-    throw new MethodNotSupportError(
-      "eth_newPendingTransactionFilter is not supported!"
+  newPendingTransactionFilter(args: []): HexNumber {
+    const filter_id = this.filterManager.install(2); // 2 for pending tx filter
+    return toHex(filter_id);
+  }
+
+  uninstallFilter(args: [string]): boolean {
+    const filter_id = parseInt(args[0], 16);
+    const isUninstalled = this.filterManager.uninstall(filter_id);
+    return isUninstalled;
+  }
+
+  async getFilterLogs(args: [string]): Promise<Array<any>> {
+    const filter_id = parseInt(args[0], 16);
+    const filter = this.filterManager.get(filter_id);
+
+    if (!filter) return [];
+
+    if (filter === 1) {
+      // block filter
+      // should return un-poll one?
+      const tip = (await this.query.getTipBlockNumber()) || BigInt(0);
+      const block = await this.query.getBlockByNumber(tip);
+      const block_hashes = block?.hash;
+      return [block_hashes];
+    }
+
+    if (filter === 2) {
+      // pending tx filter, not supported.
+      return [];
+    }
+
+    return this.getLogs([filter!]);
+  }
+
+  async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
+    const filter_id = parseInt(args[0], 16);
+    const filter = this.filterManager.get(filter_id);
+
+    if (!filter) return [];
+
+    //***** handle block-filter
+    if (filter === 1) {
+      const last_poll_block_number = this.filterManager.getLastPoll(filter_id);
+      // get all block occurred since last poll
+      // ( block_number > last_poll_cache_block_number )
+      const blocks = await this.query.getBlocksAfterBlockNumber(
+        BigInt(last_poll_block_number!),
+        "desc"
+      );
+
+      if (blocks.length === 0) return [];
+
+      // remember to update the last poll cache
+      // blocks[0] is now the highest block number(meaning it is the newest cache block number)
+      this.filterManager.updateLastPoll(filter_id, Number(blocks[0].number));
+      const block_hashes = blocks.map((block) => block.hash);
+      return block_hashes;
+    }
+
+    //***** handle pending-tx-filter, currently not supported.
+    if (filter === 2) {
+      return [];
+    }
+
+    //***** handle normal-filter
+    const lastPollLogId = this.filterManager.getLastPoll(filter_id);
+    const blockHash = filter.blockHash;
+    const address = filter.address;
+    const topics = filter.topics;
+    const queryOption: LogQueryOption = {
+      address,
+      topics,
+    };
+
+    // if blockHash exits, fromBlock and toBlock is not allowed.
+    if (blockHash) {
+      const logs = await this.query.getLogsAfterLastPoll(
+        lastPollLogId!.toString(),
+        queryOption,
+        blockHash
+      );
+      if (logs.length === 0) return [];
+      // remember to update the last poll cache
+      // logsData[0] is now the highest log id(meaning it is the newest cache log id)
+      this.filterManager.updateLastPoll(filter_id, Number(logs[0].id));
+      return logs.map((log) => toApiLog(log));
+    }
+
+    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+      filter.fromBlock || "latest"
     );
+    const toBlockNumber: U64 | undefined =
+      await this.blockParameterToBlockNumber(filter.toBlock || "latest");
+    const logs = await this.query.getLogsAfterLastPoll(
+      lastPollLogId!.toString(),
+      queryOption,
+      fromBlockNumber,
+      toBlockNumber
+    );
+    if (logs.length === 0) return [];
+
+    // remember to update the last poll cache
+    // logsData[0] is now the highest log id(meaning it is the newest cache log id)
+    this.filterManager.updateLastPoll(filter_id, Number(logs[0].id));
+
+    return logs.map((log) => toApiLog(log));
   }
 
-  uninstallFilter(args: [string]): void {
-    throw new MethodNotSupportError("eth_uninstallFilter is not supported!");
-  }
+  async getLogs(args: [FilterObject]): Promise<EthLog[]> {
+    const filter = args[0];
 
-  async getFilterLogs(args: [string]): Promise<void> {
-    throw new MethodNotSupportError("eth_getFilterLogs is not supported!");
-  }
+    const topics = filter.topics || [];
+    const address = filter.address;
+    const blockHash = filter.blockHash;
 
-  async getFilterChanges(args: [string]): Promise<void> {
-    throw new MethodNotSupportError("eth_getFilterChanges is not supported!");
-  }
+    const queryOption: LogQueryOption = {
+      topics,
+      address,
+    };
 
-  async getLogs(args: [FilterObject]): Promise<void> {
-    throw new MethodNotSupportError("eth_getLogs is not supported!");
+    // if blockHash exits, fromBlock and toBlock is not allowed.
+    if (blockHash) {
+      const logs = await this.query.getLogs(queryOption, blockHash);
+      return logs.map((log) => toApiLog(log));
+    }
+
+    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+      filter.fromBlock || "latest"
+    );
+    const toBlockNumber: U64 | undefined =
+      await this.blockParameterToBlockNumber(filter.toBlock || "latest");
+    const logs = await this.query.getLogs(
+      queryOption,
+      fromBlockNumber,
+      toBlockNumber
+    );
+    return logs.map((log) => toApiLog(log));
   }
+  /* #endregion */
 
   async sendRawTransaction(args: [string]): Promise<void> {
     throw new MethodNotSupportError("eth_sendRawTransaction is not supported!");
   }
-  /* #endregion */
 
   private async getTipNumber(): Promise<U64> {
     const num = await this.query.getTipBlockNumber();
@@ -988,7 +1115,7 @@ function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.6.0-rc1/polyjuice-tests/src/helper.rs#L122
 function parseLog(logItem: LogItem): GodwokenLog {
   switch (logItem.service_flag) {
-    case SUDT_OPERATION_LOG_FLGA:
+    case SUDT_OPERATION_LOG_FLAG:
       return parseSudtOperationLog(logItem);
     case SUDT_PAY_FEE_LOG_FLAG:
       return parseSudtPayFeeLog(logItem);
