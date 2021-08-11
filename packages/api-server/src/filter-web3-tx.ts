@@ -174,6 +174,7 @@ export async function filterWeb3Transaction(
       logs: web3Logs.map((log) => {
         return {
           ...log,
+          data: log.data === "0x" ? "0x" + "00".repeat(32) : log.data,
           blockHash: PENDING_BLOCK_HASH,
           blockNumber: PENDING_BLOCK_NUMBER,
           transactionIndex: PENDING_TRANSACTION_INDEX,
