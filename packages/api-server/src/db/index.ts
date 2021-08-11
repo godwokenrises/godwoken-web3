@@ -2,6 +2,7 @@ import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import { Block, Transaction, Log } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
+import { FilterTopic } from "../cache/types";
 
 export class Query {
   private knex: KnexType;
@@ -204,9 +205,8 @@ export class Query {
         .select()
         .table("logs")
         .where({ address })
-        .where("topics", "@>", topics!)
         .where("block_hash", blockHashOrFromBlock);
-      return logs;
+      return await filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
@@ -214,10 +214,9 @@ export class Query {
         .select()
         .table("logs")
         .where({ address })
-        .where("topics", "@>", topics!)
         .where("block_number", ">", blockHashOrFromBlock.toString())
         .where("block_number", "<", toBlock.toString());
-      return logs;
+			return await filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -250,12 +249,10 @@ export class Query {
         .select()
         .table("logs")
         .where({ address })
-        .where("topics", "@>", topics!)
-        // todo: incomplete topics matching. (currently only impl a simple topic query method)
         .where("block_number", ">", blockHashOrFromBlock.toString())
         .where("block_number", "<", toBlock.toString())
         .where("id", ">", lastPollId);
-      return logs;
+      return await filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -263,10 +260,9 @@ export class Query {
         .select()
         .table("logs")
         .where({ address })
-        .where("topics", "@>", topics!)
         .where("block_hash", ">", blockHashOrFromBlock)
         .where("id", ">", lastPollId);
-      return logs;
+			return await filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -316,4 +312,84 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
   }
 
   return BigInt(num);
+}
+
+/*
+  return a slice of log array which satisfy the topics matching.
+  
+  matching rule:
+
+        Topics are order-dependent. 
+          Each topic can also be an array of DATA with “or” options.
+          [example]:
+          
+            A transaction with a log with topics [A, B], 
+            will be matched by the following topic filters:
+              1. [] “anything”
+              2. [A] “A in first position (and anything after)”
+              3. [null, B] “anything in first position AND B in second position (and anything after)”
+              4. [A, B] “A in first position AND B in second position (and anything after)”
+              5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+              
+          source: https://eth.wiki/json-rpc/API#eth_newFilter
+*/
+async function filterLogsByTopics(logs: Log[], topics: FilterTopic[]): Promise<Log[]>{
+	// match anything
+	if(topics.length === 0){
+		return logs;
+	}
+	if(topics.every(t => t === null)){
+		return logs;
+	}
+
+	let result = [];
+	for await (let log of logs){
+		let source_topics = log.topics;
+		let length = source_topics.length;
+		for await (let i of [...Array(length).keys()]){
+			// if exits one value in their right position, will be matched.
+			// cover the above 2,3,4th cases
+			if (source_topics[i] && topics[i] && typeof topics[i] === "string" && source_topics[i] === topics[i]){
+				result.push(log);
+				break;
+			}
+
+			// cover the above 5th cases
+			if(topics[i] && Array.isArray(topics[i]) && topics[i]?.includes(source_topics[i])){
+				result.push(log);
+				break;
+			}
+		}		
+	}
+	return result;
+}
+
+// test 
+export async function test_topic_match(){
+	const log: Log = {
+		id: BigInt(0),
+		transaction_hash: '',
+		transaction_id: BigInt(0),
+		transaction_index: 0,
+		block_number: BigInt(0),
+		block_hash: '',
+		address: '',
+		data: '',
+		log_index: 0,
+		topics: ['a', 'b']
+	};
+
+	const f0: FilterTopic[] = [null, null, null];
+	const f1: FilterTopic[] = [];
+	const f2: FilterTopic[] = ['a'];
+	const f3: FilterTopic[] = [null, 'b'];
+	const f4: FilterTopic[] = ['a', 'b'];
+	const f5: FilterTopic[] = [ ['a', 'b'], ['a', 'b'] ];
+	
+	console.log('f0 =>', await filterLogsByTopics([log], f0));
+	console.log('f1 =>', await filterLogsByTopics([log], f1));
+	console.log('f2 =>', await filterLogsByTopics([log], f2));
+	console.log('f3 =>', await filterLogsByTopics([log], f3));
+	console.log('f4 =>', await filterLogsByTopics([log], f4));
+	console.log('f5 =>', await filterLogsByTopics([log], f5));
 }

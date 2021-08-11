@@ -6,6 +6,7 @@ import {
   EthTransactionReceipt,
 } from "../base/types/api";
 import { Uint64, Uint32, Uint128, toHexNumber } from "../base/types/uint";
+import { FilterTopic } from "../cache/types";
 import {
   POLY_BLOCK_DIFFICULTY,
   POLY_MAX_BLOCK_GAS_LIMIT,
@@ -158,5 +159,5 @@ function transformLogsBloom(bloom: HexString) {
 
 export type LogQueryOption = {
   address?: HexString;
-  topics?: HexString[];
+  topics?: FilterTopic[];
 };

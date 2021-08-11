@@ -49,7 +49,6 @@ import { Abi } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
-import { Knex } from "knex";
 
 const Config = require("../../../config/eth.json");
 
