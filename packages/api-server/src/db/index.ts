@@ -201,21 +201,25 @@ export class Query {
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
-      const logs = await this.knex
+      let logs = await this.knex
         .select()
         .table("logs")
         .where({ address })
-        .where("block_hash", blockHashOrFromBlock);
+        .where("block_hash", blockHashOrFromBlock)
+        .orderBy("id", "desc");
+      logs = logs.map(log => formatLog(log));
       return await filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
-      const logs = await this.knex
+      let logs = await this.knex
         .select()
         .table("logs")
         .where({ address })
         .where("block_number", ">", blockHashOrFromBlock.toString())
-        .where("block_number", "<", toBlock.toString());
+        .where("block_number", "<", toBlock.toString())
+        .orderBy("id", "desc");
+      logs = logs.map(log => formatLog(log));
 			return await filterLogsByTopics(logs, topics);
     }
 
@@ -245,23 +249,27 @@ export class Query {
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
-      const logs = await this.knex
+      let logs = await this.knex
         .select()
         .table("logs")
         .where({ address })
         .where("block_number", ">", blockHashOrFromBlock.toString())
         .where("block_number", "<", toBlock.toString())
-        .where("id", ">", lastPollId);
+        .where("id", ">", lastPollId)
+        .orderBy("id", "desc");
+      logs = logs.map(log => formatLog(log));
       return await filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
-      const logs = await this.knex
+      let logs = await this.knex
         .select()
         .table("logs")
         .where({ address })
         .where("block_hash", ">", blockHashOrFromBlock)
-        .where("id", ">", lastPollId);
+        .where("id", ">", lastPollId)
+        .orderBy("id", "desc");
+      logs = logs.map(log => formatLog(log));
 			return await filterLogsByTopics(logs, topics);
     }
 
@@ -333,33 +341,34 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
 */
-async function filterLogsByTopics(logs: Log[], topics: FilterTopic[]): Promise<Log[]>{
+async function filterLogsByTopics(logs: Log[], filterTopics: FilterTopic[]): Promise<Log[]>{
 	// match anything
-	if(topics.length === 0){
+	if(filterTopics.length === 0){
 		return logs;
 	}
-	if(topics.every(t => t === null)){
+	if(filterTopics.every(t => t === null)){
 		return logs;
 	}
 
-	let result = [];
+	let result: Log[] = [];
 	for await (let log of logs){
-		let source_topics = log.topics;
-		let length = source_topics.length;
+		let topics = log.topics;
+		let length = topics.length;
+    let match = true;
 		for await (let i of [...Array(length).keys()]){
-			// if exits one value in their right position, will be matched.
-			// cover the above 2,3,4th cases
-			if (source_topics[i] && topics[i] && typeof topics[i] === "string" && source_topics[i] === topics[i]){
-				result.push(log);
+			if (filterTopics[i] && typeof filterTopics[i] === "string" && topics[i] !== filterTopics[i]){
+        match = false;
 				break;
 			}
-
-			// cover the above 5th cases
-			if(topics[i] && Array.isArray(topics[i]) && topics[i]?.includes(source_topics[i])){
-				result.push(log);
+			if(filterTopics[i] && Array.isArray(filterTopics[i]) && !filterTopics[i]?.includes(topics[i])){
+        match = false;
 				break;
 			}
-		}		
+		}
+    if(!match){
+      continue;
+    }
+    result.push(log);
 	}
 	return result;
 }

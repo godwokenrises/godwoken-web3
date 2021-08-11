@@ -111,7 +111,7 @@ export class FilterManager extends Cache {
   // value: filter value
   private filtersSet: Set<Map<number, FilterType>>;
 
-  // todo: change last poll record to bigint in case block number get larger
+  // todo: change last poll record to bigint type, in case block number get out of range
   // key: filter_id,
   // value: the filter's last poll record:
   //          - for eth_newBlockFilter, the last poll record is the block number (number)
@@ -141,7 +141,7 @@ export class FilterManager extends Cache {
 
   install(filter: FilterType) {
     // increase the global id number
-    // todo: maybe replace with a more robust id method
+    // todo: maybe replace with a more robust id method like uuid ?
     this.uid++;
 
     // add filter to filter cache

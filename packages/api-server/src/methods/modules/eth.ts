@@ -743,7 +743,6 @@ export class Eth {
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
     this.filterManager.updateLastPoll(filter_id, Number(logs[0].id));
-
     return logs.map((log) => toApiLog(log));
   }
 
