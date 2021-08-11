@@ -24,7 +24,7 @@ export class GodwokenClient {
   }
 
   public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
-    const hash = await this.rpc.gw_get_script_hash(accountId);
+    const hash = await this.rpc.gw_get_script_hash(toHex(accountId));
     return hash;
   }
 

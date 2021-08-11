@@ -64,7 +64,7 @@ export async function filterWeb3Transaction(
 
   const fromScriptArgs: HexString = fromScript.args;
   if (
-    fromScriptArgs.length !== 52 ||
+    fromScriptArgs.length !== 106 ||
     fromScriptArgs.slice(0, 66) !== envConfig.rollupTypeHash
   ) {
     console.error("Wrong from_address's script args:", fromScriptArgs);
