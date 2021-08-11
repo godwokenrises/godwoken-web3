@@ -659,11 +659,10 @@ export class Eth {
 
     if (filter === 1) {
       // block filter
-      // should return un-poll one?
-      const tip = (await this.query.getTipBlockNumber()) || BigInt(0);
-      const block = await this.query.getBlockByNumber(tip);
-      const block_hashes = block?.hash;
-      return [block_hashes];
+      // return all blocks
+      const blocks = await this.query.getBlocksAfterBlockNumber(BigInt(0), 'desc');
+      const block_hashes = blocks.map(block => block.hash);
+      return block_hashes;
     }
 
     if (filter === 2) {
