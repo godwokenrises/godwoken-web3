@@ -544,11 +544,18 @@ export class Eth {
 
     // if null, find pending transactions
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    const tipBlock = await this.query.getTipBlock();
+    if (tipBlock == null) {
+      throw new Error("tip block not found!");
+    }
     const ethTxInfo = await filterWeb3Transaction(
       txHash,
       this.rpc,
+      tipBlock.number,
+      tipBlock.hash,
       godwokenTxWithStatus.transaction,
-      undefined
+      godwokenTxReceipt
     );
     if (ethTxInfo != null) {
       const ethTx = ethTxInfo[0];
@@ -617,14 +624,23 @@ export class Eth {
 
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
     const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    if (godwokenTxReceipt == null) {
+      return null;
+    }
+    const tipBlock = await this.query.getTipBlock();
+    if (tipBlock == null) {
+      throw new Error(`tip block not found`);
+    }
     const ethTxInfo = await filterWeb3Transaction(
       txHash,
       this.rpc,
+      tipBlock.number,
+      tipBlock.hash,
       godwokenTxWithStatus.transaction,
       godwokenTxReceipt
     );
     if (ethTxInfo != null) {
-      const ethTxReceipt = ethTxInfo[1];
+      const ethTxReceipt = ethTxInfo[1]!;
       return ethTxReceipt;
     }
 

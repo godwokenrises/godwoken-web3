@@ -21,6 +21,17 @@ export class Query {
     return toBigIntOpt(blockData?.number);
   }
 
+  async getTipBlock(): Promise<Block | undefined> {
+    const block = await this.knex<Block>("blocks")
+      .orderBy("number", "desc")
+      .first();
+
+    if (!block) {
+      return undefined;
+    }
+    return formatBlock(block);
+  }
+
   async getBlockByHash(blockHash: Hash): Promise<Block | undefined> {
     return await this.getBlock({
       hash: blockHash,

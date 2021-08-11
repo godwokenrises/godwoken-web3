@@ -124,7 +124,7 @@ export class GodwokenClient {
 
   public async getTransactionReceipt(
     hash: Hash
-  ): Promise<L2TransactionReceipt> {
+  ): Promise<L2TransactionReceipt | undefined> {
     return await this.rpc.gw_get_transaction_receipt(hash);
   }
 }

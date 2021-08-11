@@ -8,6 +8,7 @@ import {
   L2TransactionReceipt,
   GodwokenClient,
   schemas,
+  U64,
 } from "@godwoken-web3/godwoken";
 import { Reader } from "ckb-js-toolkit";
 import { envConfig } from "./base/env-config";
@@ -22,8 +23,6 @@ const EMPTY_ADDRESS = "0x" + "00".repeat(20);
 const GW_LOG_POLYJUICE_SYSTEM = "0x2";
 const GW_LOG_POLYJUICE_USER = "0x3";
 
-const PENDING_BLOCK_HASH = "0x" + "00".repeat(32);
-const PENDING_BLOCK_NUMBER = "0x0";
 const PENDING_TRANSACTION_INDEX = "0x0";
 
 const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
@@ -31,23 +30,14 @@ const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 export async function filterWeb3Transaction(
   txHash: Hash,
   rpc: GodwokenClient,
-  l2Tx: L2Transaction,
-  l2TxReceipt?: undefined
-): Promise<[EthTransaction, undefined] | undefined>;
-
-export async function filterWeb3Transaction(
-  txHash: Hash,
-  rpc: GodwokenClient,
-  l2Tx: L2Transaction,
-  l2TxReceipt: L2TransactionReceipt
-): Promise<[EthTransaction, EthTransactionReceipt] | undefined>;
-
-export async function filterWeb3Transaction(
-  txHash: Hash,
-  rpc: GodwokenClient,
+  tipBlockNumber: U64,
+  tipBlockHash: Hash,
   l2Tx: L2Transaction,
   l2TxReceipt?: L2TransactionReceipt
 ): Promise<[EthTransaction, EthTransactionReceipt | undefined] | undefined> {
+  const pendingBlockHash = bumpHash(tipBlockHash);
+  const pendingBlockNumber = new Uint64(tipBlockNumber + 1n).toHex();
+
   const fromId: U32 = +l2Tx.raw.from_id;
   const fromScriptHash: Hash | undefined = await rpc.getScriptHash(fromId);
   if (fromScriptHash == null) {
@@ -111,9 +101,9 @@ export async function filterWeb3Transaction(
     const input = polyjuiceArgs.input || "0x";
 
     const ethTx: EthTransaction = {
-      blockHash: PENDING_BLOCK_HASH,
-      blockNumber: PENDING_BLOCK_NUMBER,
-      transactionIndex: PENDING_TRANSACTION_INDEX,
+      blockHash: l2TxReceipt ? pendingBlockHash : null,
+      blockNumber: l2TxReceipt ? pendingBlockNumber : null,
+      transactionIndex: l2TxReceipt ? PENDING_TRANSACTION_INDEX : null,
       from: fromAddress,
       gas: polyjuiceArgs.gasLimit,
       gasPrice: polyjuiceArgs.gasPrice,
@@ -164,8 +154,8 @@ export async function filterWeb3Transaction(
     const receipt: EthTransactionReceipt = {
       transactionHash: txHash,
       transactionIndex: PENDING_TRANSACTION_INDEX,
-      blockHash: PENDING_BLOCK_HASH,
-      blockNumber: PENDING_BLOCK_NUMBER,
+      blockHash: pendingBlockHash,
+      blockNumber: pendingBlockNumber,
       from: fromAddress,
       to: toAddress || null,
       gasUsed: txGasUsed,
@@ -175,8 +165,8 @@ export async function filterWeb3Transaction(
         return {
           ...log,
           data: log.data === "0x" ? "0x" + "00".repeat(32) : log.data,
-          blockHash: PENDING_BLOCK_HASH,
-          blockNumber: PENDING_BLOCK_NUMBER,
+          blockHash: pendingBlockHash,
+          blockNumber: pendingBlockNumber,
           transactionIndex: PENDING_TRANSACTION_INDEX,
           transactionHash: txHash,
           removed: false,
@@ -209,9 +199,9 @@ export async function filterWeb3Transaction(
       const gasLimit: Uint128 = fee;
 
       const ethTx: EthTransaction = {
-        blockHash: PENDING_BLOCK_HASH,
-        blockNumber: PENDING_BLOCK_NUMBER,
-        transactionIndex: PENDING_TRANSACTION_INDEX,
+        blockHash: l2TxReceipt ? pendingBlockHash : null,
+        blockNumber: l2TxReceipt ? pendingBlockNumber : null,
+        transactionIndex: l2TxReceipt ? PENDING_TRANSACTION_INDEX : null,
         from: fromAddress,
         gas: gasLimit.toHex(),
         gasPrice: gasPrice.toHex(),
@@ -228,8 +218,8 @@ export async function filterWeb3Transaction(
       const receipt: EthTransactionReceipt = {
         transactionHash: txHash,
         transactionIndex: PENDING_TRANSACTION_INDEX,
-        blockHash: PENDING_BLOCK_HASH,
-        blockNumber: PENDING_BLOCK_NUMBER,
+        blockHash: pendingBlockHash,
+        blockNumber: pendingBlockNumber,
         from: fromAddress,
         to: toAddress,
         gasUsed: gasLimit.toHex(),
@@ -361,4 +351,9 @@ function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
     data: logData,
     topics,
   };
+}
+
+function bumpHash(hash: Hash): Hash {
+  const hashNum = BigInt(hash) + 1n;
+  return "0x" + hashNum.toString(16).padStart(64, "0");
 }
