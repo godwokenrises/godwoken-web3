@@ -660,8 +660,11 @@ export class Eth {
     if (filter === 1) {
       // block filter
       // return all blocks
-      const blocks = await this.query.getBlocksAfterBlockNumber(BigInt(0), 'desc');
-      const block_hashes = blocks.map(block => block.hash);
+      const blocks = await this.query.getBlocksAfterBlockNumber(
+        BigInt(0),
+        "desc"
+      );
+      const block_hashes = blocks.map((block) => block.hash);
       return block_hashes;
     }
 

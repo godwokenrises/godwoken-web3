@@ -207,7 +207,7 @@ export class Query {
         .where({ address })
         .where("block_hash", blockHashOrFromBlock)
         .orderBy("id", "desc");
-      logs = logs.map(log => formatLog(log));
+      logs = logs.map((log) => formatLog(log));
       return await filterLogsByTopics(logs, topics);
     }
 
@@ -219,8 +219,8 @@ export class Query {
         .where("block_number", ">", blockHashOrFromBlock.toString())
         .where("block_number", "<", toBlock.toString())
         .orderBy("id", "desc");
-      logs = logs.map(log => formatLog(log));
-			return await filterLogsByTopics(logs, topics);
+      logs = logs.map((log) => formatLog(log));
+      return await filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -257,7 +257,7 @@ export class Query {
         .where("block_number", "<", toBlock.toString())
         .where("id", ">", lastPollId)
         .orderBy("id", "desc");
-      logs = logs.map(log => formatLog(log));
+      logs = logs.map((log) => formatLog(log));
       return await filterLogsByTopics(logs, topics);
     }
 
@@ -269,8 +269,8 @@ export class Query {
         .where("block_hash", ">", blockHashOrFromBlock)
         .where("id", ">", lastPollId)
         .orderBy("id", "desc");
-      logs = logs.map(log => formatLog(log));
-			return await filterLogsByTopics(logs, topics);
+      logs = logs.map((log) => formatLog(log));
+      return await filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -341,64 +341,78 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
 */
-async function filterLogsByTopics(logs: Log[], filterTopics: FilterTopic[]): Promise<Log[]>{
-	// match anything
-	if(filterTopics.length === 0){
-		return logs;
-	}
-	if(filterTopics.every(t => t === null)){
-		return logs;
-	}
+async function filterLogsByTopics(
+  logs: Log[],
+  filterTopics: FilterTopic[]
+): Promise<Log[]> {
+  // match anything
+  if (filterTopics.length === 0) {
+    return logs;
+  }
+  if (filterTopics.every((t) => t === null)) {
+    return logs;
+  }
 
-	let result: Log[] = [];
-	for await (let log of logs){
-		let topics = log.topics;
-		let length = topics.length;
+  let result: Log[] = [];
+  for await (let log of logs) {
+    let topics = log.topics;
+    let length = topics.length;
     let match = true;
-		for await (let i of [...Array(length).keys()]){
-			if (filterTopics[i] && typeof filterTopics[i] === "string" && topics[i] !== filterTopics[i]){
+    for await (let i of [...Array(length).keys()]) {
+      if (
+        filterTopics[i] &&
+        typeof filterTopics[i] === "string" &&
+        topics[i] !== filterTopics[i]
+      ) {
         match = false;
-				break;
-			}
-			if(filterTopics[i] && Array.isArray(filterTopics[i]) && !filterTopics[i]?.includes(topics[i])){
+        break;
+      }
+      if (
+        filterTopics[i] &&
+        Array.isArray(filterTopics[i]) &&
+        !filterTopics[i]?.includes(topics[i])
+      ) {
         match = false;
-				break;
-			}
-		}
-    if(!match){
+        break;
+      }
+    }
+    if (!match) {
       continue;
     }
     result.push(log);
-	}
-	return result;
+  }
+  return result;
 }
 
-// test 
-export async function test_topic_match(){
-	const log: Log = {
-		id: BigInt(0),
-		transaction_hash: '',
-		transaction_id: BigInt(0),
-		transaction_index: 0,
-		block_number: BigInt(0),
-		block_hash: '',
-		address: '',
-		data: '',
-		log_index: 0,
-		topics: ['a', 'b']
-	};
+// test
+export async function test_topic_match() {
+  const log: Log = {
+    id: BigInt(0),
+    transaction_hash: "",
+    transaction_id: BigInt(0),
+    transaction_index: 0,
+    block_number: BigInt(0),
+    block_hash: "",
+    address: "",
+    data: "",
+    log_index: 0,
+    topics: ["a", "b"],
+  };
 
-	const f0: FilterTopic[] = [null, null, null];
-	const f1: FilterTopic[] = [];
-	const f2: FilterTopic[] = ['a'];
-	const f3: FilterTopic[] = [null, 'b'];
-	const f4: FilterTopic[] = ['a', 'b'];
-	const f5: FilterTopic[] = [ ['a', 'b'], ['a', 'b'] ];
-	
-	console.log('f0 =>', await filterLogsByTopics([log], f0));
-	console.log('f1 =>', await filterLogsByTopics([log], f1));
-	console.log('f2 =>', await filterLogsByTopics([log], f2));
-	console.log('f3 =>', await filterLogsByTopics([log], f3));
-	console.log('f4 =>', await filterLogsByTopics([log], f4));
-	console.log('f5 =>', await filterLogsByTopics([log], f5));
+  const f0: FilterTopic[] = [null, null, null];
+  const f1: FilterTopic[] = [];
+  const f2: FilterTopic[] = ["a"];
+  const f3: FilterTopic[] = [null, "b"];
+  const f4: FilterTopic[] = ["a", "b"];
+  const f5: FilterTopic[] = [
+    ["a", "b"],
+    ["a", "b"],
+  ];
+
+  console.log("f0 =>", await filterLogsByTopics([log], f0));
+  console.log("f1 =>", await filterLogsByTopics([log], f1));
+  console.log("f2 =>", await filterLogsByTopics([log], f2));
+  console.log("f3 =>", await filterLogsByTopics([log], f3));
+  console.log("f4 =>", await filterLogsByTopics([log], f4));
+  console.log("f5 =>", await filterLogsByTopics([log], f5));
 }

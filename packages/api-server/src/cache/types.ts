@@ -9,6 +9,6 @@ export interface FilterObject {
   blockHash?: HexString;
 }
 
-export type FilterTopic = HexString | null | HexString[]
+export type FilterTopic = HexString | null | HexString[];
 
 export type FilterType = FilterObject | 1 | 2; // 1: block filter 2: pending transaction filter

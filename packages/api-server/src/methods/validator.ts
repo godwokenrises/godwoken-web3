@@ -238,7 +238,7 @@ export const validators = {
         return invalidParamsError(index, `argument must be an array`);
       }
       for (const topic of topics) {
-        verifyFilterTopic(topic, index); 
+        verifyFilterTopic(topic, index);
       }
     }
 
@@ -315,19 +315,19 @@ function verifyHexString(hexString: any, index: number): any {
   return undefined;
 }
 
-function verifyFilterTopic(topic: any, index: number): any{
+function verifyFilterTopic(topic: any, index: number): any {
   // topic type: export type FilterTopic = HexString | null | HexString[] (../src/cache/type.ts)
-  if ( !Array.isArray(topic) ){
-    if ( (!validateHexString(topic) || topic.length !== 66 ) && topic !== null ) {
+  if (!Array.isArray(topic)) {
+    if ((!validateHexString(topic) || topic.length !== 66) && topic !== null) {
       return invalidParamsError(index, `invalid argument`);
     }
   }
 
-  if (Array.isArray(topic)){
-    for(const t of topic){
-      if ( (!validateHexString(t) || t.length !== 66 ) && t !== null ) {
+  if (Array.isArray(topic)) {
+    for (const t of topic) {
+      if ((!validateHexString(t) || t.length !== 66) && t !== null) {
         return invalidParamsError(index, `invalid argument`);
-      } 
+      }
     }
   }
 
