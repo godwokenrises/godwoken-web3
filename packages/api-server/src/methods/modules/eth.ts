@@ -11,7 +11,7 @@ import {
 import { middleware, validators } from "../validator";
 import { FilterObject } from "../../cache/types";
 import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { RawL2Transaction } from "@godwoken-web3/godwoken";
+import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
 import {
   CKB_SUDT_ID,
@@ -43,6 +43,8 @@ import {
   EthTransactionReceipt,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
+import { Abi } from "@polyjuice-provider/base";
+import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 
 const Config = require("../../../config/eth.json");
 
@@ -56,8 +58,10 @@ type GodwokenBlockParameter = U64 | undefined;
 export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
+  private ethWallet: boolean;
 
-  constructor() {
+  constructor(ethWallet: boolean = false) {
+    this.ethWallet = ethWallet;
     this.query = new Query(envConfig.databaseUrl);
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
 
@@ -292,6 +296,12 @@ export class Eth {
         +CKB_SUDT_ID,
         blockNumber
       );
+
+      if (this.ethWallet) {
+        const balanceHex = new Uint128(balance * 10n ** 10n).toHex();
+        return balanceHex;
+      }
+
       const balanceHex = new Uint128(balance).toHex();
       return balanceHex;
     } catch (error) {
@@ -375,12 +385,15 @@ export class Eth {
 
   async call(args: [TransactionCallObject, string]): Promise<HexString> {
     try {
+      const txCallObj = args[0];
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const rawL2TransactionHex = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.executeRawL2Transaction(
-        rawL2TransactionHex,
+
+      const runResult = await ethCallTx(
+        txCallObj,
+        this.rpc,
+        this.ethWallet,
         blockNumber
       );
       console.log("RunResult:", runResult);
@@ -392,9 +405,12 @@ export class Eth {
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
-      const rawL2Transaction = await buildEthCallTx(args[0], this.rpc);
-      const runResult = await this.rpc.executeRawL2Transaction(
-        rawL2Transaction
+      const txCallObj = args[0];
+      const runResult = await ethCallTx(
+        txCallObj,
+        this.rpc,
+        this.ethWallet,
+        undefined
       );
 
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
@@ -884,6 +900,72 @@ async function allTypeEthAddressToAccountId(
     accountId = await ethContractAddressToAccountId(address, rpc);
   }
   return accountId;
+}
+
+async function ethCallTx(
+  txCallObj: TransactionCallObject,
+  rpc: GodwokenClient,
+  isEthWallet: boolean,
+  blockNumber?: U64
+): Promise<RunResult> {
+  const toAddress = txCallObj.to || "0x" + "00".repeat(20);
+
+  // if eth wallet mode, and `toAddress` not in allow list, reject.
+  if (isEthWallet && !allowedAddresses.has(toAddress.toLowerCase())) {
+    throw new Web3Error("not supported to address!");
+  }
+
+  const abi = new Abi(SUDT_ERC20_PROXY_ABI);
+  const ethToGwAddr = async (addr: HexString): Promise<HexString> => {
+    const result = await allTypeEthAddressToShortAddress(rpc, addr);
+    return result!;
+  };
+
+  // TODO: find by db.addresses when not found
+  const gwToEthAddr = async (addr: HexString): Promise<HexString> => {
+    const scriptHash = await rpc.getScriptHashByShortAddress(addr);
+    if (scriptHash == null) {
+      // return undefined;
+      throw new Web3Error(`eth address by short address ${addr} not found!`);
+    }
+    const script = await rpc.getScript(scriptHash);
+    if (script == null) {
+      // return undefined;
+      throw new Web3Error(`eth address by short address ${addr} not found!`);
+    }
+    return "0x" + script.args.slice(66, 106);
+  };
+
+  const data: HexString | undefined = txCallObj.data || "0x0";
+  if (isEthWallet) {
+    const dataWithShortAddress = await abi.refactor_data_with_short_address(
+      data,
+      ethToGwAddr
+    );
+    // replace data
+    txCallObj.data = dataWithShortAddress;
+  }
+
+  const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
+  const runResult = await rpc.executeRawL2Transaction(
+    rawL2Transaction,
+    blockNumber
+  );
+
+  const abiItem = abi.get_intereted_abi_item_by_encoded_data(data);
+
+  if (abiItem && isEthWallet) {
+    const returnDataWithShortAddress =
+      await abi.refactor_return_value_with_short_address(
+        runResult.return_data,
+        abiItem,
+        gwToEthAddr
+      );
+    // replace return_data
+    runResult.return_data = returnDataWithShortAddress;
+  }
+
+  return runResult;
 }
 
 async function buildEthCallTx(

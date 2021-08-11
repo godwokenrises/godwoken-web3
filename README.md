@@ -25,12 +25,27 @@ $ yarn
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```
 
+ERC20 address allowlist
+
+```
+$ cat > ./packages/api-server/allowed-addresses.json <<EOF
+[
+  "<Your address 1>",
+  "<Your address 2>"
+]
+EOF
+```
+
 ### Start API server
 
 ```
 yarn run build:godwoken
 yarn run start
 ```
+
+Normal mode: http://your-url/
+
+Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)
 
 ## Web3 RPC Modules
 

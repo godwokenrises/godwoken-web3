@@ -44,6 +44,41 @@ function getMethods() {
   return methods;
 }
 
-const methods = getMethods();
+// TODO: maybe can merge to `getMethods`
+// only `eth` module, `poly` module will conflict with leveldb lock.
+function getEthWalletMethods() {
+  const methods: any = {};
 
-module.exports = methods;
+  const modName = "Eth";
+  const mod = new (modules as any)[modName](true);
+  getMethodNames((modules as any)[modName])
+    .filter((methodName: string) => methodName !== "constructor")
+    .forEach((methodName: string) => {
+      const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
+      methods[concatedMethodName] = async (args: any[], cb: Callback) => {
+        try {
+          const result = await mod[methodName].bind(mod)(args);
+          cb(null, result);
+        } catch (err) {
+          if (err.name === "RpcError") {
+            return cb({
+              code: err.code,
+              message: err.message,
+            });
+          }
+          throw err;
+        }
+      };
+    });
+
+  console.log(methods);
+  return methods;
+}
+
+const methods = getMethods();
+const ethWalletMethods = getEthWalletMethods();
+
+module.exports = {
+  methods,
+  ethWalletMethods,
+};
