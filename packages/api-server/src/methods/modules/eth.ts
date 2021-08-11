@@ -27,7 +27,6 @@ import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
 import {
-  Log,
   LogQueryOption,
   toApiBlock,
   toApiLog,
