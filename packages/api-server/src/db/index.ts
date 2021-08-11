@@ -184,6 +184,44 @@ export class Query {
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
 
+  private async queryLogsByBlockHash(
+    blockHash: HexString,
+    address?: HexString,
+    lastPollId?: string
+  ): Promise<Log[]> {
+    const queryAddress = address ? { address } : {};
+    const queryLastPollId = lastPollId ? lastPollId : -1;
+    let logs = await this.knex
+      .select()
+      .table("logs")
+      .where(queryAddress)
+      .where("block_hash", blockHash)
+      .where("id", ">", queryLastPollId)
+      .orderBy("id", "desc");
+    logs = logs.map((log) => formatLog(log));
+    return logs;
+  }
+
+  private async queryLogsByBlockRange(
+    fromBlock: HexNumber,
+    toBlock: HexNumber,
+    address?: HexString,
+    lastPollId?: string
+  ): Promise<Log[]> {
+    const queryAddress = address ? { address } : {};
+    const queryLastPollId = lastPollId ? lastPollId : -1;
+    let logs = await this.knex
+      .select()
+      .table("logs")
+      .where(queryAddress)
+      .where("block_number", ">=", fromBlock)
+      .where("block_number", "<=", toBlock)
+      .where("id", ">", queryLastPollId)
+      .orderBy("id", "desc");
+    logs = logs.map((log) => formatLog(log));
+    return logs;
+  }
+
   getLogs(
     option: LogQueryOption,
     fromBlock: BigInt,
@@ -201,25 +239,19 @@ export class Query {
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
-      let logs = await this.knex
-        .select()
-        .table("logs")
-        .where({ address })
-        .where("block_hash", blockHashOrFromBlock)
-        .orderBy("id", "desc");
-      logs = logs.map((log) => formatLog(log));
+      const logs = await this.queryLogsByBlockHash(
+        blockHashOrFromBlock,
+        address
+      );
       return await filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
-      let logs = await this.knex
-        .select()
-        .table("logs")
-        .where({ address })
-        .where("block_number", ">", blockHashOrFromBlock.toString())
-        .where("block_number", "<", toBlock.toString())
-        .orderBy("id", "desc");
-      logs = logs.map((log) => formatLog(log));
+      const logs = await this.queryLogsByBlockRange(
+        blockHashOrFromBlock.toString(),
+        toBlock.toString(),
+        address
+      );
       return await filterLogsByTopics(logs, topics);
     }
 
@@ -227,20 +259,20 @@ export class Query {
   }
 
   getLogsAfterLastPoll(
-    lastPollId: string,
+    lastPollId: number,
     option: LogQueryOption,
     blockHash: HexString
   ): Promise<Log[]>;
 
   getLogsAfterLastPoll(
-    lastPollId: string,
+    lastPollId: number,
     option: LogQueryOption,
     fromBlock: BigInt,
     toBlock: BigInt
   ): Promise<Log[]>;
 
   async getLogsAfterLastPoll(
-    lastPollId: string,
+    lastPollId: number,
     option: LogQueryOption,
     blockHashOrFromBlock: HexString | BigInt,
     toBlock?: BigInt
@@ -248,28 +280,22 @@ export class Query {
     const address = option.address;
     const topics = option.topics || [];
 
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
-      let logs = await this.knex
-        .select()
-        .table("logs")
-        .where({ address })
-        .where("block_number", ">", blockHashOrFromBlock.toString())
-        .where("block_number", "<", toBlock.toString())
-        .where("id", ">", lastPollId)
-        .orderBy("id", "desc");
-      logs = logs.map((log) => formatLog(log));
+    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+      const logs = await this.queryLogsByBlockHash(
+        blockHashOrFromBlock,
+        address,
+        lastPollId.toString()
+      );
       return await filterLogsByTopics(logs, topics);
     }
 
-    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
-      let logs = await this.knex
-        .select()
-        .table("logs")
-        .where({ address })
-        .where("block_hash", ">", blockHashOrFromBlock)
-        .where("id", ">", lastPollId)
-        .orderBy("id", "desc");
-      logs = logs.map((log) => formatLog(log));
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+      const logs = await this.queryLogsByBlockRange(
+        blockHashOrFromBlock.toString(),
+        toBlock.toString(),
+        address,
+        lastPollId.toString()
+      );
       return await filterLogsByTopics(logs, topics);
     }
 

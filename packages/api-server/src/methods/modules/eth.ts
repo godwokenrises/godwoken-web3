@@ -719,7 +719,7 @@ export class Eth {
     // if blockHash exits, fromBlock and toBlock is not allowed.
     if (blockHash) {
       const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId!.toString(),
+        lastPollLogId!,
         queryOption,
         blockHash
       );
@@ -736,7 +736,7 @@ export class Eth {
     const toBlockNumber: U64 | undefined =
       await this.blockParameterToBlockNumber(filter.toBlock || "latest");
     const logs = await this.query.getLogsAfterLastPoll(
-      lastPollLogId!.toString(),
+      lastPollLogId!,
       queryOption,
       fromBlockNumber,
       toBlockNumber
