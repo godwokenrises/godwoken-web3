@@ -655,7 +655,10 @@ export class Eth {
     const filter_id = parseInt(args[0], 16);
     const filter = this.filterManager.get(filter_id);
 
-    if (!filter) return [];
+    if (!filter)
+      throw new Web3Error(
+        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
+      );
 
     if (filter === 1) {
       // block filter
@@ -680,7 +683,10 @@ export class Eth {
     const filter_id = parseInt(args[0], 16);
     const filter = this.filterManager.get(filter_id);
 
-    if (!filter) return [];
+    if (!filter)
+      throw new Web3Error(
+        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
+      );
 
     //***** handle block-filter
     if (filter === 1) {
