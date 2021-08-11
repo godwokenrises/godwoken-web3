@@ -565,14 +565,22 @@ export class Eth {
     if (tipBlock == null) {
       throw new Error("tip block not found!");
     }
-    const ethTxInfo = await filterWeb3Transaction(
-      txHash,
-      this.rpc,
-      tipBlock.number,
-      tipBlock.hash,
-      godwokenTxWithStatus.transaction,
-      godwokenTxReceipt
-    );
+    let ethTxInfo = undefined;
+    try {
+      ethTxInfo = await filterWeb3Transaction(
+        txHash,
+        this.rpc,
+        tipBlock.number,
+        tipBlock.hash,
+        godwokenTxWithStatus.transaction,
+        godwokenTxReceipt
+      );
+    } catch (err) {
+      console.error("filterWeb3Transaction:", err);
+      console.log("godwoken tx:", godwokenTxWithStatus);
+      console.log("godwoken receipt:", godwokenTxReceipt);
+      throw err;
+    }
     if (ethTxInfo != null) {
       const ethTx = ethTxInfo[0];
       return ethTx;
@@ -647,14 +655,22 @@ export class Eth {
     if (tipBlock == null) {
       throw new Error(`tip block not found`);
     }
-    const ethTxInfo = await filterWeb3Transaction(
-      txHash,
-      this.rpc,
-      tipBlock.number,
-      tipBlock.hash,
-      godwokenTxWithStatus.transaction,
-      godwokenTxReceipt
-    );
+    let ethTxInfo = undefined;
+    try {
+      ethTxInfo = await filterWeb3Transaction(
+        txHash,
+        this.rpc,
+        tipBlock.number,
+        tipBlock.hash,
+        godwokenTxWithStatus.transaction,
+        godwokenTxReceipt
+      );
+    } catch (err) {
+      console.error("filterWeb3Transaction:", err);
+      console.log("godwoken tx:", godwokenTxWithStatus);
+      console.log("godwoken receipt:", godwokenTxReceipt);
+      throw err;
+    }
     if (ethTxInfo != null) {
       const ethTxReceipt = ethTxInfo[1]!;
       return ethTxReceipt;
