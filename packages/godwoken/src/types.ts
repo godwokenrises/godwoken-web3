@@ -8,7 +8,8 @@ export type HexU32 = HexNumber;
 export type HexU64 = HexNumber;
 export type HexU128 = HexNumber;
 
-export type BlockParameter = U64 | "pending" | null;
+// null means `pending`
+export type BlockParameter = U64 | null;
 
 export interface LogItem {
   account_id: HexU32;

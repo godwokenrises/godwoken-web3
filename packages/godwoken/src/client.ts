@@ -52,7 +52,7 @@ export class GodwokenClient {
     const balance: HexNumber = await this.rpc.gw_get_balance(
       short_address,
       toHex(sudtId),
-      blockParameterToHex(blockParameter)
+      toHex(blockParameter)
     );
     return BigInt(balance);
   }
@@ -65,7 +65,7 @@ export class GodwokenClient {
     return await this.rpc.gw_get_storage_at(
       toHex(accountId),
       key,
-      blockParameterToHex(blockParameter)
+      toHex(blockParameter)
     );
   }
 
@@ -79,7 +79,7 @@ export class GodwokenClient {
   ): Promise<U32> {
     const nonce: HexNumber = await this.rpc.gw_get_nonce(
       toHex(accountId),
-      blockParameterToHex(blockParameter)
+      toHex(blockParameter)
     );
     return +nonce;
   }
@@ -88,10 +88,7 @@ export class GodwokenClient {
     dataHash: Hash,
     blockParameter?: BlockParameter
   ): Promise<HexString> {
-    return await this.rpc.gw_get_data(
-      dataHash,
-      blockParameterToHex(blockParameter)
-    );
+    return await this.rpc.gw_get_data(dataHash, toHex(blockParameter));
   }
 
   public async executeRawL2Transaction(
@@ -103,7 +100,7 @@ export class GodwokenClient {
     ).serializeJson();
     return await this.rpc.gw_execute_raw_l2transaction(
       data,
-      blockParameterToHex(blockParameter)
+      toHex(blockParameter)
     );
   }
 
@@ -132,21 +129,7 @@ export class GodwokenClient {
   }
 }
 
-function toHex(
-  num: number | bigint | undefined | null
-): HexNumber | undefined | null {
-  if (num == null) {
-    return num as undefined | null;
-  }
-  return "0x" + num.toString(16);
-}
-
-function blockParameterToHex(
-  num: BlockParameter | undefined
-): HexNumber | "pending" | undefined {
-  if (num === "pending") {
-    return "pending";
-  }
+function toHex(num: number | bigint | undefined | null): HexNumber | undefined {
   if (num == null) {
     return undefined;
   }

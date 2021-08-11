@@ -51,7 +51,7 @@ type U64 = bigint;
 
 const EMPTY_ADDRESS = "0x" + "00".repeat(20);
 
-type GodwokenBlockParameter = U64 | "pending" | undefined;
+type GodwokenBlockParameter = U64 | undefined;
 
 export class Eth {
   private query: Query;
@@ -680,13 +680,13 @@ export class Eth {
   ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return undefined;
+        return await this.getTipNumber();
       case "earliest":
         return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
       case "pending":
-        //throw new Error("block parameter should not be pending.");
-        return "pending";
+        // null means pending in godwoken
+        return undefined;
     }
 
     const tipNumber: bigint = await this.getTipNumber();
@@ -703,7 +703,7 @@ export class Eth {
     const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
       blockParameter
     );
-    if (blockNumber === undefined || blockNumber === "pending") {
+    if (blockNumber === undefined) {
       return await this.getTipNumber();
     }
     return blockNumber;
