@@ -58,7 +58,7 @@ export class Query {
       .where("number", ">", minBlockNumber)
       .andWhere("number", "<=", maxBlockNumber)
       .orderBy("number", "asc");
-    return blocks.map(block => formatBlock(block))
+    return blocks.map((block) => formatBlock(block));
   }
 
   async getBlocksAfterBlockNumber(
