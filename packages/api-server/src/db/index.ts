@@ -44,6 +44,21 @@ export class Query {
     return formatBlock(block);
   }
 
+  // exclude min & include max;
+  async getBlocksByNumbers(
+    minBlockNumber: bigint,
+    maxBlockNumber: bigint
+  ): Promise<Block[]> {
+    if (minBlockNumber >= maxBlockNumber) {
+      return [];
+    }
+    const blocks = await this.knex<Block>("blocks")
+      .where("number", ">", minBlockNumber)
+      .andWhere("number", "<=", maxBlockNumber);
+
+    return blocks.map((block) => formatBlock(block));
+  }
+
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
     return await this.getTransactions({ block_hash: blockHash });
   }
