@@ -47,10 +47,9 @@ export class Query {
   }
 
   async getBlocksAfterBlockNumber(
-    number: BigInt,
-    _order?: "desc" | "asc"
+    number: bigint,
+    order: "desc" | "asc" = "desc"
   ): Promise<Block[]> {
-    const order = _order || "desc";
     const blocks = await this.knex<Block>("blocks")
       .where("number", ">", number.toString())
       .orderBy("number", order);
@@ -191,9 +190,7 @@ export class Query {
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId ? lastPollId : -1;
-    let logs = await this.knex
-      .select()
-      .table("logs")
+    let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_hash", blockHash)
       .where("id", ">", queryLastPollId)
@@ -210,9 +207,7 @@ export class Query {
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId ? lastPollId : -1;
-    let logs = await this.knex
-      .select()
-      .table("logs")
+    let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
@@ -224,8 +219,8 @@ export class Query {
 
   getLogs(
     option: LogQueryOption,
-    fromBlock: BigInt,
-    toBlock: BigInt
+    fromBlock: bigint,
+    toBlock: bigint
   ): Promise<Log[]>;
 
   getLogs(option: LogQueryOption, blockHash: HexString): Promise<Log[]>;
@@ -233,7 +228,7 @@ export class Query {
   async getLogs(
     option: LogQueryOption,
     blockHashOrFromBlock: HexString | BigInt,
-    toBlock?: BigInt
+    toBlock?: bigint
   ): Promise<Log[]> {
     const address = option.address;
     const topics = option.topics || [];
@@ -267,15 +262,15 @@ export class Query {
   getLogsAfterLastPoll(
     lastPollId: number,
     option: LogQueryOption,
-    fromBlock: BigInt,
-    toBlock: BigInt
+    fromBlock: bigint,
+    toBlock: bigint
   ): Promise<Log[]>;
 
   async getLogsAfterLastPoll(
     lastPollId: number,
     option: LogQueryOption,
-    blockHashOrFromBlock: HexString | BigInt,
-    toBlock?: BigInt
+    blockHashOrFromBlock: HexString | bigint,
+    toBlock?: bigint
   ): Promise<Log[]> {
     const address = option.address;
     const topics = option.topics || [];
@@ -411,7 +406,7 @@ async function filterLogsByTopics(
 }
 
 // test
-export async function test_topic_match() {
+export async function testTopicMatch() {
   const log: Log = {
     id: BigInt(0),
     transaction_hash: "",

@@ -654,10 +654,11 @@ export class Eth {
     const filter_id = parseInt(args[0], 16);
     const filter = this.filterManager.get(filter_id);
 
-    if (!filter)
+    if (!filter) {
       throw new Web3Error(
         `invalid filter id ${filter_id}. the filter might be removed or outdated.`
       );
+    }
 
     if (filter === 1) {
       // block filter
@@ -682,10 +683,11 @@ export class Eth {
     const filter_id = parseInt(args[0], 16);
     const filter = this.filterManager.get(filter_id);
 
-    if (!filter)
+    if (!filter) {
       throw new Web3Error(
         `invalid filter id ${filter_id}. the filter might be removed or outdated.`
       );
+    }
 
     //***** handle block-filter
     if (filter === 1) {
@@ -738,7 +740,7 @@ export class Eth {
     const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
       filter.fromBlock || "latest"
     );
-    const toBlockNumber: U64 | undefined =
+    const toBlockNumber: U64 =
       await this.blockParameterToBlockNumber(filter.toBlock || "latest");
     const logs = await this.query.getLogsAfterLastPoll(
       lastPollLogId!,
@@ -775,7 +777,7 @@ export class Eth {
     const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
       filter.fromBlock || "latest"
     );
-    const toBlockNumber: U64 | undefined =
+    const toBlockNumber: U64 =
       await this.blockParameterToBlockNumber(filter.toBlock || "latest");
     const logs = await this.query.getLogs(
       queryOption,
