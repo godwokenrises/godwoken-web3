@@ -227,7 +227,7 @@ export class Query {
 
   async getLogs(
     option: LogQueryOption,
-    blockHashOrFromBlock: HexString | BigInt,
+    blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
   ): Promise<Log[]> {
     const address = option.address;
