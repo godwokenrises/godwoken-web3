@@ -203,10 +203,10 @@ export class Query {
     fromBlock: HexNumber,
     toBlock: HexNumber,
     address?: HexString,
-    lastPollId?: string
+    lastPollId?: number
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
-    const queryLastPollId = lastPollId ? lastPollId : -1;
+    const queryLastPollId = lastPollId || -1;
     let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_number", ">=", fromBlock)
@@ -289,7 +289,7 @@ export class Query {
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
         address,
-        lastPollId.toString()
+        lastPollId
       );
       return await filterLogsByTopics(logs, topics);
     }
