@@ -7,6 +7,7 @@ import {
   EthTransactionReceipt,
 } from "../base/types/api";
 import { Uint64, Uint32, Uint128, toHexNumber } from "../base/types/uint";
+import { FilterTopic } from "../cache/types";
 import {
   POLY_BLOCK_DIFFICULTY,
   POLY_MAX_BLOCK_GAS_LIMIT,
@@ -112,7 +113,7 @@ export function toApiTransaction(t: Transaction): EthTransaction {
   };
 }
 
-export function toApiTransactioReceipt(
+export function toApiTransactionReceipt(
   t: Transaction,
   logs: EthLog[] = []
 ): EthTransactionReceipt {
@@ -183,3 +184,8 @@ function transformLogsBloom(bloom: HexString) {
   }
   return bloom;
 }
+
+export type LogQueryOption = {
+  address?: HexString;
+  topics?: FilterTopic[];
+};
