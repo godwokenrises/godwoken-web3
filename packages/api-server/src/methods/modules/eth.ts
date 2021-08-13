@@ -740,8 +740,9 @@ export class Eth {
     const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
       filter.fromBlock || "latest"
     );
-    const toBlockNumber: U64 =
-      await this.blockParameterToBlockNumber(filter.toBlock || "latest");
+    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+      filter.toBlock || "latest"
+    );
     const logs = await this.query.getLogsAfterLastPoll(
       lastPollLogId!,
       queryOption,
@@ -777,8 +778,9 @@ export class Eth {
     const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
       filter.fromBlock || "latest"
     );
-    const toBlockNumber: U64 =
-      await this.blockParameterToBlockNumber(filter.toBlock || "latest");
+    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+      filter.toBlock || "latest"
+    );
     const logs = await this.query.getLogs(
       queryOption,
       fromBlockNumber,
