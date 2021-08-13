@@ -1,6 +1,8 @@
-import { Hash, HexNumber } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import { Block, Transaction, Log } from "./types";
 import Knex, { Knex as KnexType } from "knex";
+import { LogQueryOption } from "./types";
+import { FilterTopic } from "../cache/types";
 
 export class Query {
   private knex: KnexType;
@@ -42,6 +44,16 @@ export class Query {
       return undefined;
     }
     return formatBlock(block);
+  }
+
+  async getBlocksAfterBlockNumber(
+    number: bigint,
+    order: "desc" | "asc" = "desc"
+  ): Promise<Block[]> {
+    const blocks = await this.knex<Block>("blocks")
+      .where("number", ">", number.toString())
+      .orderBy("number", order);
+    return blocks.map((block) => formatBlock(block));
   }
 
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
@@ -170,6 +182,120 @@ export class Query {
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
+
+  private async queryLogsByBlockHash(
+    blockHash: HexString,
+    address?: HexString,
+    lastPollId?: number
+  ): Promise<Log[]> {
+    const queryAddress = address ? { address } : {};
+    const queryLastPollId = lastPollId || -1;
+    let logs = await this.knex<Log>("logs")
+      .where(queryAddress)
+      .where("block_hash", blockHash)
+      .where("id", ">", queryLastPollId)
+      .orderBy("id", "desc");
+    logs = logs.map((log) => formatLog(log));
+    return logs;
+  }
+
+  private async queryLogsByBlockRange(
+    fromBlock: HexNumber,
+    toBlock: HexNumber,
+    address?: HexString,
+    lastPollId?: number
+  ): Promise<Log[]> {
+    const queryAddress = address ? { address } : {};
+    const queryLastPollId = lastPollId || -1;
+    let logs = await this.knex<Log>("logs")
+      .where(queryAddress)
+      .where("block_number", ">=", fromBlock)
+      .where("block_number", "<=", toBlock)
+      .where("id", ">", queryLastPollId)
+      .orderBy("id", "desc");
+    logs = logs.map((log) => formatLog(log));
+    return logs;
+  }
+
+  getLogs(
+    option: LogQueryOption,
+    fromBlock: bigint,
+    toBlock: bigint
+  ): Promise<Log[]>;
+
+  getLogs(option: LogQueryOption, blockHash: HexString): Promise<Log[]>;
+
+  async getLogs(
+    option: LogQueryOption,
+    blockHashOrFromBlock: HexString | bigint,
+    toBlock?: bigint
+  ): Promise<Log[]> {
+    const address = option.address;
+    const topics = option.topics || [];
+
+    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+      const logs = await this.queryLogsByBlockHash(
+        blockHashOrFromBlock,
+        address
+      );
+      return await filterLogsByTopics(logs, topics);
+    }
+
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+      const logs = await this.queryLogsByBlockRange(
+        blockHashOrFromBlock.toString(),
+        toBlock.toString(),
+        address
+      );
+      return await filterLogsByTopics(logs, topics);
+    }
+
+    throw new Error("invalid params!");
+  }
+
+  getLogsAfterLastPoll(
+    lastPollId: number,
+    option: LogQueryOption,
+    blockHash: HexString
+  ): Promise<Log[]>;
+
+  getLogsAfterLastPoll(
+    lastPollId: number,
+    option: LogQueryOption,
+    fromBlock: bigint,
+    toBlock: bigint
+  ): Promise<Log[]>;
+
+  async getLogsAfterLastPoll(
+    lastPollId: number,
+    option: LogQueryOption,
+    blockHashOrFromBlock: HexString | bigint,
+    toBlock?: bigint
+  ): Promise<Log[]> {
+    const address = option.address;
+    const topics = option.topics || [];
+
+    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+      const logs = await this.queryLogsByBlockHash(
+        blockHashOrFromBlock,
+        address,
+        lastPollId
+      );
+      return await filterLogsByTopics(logs, topics);
+    }
+
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+      const logs = await this.queryLogsByBlockRange(
+        blockHashOrFromBlock.toString(),
+        toBlock.toString(),
+        address,
+        lastPollId
+      );
+      return await filterLogsByTopics(logs, topics);
+    }
+
+    throw new Error("invalid params!");
+  }
 }
 
 function formatBlock(block: Block): Block {
@@ -215,4 +341,99 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
   }
 
   return BigInt(num);
+}
+
+/*
+  return a slice of log array which satisfy the topics matching.
+  
+  matching rule:
+
+        Topics are order-dependent. 
+          Each topic can also be an array of DATA with “or” options.
+          [example]:
+          
+            A transaction with a log with topics [A, B], 
+            will be matched by the following topic filters:
+              1. [] “anything”
+              2. [A] “A in first position (and anything after)”
+              3. [null, B] “anything in first position AND B in second position (and anything after)”
+              4. [A, B] “A in first position AND B in second position (and anything after)”
+              5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+              
+          source: https://eth.wiki/json-rpc/API#eth_newFilter
+*/
+async function filterLogsByTopics(
+  logs: Log[],
+  filterTopics: FilterTopic[]
+): Promise<Log[]> {
+  // match anything
+  if (filterTopics.length === 0) {
+    return logs;
+  }
+  if (filterTopics.every((t) => t === null)) {
+    return logs;
+  }
+
+  let result: Log[] = [];
+  for await (let log of logs) {
+    let topics = log.topics;
+    let length = topics.length;
+    let match = true;
+    for await (let i of [...Array(length).keys()]) {
+      if (
+        filterTopics[i] &&
+        typeof filterTopics[i] === "string" &&
+        topics[i] !== filterTopics[i]
+      ) {
+        match = false;
+        break;
+      }
+      if (
+        filterTopics[i] &&
+        Array.isArray(filterTopics[i]) &&
+        !filterTopics[i]?.includes(topics[i])
+      ) {
+        match = false;
+        break;
+      }
+    }
+    if (!match) {
+      continue;
+    }
+    result.push(log);
+  }
+  return result;
+}
+
+// test
+export async function testTopicMatch() {
+  const log: Log = {
+    id: BigInt(0),
+    transaction_hash: "",
+    transaction_id: BigInt(0),
+    transaction_index: 0,
+    block_number: BigInt(0),
+    block_hash: "",
+    address: "",
+    data: "",
+    log_index: 0,
+    topics: ["a", "b"],
+  };
+
+  const f0: FilterTopic[] = [null, null, null];
+  const f1: FilterTopic[] = [];
+  const f2: FilterTopic[] = ["a"];
+  const f3: FilterTopic[] = [null, "b"];
+  const f4: FilterTopic[] = ["a", "b"];
+  const f5: FilterTopic[] = [
+    ["a", "b"],
+    ["a", "b"],
+  ];
+
+  console.log("f0 =>", await filterLogsByTopics([log], f0));
+  console.log("f1 =>", await filterLogsByTopics([log], f1));
+  console.log("f2 =>", await filterLogsByTopics([log], f2));
+  console.log("f3 =>", await filterLogsByTopics([log], f3));
+  console.log("f4 =>", await filterLogsByTopics([log], f4));
+  console.log("f5 =>", await filterLogsByTopics([log], f5));
 }
