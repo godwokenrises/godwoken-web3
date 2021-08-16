@@ -53,7 +53,7 @@ export function wrapper(ws: any, _req: any) {
       const _result = await filterLogsByAddress(logs, query.address);
       const result = await filterLogsByTopics(_result, query.topics || []);
 
-      if(result.length === 0) return;
+      if (result.length === 0) return;
 
       const obj = {
         jsonrpc: "2.0",
@@ -136,14 +136,14 @@ export function wrapper(ws: any, _req: any) {
   }
 
   function parseLogsSubParams(params: any[]): LogQueryOption {
-    if (params[1] !== "logs") {
+    if (params[1] && typeof params[1] !== "object") {
       throw new Error("invalid params");
     }
 
-    if (params[2]) {
+    if (params[1]) {
       const query = {
-        address: params[2].address,
-        topics: params[2].topics,
+        address: params[1].address,
+        topics: params[1].topics,
       };
       return query;
     }
