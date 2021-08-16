@@ -5,7 +5,6 @@ export function middleware(ws: any) {
   ws.on("data", dispatch);
 
   function dispatch(msg: string) {
-    console.log(msg);
     try {
       const obj = JSON.parse(msg.toString());
 

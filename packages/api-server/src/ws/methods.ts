@@ -131,11 +131,14 @@ export function wrapper(ws: any, _req: any) {
   });
 
   function newSubscriptionId(): HexNumber {
-    // todo: maybe replace with a more robust method like uuid
     return "0x" + crypto.randomBytes(16).toString("hex");
   }
 
   function parseLogsSubParams(params: any[]): LogQueryOption {
+    if (params[0] !== "logs") {
+      throw new Error("invalid params");
+    }
+
     if (params[1] && typeof params[1] !== "object") {
       throw new Error("invalid params");
     }
