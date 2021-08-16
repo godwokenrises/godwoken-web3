@@ -25,6 +25,7 @@ export function wrapper(ws: any, _req: any) {
   let resultId = 0;
   const newHeadsIds: Set<number> = new Set();
   const syncingIds: Set<HexNumber> = new Set();
+  const logsIds: Set<number> = new Set();
 
   const blockListener = (blocks: EthBlock[]) => {
     blocks.forEach((block) => {
@@ -54,21 +55,33 @@ export function wrapper(ws: any, _req: any) {
     const cb = args[args.length - 1];
 
     const name = params[0];
-    if (name === "newHeads") {
-      resultId += 1;
-      const id = resultId;
-      newHeadsIds.add(id);
-      return cb(null, "0x" + id.toString(16));
-    } else if (name === "syncing") {
-      // will not send anything
-      const id = "0x" + crypto.randomBytes(16).toString("hex");
-      syncingIds.add(id);
-      return cb(null, id);
-    } else {
-      return cb({
-        code: METHOD_NOT_FOUND,
-        message: `no "${name}" subscription in eth namespace`,
-      });
+
+    switch (name) {
+      case "newHeads":
+        {
+        const id = newSubscriptionId();
+        newHeadsIds.add(id);
+        return cb(null, "0x" + id.toString(16));}
+      
+      case "syncing":
+        {
+          const id = "0x" + crypto.randomBytes(16).toString("hex");
+          syncingIds.add(id);
+          return cb(null, id);
+        }
+
+      case "logs":
+        {
+          const id = newSubscriptionId();
+          logsIds.add(id);
+          return cb(null, "0x" + id.toString(16));
+        }
+    
+      default:
+        return cb({
+          code: METHOD_NOT_FOUND,
+          message: `no "${name}" subscription in eth namespace`,
+        });
     }
   });
 
@@ -81,4 +94,10 @@ export function wrapper(ws: any, _req: any) {
 
     cb(null, result);
   });
+
+  function newSubscriptionId(): number{
+    // todo: maybe replace with a more robust method like uuid
+    resultId += 1;
+    return resultId; 
+  }
 }
