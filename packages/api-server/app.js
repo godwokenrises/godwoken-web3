@@ -4,8 +4,11 @@ const logger = require("morgan");
 const jaysonMiddleware = require("./middlewares/jayson");
 const knex = require("knex");
 var cors = require("cors");
+const { wrapper } = require("./lib/ws/methods");
+const expressWs = require("express-ws");
 
 const app = express();
+expressWs(app);
 
 const corsOptions = {
   origin: "*",
@@ -27,6 +30,7 @@ app.use(function (req, _res, next) {
   next();
 });
 
+app.ws("/ws", wrapper);
 app.use("/", jaysonMiddleware);
 
 // catch 404 and forward to error handler

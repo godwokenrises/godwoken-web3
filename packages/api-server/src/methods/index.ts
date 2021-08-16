@@ -75,10 +75,5 @@ function getEthWalletMethods() {
   return methods;
 }
 
-const methods = getMethods();
-const ethWalletMethods = getEthWalletMethods();
-
-module.exports = {
-  methods,
-  ethWalletMethods,
-};
+export const methods = getMethods();
+export const ethWalletMethods = getEthWalletMethods();
