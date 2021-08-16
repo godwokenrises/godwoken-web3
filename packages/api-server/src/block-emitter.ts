@@ -67,6 +67,8 @@ export class BlockEmitter {
     const blocks = await this.query.getBlocksByNumbers(min, max);
     const newHeads = blocks.map((b) => toApiNewHead(b));
     this.emitter.emit("newHeads", newHeads);
+    const logs = await this.query.getLogs({}, min, max);
+    this.emitter.emit("logs", logs);
     this.currentTip = tip;
 
     return timeout;

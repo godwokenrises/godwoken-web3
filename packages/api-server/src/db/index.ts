@@ -377,7 +377,7 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
 */
-async function filterLogsByTopics(
+export async function filterLogsByTopics(
   logs: Log[],
   filterTopics: FilterTopic[]
 ): Promise<Log[]> {
@@ -416,6 +416,24 @@ async function filterLogsByTopics(
       continue;
     }
     result.push(log);
+  }
+  return result;
+}
+
+export async function filterLogsByAddress(
+  logs: Log[],
+  address: HexString | undefined
+): Promise<Log[]> {
+  // match anything
+  if (!address) {
+    return logs;
+  }
+
+  let result: Log[] = [];
+  for await (let log of logs) {
+    if (log.address === address) {
+      result.push(log);
+    }
   }
   return result;
 }
