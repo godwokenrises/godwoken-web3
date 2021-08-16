@@ -3,6 +3,8 @@ import { BlockEmitter } from "../block-emitter";
 import { METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
 import { middleware as wsrpc } from "./wss";
+import crypto from "crypto";
+import { HexNumber } from "@ckb-lumos/base";
 
 const blockEmitter = new BlockEmitter();
 blockEmitter.start();
@@ -22,6 +24,7 @@ export function wrapper(ws: any, _req: any) {
 
   let resultId = 0;
   const newHeadsIds: Set<number> = new Set();
+  const syncingIds: Set<HexNumber> = new Set();
 
   const blockListener = (blocks: EthBlock[]) => {
     blocks.forEach((block) => {
@@ -56,6 +59,11 @@ export function wrapper(ws: any, _req: any) {
       const id = resultId;
       newHeadsIds.add(id);
       return cb(null, "0x" + id.toString(16));
+    } else if (name === "syncing") {
+      // will not send anything
+      const id = "0x" + crypto.randomBytes(16).toString("hex");
+      syncingIds.add(id);
+      return cb(null, id);
     } else {
       return cb({
         code: METHOD_NOT_FOUND,
@@ -68,8 +76,8 @@ export function wrapper(ws: any, _req: any) {
     const params = args.slice(0, args.length - 1);
     const cb = args[args.length - 1];
 
-    const id = +params[0];
-    const result = newHeadsIds.delete(id);
+    const id = params[0];
+    const result = newHeadsIds.delete(+id) || syncingIds.delete(id);
 
     cb(null, result);
   });
