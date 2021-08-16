@@ -2,10 +2,12 @@ import { Hash, HexString } from "@ckb-lumos/base";
 import {
   EthBlock,
   EthLog,
+  EthNewHead,
   EthTransaction,
   EthTransactionReceipt,
 } from "../base/types/api";
 import { Uint64, Uint32, Uint128, toHexNumber } from "../base/types/uint";
+import { FilterTopic } from "../cache/types";
 import {
   POLY_BLOCK_DIFFICULTY,
   POLY_MAX_BLOCK_GAS_LIMIT,
@@ -111,7 +113,7 @@ export function toApiTransaction(t: Transaction): EthTransaction {
   };
 }
 
-export function toApiTransactioReceipt(
+export function toApiTransactionReceipt(
   t: Transaction,
   logs: EthLog[] = []
 ): EthTransactionReceipt {
@@ -146,6 +148,33 @@ export function toApiLog(l: Log): EthLog {
   };
 }
 
+export function toApiNewHead(b: Block): EthNewHead {
+  const gasLimit =
+    b.gas_limit === 0n
+      ? new Uint64(BigInt(POLY_MAX_BLOCK_GAS_LIMIT)).toHex()
+      : new Uint64(b.gas_limit).toHex();
+
+  return {
+    number: new Uint64(b.number).toHex(),
+    hash: b.hash,
+    parentHash: b.parent_hash,
+    gasLimit,
+    gasUsed: new Uint128(b.gas_used).toHex(),
+    miner: b.miner,
+    logsBloom: transformLogsBloom(b.logs_bloom),
+    timestamp: new Uint64(BigInt(b.timestamp.getTime() / 1000)).toHex(),
+    mixHash: EMPTY_HASH,
+    nonce: "0x" + "00".repeat(8),
+    stateRoot: EMPTY_HASH,
+    sha3Uncles: EMPTY_HASH,
+    receiptsRoot: EMPTY_HASH,
+    transactionsRoot: EMPTY_HASH,
+    difficulty: toHexNumber(POLY_BLOCK_DIFFICULTY),
+    extraData: "0x",
+    baseFeePerGas: "0x0",
+  };
+}
+
 const EMPTY_HASH = "0x" + "00".repeat(32);
 
 const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
@@ -155,3 +184,8 @@ function transformLogsBloom(bloom: HexString) {
   }
   return bloom;
 }
+
+export type LogQueryOption = {
+  address?: HexString;
+  topics?: FilterTopic[];
+};

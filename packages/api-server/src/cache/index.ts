@@ -111,6 +111,7 @@ export class FilterManager extends Cache {
   // value: filter value
   private filtersSet: Set<Map<number, FilterType>>;
 
+  // todo: change last poll record to bigint type, in case block number get out of range
   // key: filter_id,
   // value: the filter's last poll record:
   //          - for eth_newBlockFilter, the last poll record is the block number (number)
@@ -140,7 +141,7 @@ export class FilterManager extends Cache {
 
   install(filter: FilterType) {
     // increase the global id number
-    // todo: maybe replace with a more robust id method
+    // todo: maybe replace with a more robust id method like uuid ?
     this.uid++;
 
     // add filter to filter cache
@@ -169,14 +170,14 @@ export class FilterManager extends Cache {
     const filter = this.filtersSet.findEntry(
       (f) => f.get(id) !== undefined
     )?.[0];
-    const lastpoll = this.lastPollsSet.findEntry(
+    const lastPoll = this.lastPollsSet.findEntry(
       (f) => f.get(id) !== undefined
     )?.[0];
 
     if (!filter) return false; // or maybe throw `filter not exits by id: ${id}`;
 
     this.filtersSet = this.filtersSet.delete(filter);
-    this.lastPollsSet = this.lastPollsSet.delete(lastpoll!);
+    this.lastPollsSet = this.lastPollsSet.delete(lastPoll!);
 
     this.killLife(id);
 
@@ -187,14 +188,14 @@ export class FilterManager extends Cache {
     const filter = this.filtersSet.findEntry(
       (f) => f.get(id) !== undefined
     )?.[0];
-    const lastpoll = this.lastPollsSet.findEntry(
+    const lastPoll = this.lastPollsSet.findEntry(
       (f) => f.get(id) !== undefined
     )?.[0];
 
     if (!filter) return false; // or maybe throw `filter not exits by id: ${id}`;
 
     this.filtersSet = this.filtersSet.delete(filter);
-    this.lastPollsSet = this.lastPollsSet.delete(lastpoll!);
+    this.lastPollsSet = this.lastPollsSet.delete(lastPoll!);
   }
 
   size() {
@@ -215,12 +216,12 @@ export class FilterManager extends Cache {
   }
 
   getLastPoll(id: number) {
-    const lastpoll = this.lastPollsSet.findEntry(
+    const lastPoll = this.lastPollsSet.findEntry(
       (f) => f.get(id) !== undefined
     )?.[0];
 
-    if (!lastpoll) throw `lastPollCache not exits, filter_id: ${id}`;
+    if (!lastPoll) throw `lastPollCache not exits, filter_id: ${id}`;
 
-    return lastpoll.get(id);
+    return lastPoll.get(id);
   }
 }

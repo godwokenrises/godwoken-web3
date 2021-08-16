@@ -47,6 +47,8 @@ Normal mode: http://your-url/
 
 Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)
 
+WebSocket url: ws://your-url/ws
+
 ## Web3 RPC Modules
 
 ### net
@@ -106,7 +108,9 @@ Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please co
 - eth_gw_getScriptHashByAccountId
 - eth_gw_getNonce
 - eth_gw_getTransactionReceipt
--
+- eth_subscribe (only for WebSocket)
+- eth_unsubscribe (only for WebSocket)
+
 ### gw
 
 - gw_ping

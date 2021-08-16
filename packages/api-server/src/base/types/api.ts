@@ -68,3 +68,23 @@ export interface EthLog {
   topics: HexString[];
   removed: boolean;
 }
+
+export interface EthNewHead {
+  number: HexNumber;
+  hash: Hash;
+  parentHash: Hash;
+  gasLimit: HexNumber;
+  gasUsed: HexNumber;
+  miner: HexString;
+  logsBloom: HexString;
+  timestamp: HexNumber;
+  mixHash: Hash;
+  nonce: HexNumber;
+  stateRoot: Hash;
+  sha3Uncles: Hash;
+  receiptsRoot: Hash;
+  transactionsRoot: Hash;
+  difficulty: HexNumber;
+  extraData: HexString;
+  baseFeePerGas: HexNumber;
+}
