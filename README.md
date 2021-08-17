@@ -6,7 +6,7 @@ A Web3 RPC compatible layer build upon Godwoken/Polyjuice.
 
 ### Config database
 
-```
+```bash
 $ cat > ./packages/api-server/.env <<EOF
 DATABASE_URL=postgres://username:password@localhost:5432/your_db
 GODWOKEN_JSON_RPC=<godwoken rpc>
@@ -19,6 +19,7 @@ ADDRESS_STORE_PATH_ABSOLUTE=<path for storing short-address vs eth-address mappi
 DEFAULT_FROM_ADDRESS=<default from eth address>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
+TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 EOF
 $ yarn
 // Only for test purpose
@@ -27,7 +28,7 @@ $ yarn workspace @godwoken-web3/api-server reset_database
 
 ERC20 address allowlist
 
-```
+```bash
 $ cat > ./packages/api-server/allowed-addresses.json <<EOF
 [
   "<Your address 1>",
@@ -38,7 +39,7 @@ EOF
 
 ### Start API server
 
-```
+```bash
 yarn run build:godwoken
 yarn run start
 ```

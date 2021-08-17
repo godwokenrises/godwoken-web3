@@ -16,6 +16,7 @@ export const envConfig = {
   ),
   polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
+  tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
 };
 
 function getRequired(name: string): string {

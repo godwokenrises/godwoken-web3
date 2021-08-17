@@ -15,17 +15,15 @@ import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
 import { Uint128, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
-
-const CKB_SUDT_ACCOUNT_ID: U32 = 1;
-
-const EMPTY_ADDRESS = "0x" + "00".repeat(20);
-
-const GW_LOG_POLYJUICE_SYSTEM = "0x2";
-const GW_LOG_POLYJUICE_USER = "0x3";
+import {
+  CKB_SUDT_ID,
+  DEFAULT_EMPTY_ETH_ADDRESS,
+  DEFAULT_LOGS_BLOOM,
+  POLYJUICE_SYSTEM_LOG_FLAG,
+  POLYJUICE_USER_LOG_FLAG,
+} from "./methods/constant";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
-
-const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 
 export async function filterWeb3Transaction(
   txHash: Hash,
@@ -48,8 +46,14 @@ export async function filterWeb3Transaction(
     return undefined;
   }
 
+  // skip tx with non eth_account_lock or non tron_account_lock from_id
   if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
-    return undefined;
+    if (envConfig.tronAccountLockHash == null) {
+      return undefined;
+    }
+    if (fromScript.code_hash !== envConfig.tronAccountLockHash) {
+      return undefined;
+    }
   }
 
   const fromScriptArgs: HexString = fromScript.args;
@@ -123,7 +127,7 @@ export async function filterWeb3Transaction(
 
     // receipt info
     const polyjuiceSystemLog = l2TxReceipt.logs.find(
-      (log) => log.service_flag === GW_LOG_POLYJUICE_SYSTEM
+      (log) => log.service_flag === POLYJUICE_SYSTEM_LOG_FLAG
     );
     if (polyjuiceSystemLog == null) {
       throw new Error("No system log found!");
@@ -131,7 +135,10 @@ export async function filterWeb3Transaction(
     const logInfo = parsePolyjuiceSystemLog(polyjuiceSystemLog.data);
 
     let contractAddress = undefined;
-    if (polyjuiceArgs.isCreate && logInfo.createdAddress !== EMPTY_ADDRESS) {
+    if (
+      polyjuiceArgs.isCreate &&
+      logInfo.createdAddress !== DEFAULT_EMPTY_ETH_ADDRESS
+    ) {
       contractAddress = logInfo.createdAddress;
     }
 
@@ -140,7 +147,7 @@ export async function filterWeb3Transaction(
     const cumulativeGasUsed = txGasUsed;
 
     const web3Logs = l2TxReceipt.logs
-      .filter((log) => log.service_flag === GW_LOG_POLYJUICE_USER)
+      .filter((log) => log.service_flag === POLYJUICE_USER_LOG_FLAG)
       .map((log, index) => {
         const info = parsePolyjuiceUserLog(log.data);
         return {
@@ -178,7 +185,7 @@ export async function filterWeb3Transaction(
 
     return [ethTx, receipt];
   } else if (
-    toId === CKB_SUDT_ACCOUNT_ID &&
+    toId === +CKB_SUDT_ID &&
     toScript.code_hash === envConfig.l2SudtValidatorScriptTypeHash
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
