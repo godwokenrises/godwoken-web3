@@ -25,7 +25,10 @@ app.use(function (req, _res, next) {
   if (process.env.WEB3_LOG_REQUEST_BODY) {
     console.log("request.body:", req.body);
   } else {
-    console.log("request.method:", req.body.method);
+    const name = Array.isArray(req.body)
+      ? req.body.map((o) => o.method)
+      : req.body.method;
+    console.log("request.method:", name);
   }
   next();
 });

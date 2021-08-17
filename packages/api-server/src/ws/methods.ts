@@ -72,10 +72,7 @@ export function wrapper(ws: any, _req: any) {
     blockEmitter.getEmitter().off("logs", logsListener);
   });
 
-  ws.on("eth_subscribe", function (...args: any[]) {
-    const params = args.slice(0, args.length - 1);
-    const cb = args[args.length - 1];
-
+  function ethSubscribe(params: any[], cb: any) {
     const name = params[0];
 
     switch (name) {
@@ -111,12 +108,16 @@ export function wrapper(ws: any, _req: any) {
           message: `no "${name}" subscription in eth namespace`,
         });
     }
-  });
+  }
 
-  ws.on("eth_unsubscribe", function (...args: any[]) {
+  ws.on("eth_subscribe", function (...args: any[]) {
     const params = args.slice(0, args.length - 1);
     const cb = args[args.length - 1];
 
+    return ethSubscribe(params, cb);
+  });
+
+  function ethUnsubscribe(params: any[], cb: any) {
     const id = params[0];
     const result =
       newHeadsIds.delete(id) ||
@@ -124,6 +125,13 @@ export function wrapper(ws: any, _req: any) {
       logsQueryMaps.delete(id);
 
     cb(null, result);
+  }
+
+  ws.on("eth_unsubscribe", function (...args: any[]) {
+    const params = args.slice(0, args.length - 1);
+    const cb = args[args.length - 1];
+
+    return ethUnsubscribe(params, cb);
   });
 
   function newSubscriptionId(): HexNumber {
@@ -149,4 +157,36 @@ export function wrapper(ws: any, _req: any) {
 
     return {};
   }
+
+  ws.on("@batchRequests", async function (...args: any[]) {
+    const objs = args.slice(0, args.length - 1);
+    const cb = args[args.length - 1];
+
+    const callback = (err: any, result: any) => {
+      return { err, result };
+    };
+    const info = await Promise.all(
+      objs.map(async (obj) => {
+        if (obj.method === "eth_subscribe") {
+          const r = ethSubscribe(obj.params, callback);
+          return r;
+        } else if (obj.method === "eth_unsubscribe") {
+          const r = ethUnsubscribe(obj.params, callback);
+          return r;
+        }
+        const value = methods[obj.method];
+        if (value == null) {
+          return {
+            err: {
+              code: METHOD_NOT_FOUND,
+              message: `method ${obj.method} not found!`,
+            },
+          };
+        }
+        const r = await (value as any)(obj.params, callback);
+        return r;
+      })
+    );
+    cb(info);
+  });
 }
