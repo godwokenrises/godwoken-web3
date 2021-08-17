@@ -350,8 +350,8 @@ function formatLog(log: Log): Log {
   };
 }
 
-function normalizeQueryAddress(address: HexString | undefined){
-  if(address && typeof address === "string"){
+function normalizeQueryAddress(address: HexString | undefined) {
+  if (address && typeof address === "string") {
     return address.toLowerCase();
   }
 
