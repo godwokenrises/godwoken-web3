@@ -8,6 +8,24 @@ export function middleware(ws: any) {
     try {
       const obj = JSON.parse(msg.toString());
 
+      if (Array.isArray(obj)) {
+        // log request
+        if (process.env.WEB3_LOG_REQUEST_BODY) {
+          logger.info("websocket request.body:", obj);
+        } else {
+          logger.info(
+            "websocket request.method:",
+            obj.map((o) => o.method)
+          );
+        }
+
+        const args = ["@batchRequests" as any].concat(obj, [
+          (info: any[]) => batchResponder(obj, info),
+        ]);
+        ws.emit.apply(ws, args);
+        return;
+      }
+
       // log request
       if (process.env.WEB3_LOG_REQUEST_BODY) {
         logger.info("websocket request.body:", obj);
@@ -35,6 +53,25 @@ export function middleware(ws: any) {
       respObj.error = err;
     }
     const resp = JSON.stringify(respObj);
+    ws.send(resp);
+  }
+
+  function batchResponder(objs: any[], info: any[]) {
+    const respObjs = objs.map((o, i) => {
+      const { err, result } = info[i];
+      const respObj: JsonRpcRequest = {
+        id: o.id,
+        jsonrpc: "2.0",
+      };
+      if (err == null) {
+        respObj.result = result;
+      } else {
+        respObj.error = err;
+      }
+      return respObj;
+    });
+
+    const resp = JSON.stringify(respObjs);
     ws.send(resp);
   }
 }

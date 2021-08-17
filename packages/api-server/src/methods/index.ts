@@ -26,7 +26,7 @@ function getMethods() {
         methods[concatedMethodName] = async (args: any[], cb: Callback) => {
           try {
             const result = await mod[methodName].bind(mod)(args);
-            cb(null, result);
+            return cb(null, result);
           } catch (err) {
             if (err.name === "RpcError") {
               return cb({
