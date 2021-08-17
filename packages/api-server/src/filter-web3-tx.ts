@@ -96,7 +96,7 @@ export async function filterWeb3Transaction(
     if (polyjuiceArgs.isCreate) {
       // polyjuiceChainId = toIdHex;
     } else {
-      toAddress = accountIdToEthAddress(toScriptHash, toId);
+      toAddress = toScriptHash.slice(0, 42);
       // 32..36 bytes
       // const data = "0x" + toScript.args.slice(66, 74);
       // polyjuiceChainId = "0x" + readUInt32LE(data).toString(16);
@@ -281,14 +281,6 @@ function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
     inputSize: inputSize.toHex(),
     input,
   };
-}
-
-function accountIdToEthAddress(accountScriptHash: Hash, id: U32): HexString {
-  return (
-    "0x" +
-    accountScriptHash.slice(2, 34) +
-    new Uint32(id).toLittleEndian().slice(2)
-  );
 }
 
 function parsePolyjuiceSystemLog(data: HexString): PolyjuiceSystemLog {
