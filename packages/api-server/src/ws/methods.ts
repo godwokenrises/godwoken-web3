@@ -26,7 +26,6 @@ export function wrapper(ws: any, _req: any) {
 
   const newHeadsIds: Set<HexNumber> = new Set();
   const syncingIds: Set<HexNumber> = new Set();
-  const logsIds: Set<HexNumber> = new Set();
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
   const blockListener = (blocks: EthBlock[]) => {
@@ -46,12 +45,9 @@ export function wrapper(ws: any, _req: any) {
   };
 
   const logsListener = (logs: Log[]) => {
-    logsIds.forEach(async (id) => {
-      const query = logsQueryMaps.get(id);
-      if (!query) return;
-
-      const _result = await filterLogsByAddress(logs, query.address);
-      const result = await filterLogsByTopics(_result, query.topics || []);
+    logsQueryMaps.forEach((query, id) => {
+      const _result = filterLogsByAddress(logs, query.address);
+      const result = filterLogsByTopics(_result, query.topics || []);
 
       if (result.length === 0) return;
 
@@ -73,6 +69,7 @@ export function wrapper(ws: any, _req: any) {
   // when close connection, unsubscribe emitter.
   ws.on("close", function (...args: any[]) {
     blockEmitter.getEmitter().off("newHeads", blockListener);
+    blockEmitter.getEmitter().off("logs", logsListener);
   });
 
   ws.on("eth_subscribe", function (...args: any[]) {
@@ -98,7 +95,6 @@ export function wrapper(ws: any, _req: any) {
         const id = newSubscriptionId();
         try {
           const query = parseLogsSubParams(params);
-          logsIds.add(id);
           logsQueryMaps.set(id, query);
           return cb(null, id);
         } catch (error) {
@@ -125,7 +121,7 @@ export function wrapper(ws: any, _req: any) {
     const result =
       newHeadsIds.delete(id) ||
       syncingIds.delete(id) ||
-      (logsIds.delete(id) && logsQueryMaps.delete(id));
+      logsQueryMaps.delete(id);
 
     cb(null, result);
   });
