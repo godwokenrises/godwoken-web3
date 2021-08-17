@@ -1,4 +1,4 @@
-import { HexNumber, HexString } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 
 export type U32 = number;
 export type U64 = bigint;
@@ -7,6 +7,9 @@ export type U128 = bigint;
 export type HexU32 = HexNumber;
 export type HexU64 = HexNumber;
 export type HexU128 = HexNumber;
+
+// null means `pending`
+export type BlockParameter = U64 | null;
 
 export interface LogItem {
   account_id: HexU32;
@@ -30,4 +33,24 @@ export interface RawL2Transaction {
 export interface L2Transaction {
   raw: RawL2Transaction;
   signature: HexString;
+}
+
+export interface L2TransactionWithStatus {
+  transaction: L2Transaction;
+  tx_status: {
+    status: "committed" | "pending";
+    block_hash?: Hash;
+  };
+}
+
+export interface L2TransactionReceipt {
+  tx_witness_hash: Hash;
+  post_state: AccountMerkleState;
+  read_data_hashes: Hash[];
+  logs: LogItem[];
+}
+
+export interface AccountMerkleState {
+  merkle_root: Hash;
+  count: HexU32;
 }

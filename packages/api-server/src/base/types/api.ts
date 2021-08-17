@@ -5,7 +5,7 @@ export interface EthTransaction {
   // when pending, blockNumber & blockHash = null
   blockHash: Hash | null;
   blockNumber: HexNumber | null;
-  transactionIndex: HexNumber;
+  transactionIndex: HexNumber | null;
   from: HexString;
   to: HexString | null;
   gas: HexNumber;

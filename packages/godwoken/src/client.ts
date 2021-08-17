@@ -1,12 +1,14 @@
 import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 import { Reader, RPC } from "ckb-js-toolkit";
 import {
+  BlockParameter,
   L2Transaction,
+  L2TransactionReceipt,
+  L2TransactionWithStatus,
   RawL2Transaction,
   RunResult,
   U128,
   U32,
-  U64,
 } from "./types";
 import { SerializeL2Transaction, SerializeRawL2Transaction } from "../schemas";
 import {
@@ -22,7 +24,7 @@ export class GodwokenClient {
   }
 
   public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
-    const hash = await this.rpc.gw_get_script_hash(accountId);
+    const hash = await this.rpc.gw_get_script_hash(toHex(accountId));
     return hash;
   }
 
@@ -45,12 +47,12 @@ export class GodwokenClient {
   public async getBalance(
     short_address: HexString,
     sudtId: U32,
-    blockNumber?: U64
+    blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpc.gw_get_balance(
       short_address,
       toHex(sudtId),
-      toHex(blockNumber)
+      toHex(blockParameter)
     );
     return BigInt(balance);
   }
@@ -58,12 +60,12 @@ export class GodwokenClient {
   public async getStorageAt(
     accountId: U32,
     key: HexString,
-    blockNumber?: U64
+    blockParameter?: BlockParameter
   ): Promise<Hash> {
     return await this.rpc.gw_get_storage_at(
       toHex(accountId),
       key,
-      toHex(blockNumber)
+      toHex(blockParameter)
     );
   }
 
@@ -71,28 +73,34 @@ export class GodwokenClient {
     return await this.rpc.gw_get_script(scriptHash);
   }
 
-  public async getNonce(accountId: U32, blockNumber?: U64): Promise<U32> {
+  public async getNonce(
+    accountId: U32,
+    blockParameter?: BlockParameter
+  ): Promise<U32> {
     const nonce: HexNumber = await this.rpc.gw_get_nonce(
       toHex(accountId),
-      toHex(blockNumber)
+      toHex(blockParameter)
     );
     return +nonce;
   }
 
-  public async getData(dataHash: Hash, blockNumber?: U64): Promise<HexString> {
-    return await this.rpc.gw_get_data(dataHash, toHex(blockNumber));
+  public async getData(
+    dataHash: Hash,
+    blockParameter?: BlockParameter
+  ): Promise<HexString> {
+    return await this.rpc.gw_get_data(dataHash, toHex(blockParameter));
   }
 
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
-    blockNumber?: U64
+    blockParameter?: BlockParameter
   ): Promise<RunResult> {
     const data: HexString = new Reader(
       SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
     ).serializeJson();
     return await this.rpc.gw_execute_raw_l2transaction(
       data,
-      toHex(blockNumber)
+      toHex(blockParameter)
     );
   }
 
@@ -109,13 +117,21 @@ export class GodwokenClient {
     ).serializeJson();
     return await this.rpc.gw_submit_raw_l2transaction(data);
   }
+
+  public async getTransaction(hash: Hash): Promise<L2TransactionWithStatus> {
+    return await this.rpc.gw_get_transaction(hash);
+  }
+
+  public async getTransactionReceipt(
+    hash: Hash
+  ): Promise<L2TransactionReceipt | undefined> {
+    return await this.rpc.gw_get_transaction_receipt(hash);
+  }
 }
 
-function toHex(
-  num: number | bigint | undefined | null
-): HexNumber | undefined | null {
+function toHex(num: number | bigint | undefined | null): HexNumber | undefined {
   if (num == null) {
-    return num as undefined | null;
+    return undefined;
   }
   return "0x" + num.toString(16);
 }

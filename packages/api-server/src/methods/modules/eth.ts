@@ -44,6 +44,7 @@ import {
   EthTransaction,
   EthTransactionReceipt,
 } from "../../base/types/api";
+import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { Abi } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
@@ -55,6 +56,8 @@ type U32 = number;
 type U64 = bigint;
 
 const EMPTY_ADDRESS = "0x" + "00".repeat(20);
+
+type GodwokenBlockParameter = U64 | undefined;
 
 export class Eth {
   private query: Query;
@@ -284,9 +287,8 @@ export class Eth {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: U64 | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
       const shortAddress = await allTypeEthAddressToShortAddress(
         this.rpc,
         address
@@ -318,9 +320,8 @@ export class Eth {
       const address = args[0];
       const storagePosition = args[1];
       const blockParameter = args[2];
-      const blockNumber: U64 | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
       const accountId: U32 | undefined = await ethContractAddressToAccountId(
         address,
         this.rpc
@@ -346,9 +347,8 @@ export class Eth {
     try {
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: U64 | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
       const accountId: number | undefined = await allTypeEthAddressToAccountId(
         this.rpc,
         address
@@ -370,9 +370,8 @@ export class Eth {
 
       const address = args[0];
       const blockParameter = args[1];
-      const blockNumber: U64 | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
       const accountId = await ethContractAddressToAccountId(address, this.rpc);
       if (accountId == null) {
         return defaultResult;
@@ -394,9 +393,8 @@ export class Eth {
     try {
       const txCallObj = args[0];
       const blockParameter = args[1];
-      const blockNumber: U64 | undefined = await this.parseBlockParameter(
-        blockParameter
-      );
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
 
       const runResult = await ethCallTx(
         txCallObj,
@@ -561,11 +559,40 @@ export class Eth {
     const txHash: Hash = args[0];
 
     const tx = await this.query.getTransactionByHash(txHash);
-    if (tx == null) {
-      return null;
+    if (tx != null) {
+      const apiTx = toApiTransaction(tx);
+      return apiTx;
     }
-    const apiTx = toApiTransaction(tx);
-    return apiTx;
+
+    // if null, find pending transactions
+    const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    const tipBlock = await this.query.getTipBlock();
+    if (tipBlock == null) {
+      throw new Error("tip block not found!");
+    }
+    let ethTxInfo = undefined;
+    try {
+      ethTxInfo = await filterWeb3Transaction(
+        txHash,
+        this.rpc,
+        tipBlock.number,
+        tipBlock.hash,
+        godwokenTxWithStatus.transaction,
+        godwokenTxReceipt
+      );
+    } catch (err) {
+      console.error("filterWeb3Transaction:", err);
+      console.log("godwoken tx:", godwokenTxWithStatus);
+      console.log("godwoken receipt:", godwokenTxReceipt);
+      throw err;
+    }
+    if (ethTxInfo != null) {
+      const ethTx = ethTxInfo[0];
+      return ethTx;
+    }
+
+    return null;
   }
 
   /**
@@ -618,14 +645,44 @@ export class Eth {
     const txHash: Hash = args[0];
 
     const data = await this.query.getTransactionAndLogsByHash(txHash);
-    if (data == null) {
-      return null;
+    if (data != null) {
+      const [tx, logs] = data;
+      const apiLogs = logs.map((log) => toApiLog(log));
+      const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
+      return transactionReceipt;
     }
 
-    const [tx, logs] = data;
-    const apiLogs = logs.map((log) => toApiLog(log));
-    const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
-    return transactionReceipt;
+    const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    if (godwokenTxReceipt == null) {
+      return null;
+    }
+    const tipBlock = await this.query.getTipBlock();
+    if (tipBlock == null) {
+      throw new Error(`tip block not found`);
+    }
+    let ethTxInfo = undefined;
+    try {
+      ethTxInfo = await filterWeb3Transaction(
+        txHash,
+        this.rpc,
+        tipBlock.number,
+        tipBlock.hash,
+        godwokenTxWithStatus.transaction,
+        godwokenTxReceipt
+      );
+    } catch (err) {
+      console.error("filterWeb3Transaction:", err);
+      console.log("godwoken tx:", godwokenTxWithStatus);
+      console.log("godwoken receipt:", godwokenTxReceipt);
+      throw err;
+    }
+    if (ethTxInfo != null) {
+      const ethTxReceipt = ethTxInfo[1]!;
+      return ethTxReceipt;
+    }
+
+    return null;
   }
 
   /* #region filter-related api methods */
@@ -804,15 +861,15 @@ export class Eth {
 
   private async parseBlockParameter(
     blockParameter: BlockParameter
-  ): Promise<bigint | undefined> {
+  ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return undefined;
+        return await this.getTipNumber();
       case "earliest":
         return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
       case "pending":
-        //throw new Error("block parameter should not be pending.");
+        // null means pending in godwoken
         return undefined;
     }
 
@@ -827,7 +884,7 @@ export class Eth {
   private async blockParameterToBlockNumber(
     blockParameter: BlockParameter
   ): Promise<U64> {
-    const blockNumber: U64 | undefined = await this.parseBlockParameter(
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
       blockParameter
     );
     if (blockNumber === undefined) {

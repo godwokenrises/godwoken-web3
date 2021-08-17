@@ -5,6 +5,7 @@ export const POLY_MIN_GAS_PRICE = 0;
 export const POLY_BLOCK_DIFFICULTY = BigInt("2500000000000000");
 
 export const DEFAULT_EMPTY_ETH_ADDRESS = `0x${"0".repeat(40)}`;
+export const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 
 export const POLYJUICE_SYSTEM_PREFIX = 255;
 export const POLYJUICE_CONTRACT_CODE = 1;
