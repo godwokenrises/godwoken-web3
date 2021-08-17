@@ -245,7 +245,7 @@ export class Query {
     blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
   ): Promise<Log[]> {
-    const address = option.address;
+    const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -253,7 +253,7 @@ export class Query {
         blockHashOrFromBlock,
         address
       );
-      return await filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
@@ -262,7 +262,7 @@ export class Query {
         toBlock.toString(),
         address
       );
-      return await filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -287,7 +287,7 @@ export class Query {
     blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
   ): Promise<Log[]> {
-    const address = option.address;
+    const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -296,7 +296,7 @@ export class Query {
         address,
         lastPollId
       );
-      return await filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, topics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
@@ -306,7 +306,7 @@ export class Query {
         address,
         lastPollId
       );
-      return await filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
@@ -350,6 +350,14 @@ function formatLog(log: Log): Log {
   };
 }
 
+function normalizeQueryAddress(address: HexString | undefined) {
+  if (address && typeof address === "string") {
+    return address.toLowerCase();
+  }
+
+  return address;
+}
+
 function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
   if (num == null) {
     return num as undefined;
@@ -377,10 +385,10 @@ function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
               
           source: https://eth.wiki/json-rpc/API#eth_newFilter
 */
-async function filterLogsByTopics(
+export function filterLogsByTopics(
   logs: Log[],
   filterTopics: FilterTopic[]
-): Promise<Log[]> {
+): Log[] {
   // match anything
   if (filterTopics.length === 0) {
     return logs;
@@ -390,11 +398,11 @@ async function filterLogsByTopics(
   }
 
   let result: Log[] = [];
-  for await (let log of logs) {
+  for (let log of logs) {
     let topics = log.topics;
     let length = topics.length;
     let match = true;
-    for await (let i of [...Array(length).keys()]) {
+    for (let i of [...Array(length).keys()]) {
       if (
         filterTopics[i] &&
         typeof filterTopics[i] === "string" &&
@@ -420,8 +428,27 @@ async function filterLogsByTopics(
   return result;
 }
 
+export function filterLogsByAddress(
+  logs: Log[],
+  _address: HexString | undefined
+): Log[] {
+  const address = normalizeQueryAddress(_address);
+  // match anything
+  if (!address) {
+    return logs;
+  }
+
+  let result: Log[] = [];
+  for (let log of logs) {
+    if (log.address === address) {
+      result.push(log);
+    }
+  }
+  return result;
+}
+
 // test
-export async function testTopicMatch() {
+export function testTopicMatch() {
   const log: Log = {
     id: BigInt(0),
     transaction_hash: "",
@@ -445,10 +472,10 @@ export async function testTopicMatch() {
     ["a", "b"],
   ];
 
-  console.log("f0 =>", await filterLogsByTopics([log], f0));
-  console.log("f1 =>", await filterLogsByTopics([log], f1));
-  console.log("f2 =>", await filterLogsByTopics([log], f2));
-  console.log("f3 =>", await filterLogsByTopics([log], f3));
-  console.log("f4 =>", await filterLogsByTopics([log], f4));
-  console.log("f5 =>", await filterLogsByTopics([log], f5));
+  console.log("f0 =>", filterLogsByTopics([log], f0));
+  console.log("f1 =>", filterLogsByTopics([log], f1));
+  console.log("f2 =>", filterLogsByTopics([log], f2));
+  console.log("f3 =>", filterLogsByTopics([log], f3));
+  console.log("f4 =>", filterLogsByTopics([log], f4));
+  console.log("f5 =>", filterLogsByTopics([log], f5));
 }

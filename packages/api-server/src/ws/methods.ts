@@ -1,10 +1,12 @@
 import { EthBlock } from "../base/types/api";
 import { BlockEmitter } from "../block-emitter";
-import { METHOD_NOT_FOUND } from "../methods/error-code";
+import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
 import { middleware as wsrpc } from "./wss";
 import crypto from "crypto";
 import { HexNumber } from "@ckb-lumos/base";
+import { Log, LogQueryOption, toApiLog } from "../db/types";
+import { filterLogsByAddress, filterLogsByTopics } from "../db";
 
 const blockEmitter = new BlockEmitter();
 blockEmitter.start();
@@ -22,9 +24,9 @@ export function wrapper(ws: any, _req: any) {
     });
   }
 
-  let resultId = 0;
-  const newHeadsIds: Set<number> = new Set();
+  const newHeadsIds: Set<HexNumber> = new Set();
   const syncingIds: Set<HexNumber> = new Set();
+  const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
   const blockListener = (blocks: EthBlock[]) => {
     blocks.forEach((block) => {
@@ -34,7 +36,7 @@ export function wrapper(ws: any, _req: any) {
           method: "eth_subscription",
           params: {
             result: block,
-            subscription: "0x" + id.toString(16),
+            subscription: id,
           },
         };
         ws.send(JSON.stringify(obj));
@@ -42,11 +44,32 @@ export function wrapper(ws: any, _req: any) {
     });
   };
 
+  const logsListener = (logs: Log[]) => {
+    logsQueryMaps.forEach((query, id) => {
+      const _result = filterLogsByAddress(logs, query.address);
+      const result = filterLogsByTopics(_result, query.topics || []);
+
+      if (result.length === 0) return;
+
+      const obj = {
+        jsonrpc: "2.0",
+        method: "eth_subscription",
+        params: {
+          result: result.map((log) => toApiLog(log)),
+          subscription: id,
+        },
+      };
+      ws.send(JSON.stringify(obj));
+    });
+  };
+
   blockEmitter.getEmitter().on("newHeads", blockListener);
+  blockEmitter.getEmitter().on("logs", logsListener);
 
   // when close connection, unsubscribe emitter.
   ws.on("close", function (...args: any[]) {
     blockEmitter.getEmitter().off("newHeads", blockListener);
+    blockEmitter.getEmitter().off("logs", logsListener);
   });
 
   ws.on("eth_subscribe", function (...args: any[]) {
@@ -54,21 +77,39 @@ export function wrapper(ws: any, _req: any) {
     const cb = args[args.length - 1];
 
     const name = params[0];
-    if (name === "newHeads") {
-      resultId += 1;
-      const id = resultId;
-      newHeadsIds.add(id);
-      return cb(null, "0x" + id.toString(16));
-    } else if (name === "syncing") {
-      // will not send anything
-      const id = "0x" + crypto.randomBytes(16).toString("hex");
-      syncingIds.add(id);
-      return cb(null, id);
-    } else {
-      return cb({
-        code: METHOD_NOT_FOUND,
-        message: `no "${name}" subscription in eth namespace`,
-      });
+
+    switch (name) {
+      case "newHeads": {
+        const id = newSubscriptionId();
+        newHeadsIds.add(id);
+        return cb(null, id);
+      }
+
+      case "syncing": {
+        const id = newSubscriptionId();
+        syncingIds.add(id);
+        return cb(null, id);
+      }
+
+      case "logs": {
+        const id = newSubscriptionId();
+        try {
+          const query = parseLogsSubParams(params);
+          logsQueryMaps.set(id, query);
+          return cb(null, id);
+        } catch (error) {
+          return cb({
+            code: INVALID_PARAMS,
+            message: `no logs in params for "${name}" subscription method`,
+          });
+        }
+      }
+
+      default:
+        return cb({
+          code: METHOD_NOT_FOUND,
+          message: `no "${name}" subscription in eth namespace`,
+        });
     }
   });
 
@@ -77,8 +118,35 @@ export function wrapper(ws: any, _req: any) {
     const cb = args[args.length - 1];
 
     const id = params[0];
-    const result = newHeadsIds.delete(+id) || syncingIds.delete(id);
+    const result =
+      newHeadsIds.delete(id) ||
+      syncingIds.delete(id) ||
+      logsQueryMaps.delete(id);
 
     cb(null, result);
   });
+
+  function newSubscriptionId(): HexNumber {
+    return "0x" + crypto.randomBytes(16).toString("hex");
+  }
+
+  function parseLogsSubParams(params: any[]): LogQueryOption {
+    if (params[0] !== "logs") {
+      throw new Error("invalid params");
+    }
+
+    if (params[1] && typeof params[1] !== "object") {
+      throw new Error("invalid params");
+    }
+
+    if (params[1]) {
+      const query = {
+        address: params[1].address,
+        topics: params[1].topics,
+      };
+      return query;
+    }
+
+    return {};
+  }
 }
