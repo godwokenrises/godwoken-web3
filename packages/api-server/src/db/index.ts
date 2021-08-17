@@ -3,15 +3,22 @@ import { Block, Transaction, Log } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
+import { AccountsQuery } from "./accounts";
 
 export class Query {
   private knex: KnexType;
+  private innerAccounts: AccountsQuery;
 
   constructor(databaseUrl: string) {
     this.knex = Knex({
       client: "postgresql",
       connection: databaseUrl,
     });
+    this.innerAccounts = new AccountsQuery(this.knex);
+  }
+
+  get accounts(): AccountsQuery {
+    return this.innerAccounts;
   }
 
   async getTipBlockNumber(): Promise<bigint | undefined> {

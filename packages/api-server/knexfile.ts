@@ -1,8 +1,7 @@
-// Update with your config settings.
-require('ts-node/register');
-require('dotenv').config({path: "./.env"});
-module.exports = {
+import dotenv from "dotenv";
+dotenv.config({path: "./.env"})
 
+const knexConfig = {
   development: {
     client: "postgresql",
     connection: process.env.DATABASE_URL,
@@ -14,5 +13,6 @@ module.exports = {
       tableName: "knex_migrations"
     }
   }
-
 };
+
+export default knexConfig;

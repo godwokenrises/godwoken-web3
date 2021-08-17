@@ -13,6 +13,11 @@ import {
   POLY_MAX_BLOCK_GAS_LIMIT,
 } from "../methods/constant";
 
+export interface Account {
+  eth_address: HexString;
+  gw_short_address: HexString;
+}
+
 export interface Block {
   number: bigint;
   hash: Hash;

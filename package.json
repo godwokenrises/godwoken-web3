@@ -14,6 +14,9 @@
     "build": "yarn workspaces run build",
     "fmt": "yarn workspaces run fmt",
     "lint": "yarn workspaces run lint",
+    "knex": "yarn workspace @godwoken-web3/api-server run knex",
+    "migrate:make": "yarn workspace @godwoken-web3/api-server run migrate:make",
+    "migrate:latest": "yarn workspace @godwoken-web3/api-server run migrate:latest",
     "start": "yarn workspace @godwoken-web3/api-server run start"
   },
   "devDependencies": {

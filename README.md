@@ -19,7 +19,11 @@ ADDRESS_STORE_PATH_ABSOLUTE=<path for storing short-address vs eth-address mappi
 DEFAULT_FROM_ADDRESS=<default from eth address>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 EOF
+
 $ yarn
+
+$ yarn run migrate:latest
+
 // Only for test purpose
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```
