@@ -245,7 +245,7 @@ export class Query {
     blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
   ): Promise<Log[]> {
-    const address = option.address;
+    const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -287,7 +287,7 @@ export class Query {
     blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
   ): Promise<Log[]> {
-    const address = option.address;
+    const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -348,6 +348,14 @@ function formatLog(log: Log): Log {
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
   };
+}
+
+function normalizeQueryAddress(address: HexString | undefined){
+  if(address && typeof address === "string"){
+    return address.toLowerCase();
+  }
+
+  return address;
 }
 
 function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
@@ -422,8 +430,9 @@ export function filterLogsByTopics(
 
 export function filterLogsByAddress(
   logs: Log[],
-  address: HexString | undefined
+  _address: HexString | undefined
 ): Log[] {
+  const address = normalizeQueryAddress(_address);
   // match anything
   if (!address) {
     return logs;
