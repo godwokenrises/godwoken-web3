@@ -30,6 +30,7 @@ export class Gw {
       this.get_transaction_receipt.bind(this),
       0
     );
+    this.get_transaction = middleware(this.get_transaction.bind(this), 0);
     this.execute_l2transaction = middleware(
       this.execute_l2transaction.bind(this),
       0
@@ -159,6 +160,15 @@ export class Gw {
   async get_transaction_receipt(args: any[]) {
     try {
       const result = await this.rpc.gw_get_transaction_receipt(...args);
+      return result;
+    } catch (error) {
+      parseError(error);
+    }
+  }
+
+  async get_transaction(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_transaction(...args);
       return result;
     } catch (error) {
       parseError(error);
