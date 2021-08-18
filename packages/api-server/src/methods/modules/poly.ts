@@ -1,15 +1,16 @@
 import { middleware, validators } from "../validator";
-import { HashMap } from "../../hashmap";
 import { Hash, HexNumber, Address } from "@ckb-lumos/base";
 import { toHexNumber } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
 import { InternalError, InvalidParamsError, Web3Error } from "../error";
+import { Query } from "../../db";
+import { isAddressMatch } from "../../base/address";
 
 export class Poly {
-  private hashMap: HashMap;
+  private query: Query;
 
   constructor() {
-    this.hashMap = new HashMap();
+    this.query = new Query(envConfig.databaseUrl);
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
@@ -24,14 +25,19 @@ export class Poly {
     );
   }
 
-  async getEthAddressByGodwokenShortAddress(args: [string]): Promise<Address> {
+  async getEthAddressByGodwokenShortAddress(
+    args: [string]
+  ): Promise<Address | undefined> {
     try {
-      const gw_short_adddress = args[0];
-      const eth_addrss = await this.hashMap.query(gw_short_adddress);
-      console.log(
-        `[from hash_map] eth address: ${eth_addrss}, short_address: ${gw_short_adddress}`
+      const gwShortAddress = args[0];
+      const account = await this.query.accounts.getByShortAddress(
+        gwShortAddress
       );
-      return eth_addrss;
+      let ethAddress = account?.eth_address;
+      console.log(
+        `[from hash_map] eth address: ${ethAddress}, short_address: ${gwShortAddress}`
+      );
+      return ethAddress;
     } catch (error) {
       console.log(error);
       if (error.notFound) {
@@ -48,12 +54,28 @@ export class Poly {
     args: [string, string]
   ): Promise<string> {
     try {
-      const eth_address = args[0];
-      const godwoken_short_address = args[1];
+      const ethAddress = args[0];
+      const godwokenShortAddress = args[1];
       // todo: save before check if it not exsit;
-      await this.hashMap.save(godwoken_short_address, eth_address);
+      // TODO: check exists
+      const exists = await this.query.accounts.exists(
+        ethAddress,
+        godwokenShortAddress
+      );
+      if (exists) {
+        return "ok";
+      }
+
+      if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+        throw new Error(
+          "eth_address and godwoken_short_address unmatched! abort saving!"
+        );
+      }
+
+      await this.query.accounts.save(ethAddress, godwokenShortAddress);
+
       console.log(
-        `poly_hashmap: insert one record, [${godwoken_short_address}]: ${eth_address}`
+        `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
       );
       return "ok";
     } catch (error) {

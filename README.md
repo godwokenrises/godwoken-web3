@@ -21,7 +21,11 @@ POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
 TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 EOF
+
 $ yarn
+
+$ yarn run migrate:latest
+
 // Only for test purpose
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```

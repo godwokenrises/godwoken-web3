@@ -1,8 +1,12 @@
-import * as Knex from 'knex';
+import { Knex as KnexType } from "knex";
 
-export async function up(knex: Knex): Promise<void> {
+export async function up(knex: KnexType): Promise<void> {
+  if(process.env.NODE_ENV !== 'test')
+  {
+      return;
+  }
   await knex.schema
-    .createTable('blocks', function (table: Knex.TableBuilder) {
+    .createTable('blocks', function (table: KnexType.TableBuilder) {
       table.bigInteger('number').primary().notNullable();
       table.text('hash').notNullable();
       table.unique(['hash']);
@@ -14,7 +18,7 @@ export async function up(knex: Knex): Promise<void> {
       table.bigInteger('size').notNullable();
       table.timestamp('timestamp').notNullable();
     })
-    .createTable('transactions', function (table: Knex.TableBuilder) {
+    .createTable('transactions', function (table: KnexType.TableBuilder) {
       table.increments('id');
       table.text('hash').notNullable();
       table.unique(['hash']);
@@ -51,7 +55,7 @@ export async function up(knex: Knex): Promise<void> {
         'block_number_transaction_index_idx'
       );
     })
-    .createTable('logs', function (table: Knex.TableBuilder) {
+    .createTable('logs', function (table: KnexType.TableBuilder) {
       table.increments('id');
       table.bigInteger('transaction_id').notNullable();
       table.foreign('transaction_id').references('transactions.id');
@@ -71,7 +75,11 @@ export async function up(knex: Knex): Promise<void> {
     });
 }
 
-export async function down(knex: Knex): Promise<void> {
+export async function down(knex: KnexType): Promise<void> {
+  if(process.env.NODE_ENV !== 'test')
+  {
+      return;
+  }
   await knex.schema
     .dropTable('logs')
     .dropTable('transactions')
