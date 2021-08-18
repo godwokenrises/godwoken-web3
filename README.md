@@ -15,7 +15,6 @@ ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
 CHAIN_ID=<your chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
-ADDRESS_STORE_PATH_ABSOLUTE=<path for storing short-address vs eth-address mapping. if not provided, will use default path: api-server/lib/hashmap-db>
 DEFAULT_FROM_ADDRESS=<default from eth address>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
