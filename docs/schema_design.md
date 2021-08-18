@@ -71,6 +71,14 @@ CREATE INDEX ON logs (transaction_hash);
 CREATE INDEX ON logs (block_hash);
 CREATE INDEX ON logs (address);
 
+CREATE TABLE accounts (
+    id SERIAL PRIMARY KEY,
+    eth_address bytea NOT NULL,
+    gw_short_address bytea NOT NULL
+);
+
+CREATE UNIQUE INDEX accounts_eth_address_unique ON accounts (eth_address);
+CREATE INDEX accounts_gw_short_address_index ON accounts (gw_short_address);
 ```
 
 ## 字段含义
@@ -130,3 +138,7 @@ CREATE INDEX ON logs (address);
   - topic[0]: Event的签名，`keccak(EVENT_NAME+"("+EVENT_ARGS.map(canonical_type_of).join(",")+")")` ，对于anonymous event不生成该topic
   - topic[1] ~ topic[3]: 被indexed字段修饰的Event参数
 - data：non-indexed的Event参数
+
+### accounts
+- eth_address: eth address
+- gw_short_address: godwoken short address
