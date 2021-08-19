@@ -11,6 +11,7 @@
     "knex": "knex",
     "migrate:make": "knex migrate:make",
     "migrate:latest": "knex migrate:latest",
+    "migrate-accounts": "ts-node ./src/migrate-accounts.ts",
     "build": "tsc"
   },
   "dependencies": {
@@ -30,12 +31,16 @@
     "jayson": "^3.6.4",
     "keccak256": "^1.0.2",
     "knex": "^0.95.7",
+    "leveldown": "^6.0.1",
+    "levelup": "^5.0.1",
     "morgan": "~1.9.1",
     "pg": "^8.5.1",
     "rlp": "^2.2.6",
     "secp256k1": "^4.0.2"
   },
   "devDependencies": {
+    "@types/leveldown": "^4.0.3",
+    "@types/levelup": "^4.3.3",
     "@types/secp256k1": "^4.0.2",
     "ava": "^3.15.0",
     "concurrently": "^6.0.0",

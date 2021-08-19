@@ -17,6 +17,7 @@
     "knex": "yarn workspace @godwoken-web3/api-server run knex",
     "migrate:make": "yarn workspace @godwoken-web3/api-server run migrate:make",
     "migrate:latest": "yarn workspace @godwoken-web3/api-server run migrate:latest",
+    "migrate-accounts": "yarn workspace @godwoken-web3/api-server run migrate-accounts",
     "start": "yarn workspace @godwoken-web3/api-server run start"
   },
   "devDependencies": {
