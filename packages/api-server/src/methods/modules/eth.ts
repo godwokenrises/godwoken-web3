@@ -466,9 +466,13 @@ export class Eth {
   async getBlockByNumber(args: [string, boolean]): Promise<EthBlock | null> {
     const blockParameter = args[0];
     const isFullTransaction = args[1];
-    const blockNumber: U64 | undefined = await this.blockParameterToBlockNumber(
-      blockParameter
-    );
+    let blockNumber: U64 | undefined;
+
+    try {
+      blockNumber = await this.blockParameterToBlockNumber(blockParameter);
+    } catch (error) {
+      return null;
+    }
 
     const block = await this.query.getBlockByNumber(blockNumber);
     if (block == null) {
