@@ -118,7 +118,9 @@ export class GodwokenClient {
     return await this.rpc.gw_submit_raw_l2transaction(data);
   }
 
-  public async getTransaction(hash: Hash): Promise<L2TransactionWithStatus> {
+  public async getTransaction(
+    hash: Hash
+  ): Promise<L2TransactionWithStatus | undefined> {
     return await this.rpc.gw_get_transaction(hash);
   }
 

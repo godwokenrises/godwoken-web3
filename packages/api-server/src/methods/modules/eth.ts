@@ -566,6 +566,9 @@ export class Eth {
 
     // if null, find pending transactions
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    if (godwokenTxWithStatus == null) {
+      return null;
+    }
     const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
     const tipBlock = await this.query.getTipBlock();
     if (tipBlock == null) {
@@ -653,6 +656,9 @@ export class Eth {
     }
 
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    if (godwokenTxWithStatus == null) {
+      return null;
+    }
     const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
     if (godwokenTxReceipt == null) {
       return null;
