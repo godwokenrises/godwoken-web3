@@ -2,12 +2,40 @@ const createError = require("http-errors");
 const express = require("express");
 const logger = require("morgan");
 const jaysonMiddleware = require("./middlewares/jayson");
-const knex = require("knex");
 var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
+const Sentry = require("@sentry/node");
 
 const app = express();
+
+app.use(express.json());
+
+const sentryOptionRequest = [
+  "cookies",
+  "data",
+  "headers",
+  "method",
+  "query_string",
+  "url",
+  "body",
+];
+const SENTRY_DNS = process.env.SENTRY_DNS;
+if (SENTRY_DNS) {
+  console.log("Sentry init !!!");
+
+  Sentry.init({
+    dsn: SENTRY_DNS,
+  });
+
+  // The request handler must be the first middleware on the app
+  app.use(
+    Sentry.Handlers.requestHandler({
+      request: sentryOptionRequest,
+    })
+  );
+}
+
 expressWs(app);
 
 const corsOptions = {
@@ -17,7 +45,6 @@ const corsOptions = {
 };
 
 app.use(logger("dev"));
-app.use(express.json());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false }));
 
@@ -35,6 +62,15 @@ app.use(function (req, _res, next) {
 
 app.ws("/ws", wrapper);
 app.use("/", jaysonMiddleware);
+
+if (SENTRY_DNS) {
+  // The error handler must be before any other error middleware and after all controllers
+  app.use(
+    Sentry.Handlers.errorHandler({
+      request: sentryOptionRequest,
+    })
+  );
+}
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
