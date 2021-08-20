@@ -1,5 +1,7 @@
 import * as modules from "./modules";
 import { Callback } from "./types";
+import * as Sentry from "@sentry/node";
+import { INVALID_PARAMS } from "./error-code";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -28,6 +30,11 @@ function getMethods() {
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
           } catch (err) {
+            if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
+              Sentry.captureException(err, {
+                extra: { method: concatedMethodName, params: args },
+              });
+            }
             if (err.name === "RpcError") {
               return cb({
                 code: err.code,
@@ -60,6 +67,11 @@ function getEthWalletMethods() {
           const result = await mod[methodName].bind(mod)(args);
           cb(null, result);
         } catch (err) {
+          if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
+            Sentry.captureException(err, {
+              extra: { method: concatedMethodName, params: args },
+            });
+          }
           if (err.name === "RpcError") {
             return cb({
               code: err.code,
