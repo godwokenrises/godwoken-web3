@@ -26,6 +26,7 @@ if (SENTRY_DNS) {
 
   Sentry.init({
     dsn: SENTRY_DNS,
+    environment: process.env.SENTRY_ENVIRONMENT || "development",
   });
 
   // The request handler must be the first middleware on the app
