@@ -24,23 +24,27 @@ export class GodwokenClient {
   }
 
   public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
-    const hash = await this.rpc.gw_get_script_hash(toHex(accountId));
+    const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
   }
 
   public async getAccountIdByScriptHash(
     scriptHash: Hash
   ): Promise<U32 | undefined> {
-    const accountId: HexNumber =
-      await this.rpc.gw_get_account_id_by_script_hash(scriptHash);
+    const accountId: HexNumber = await this.rpcCall(
+      "get_account_id_by_script_hash",
+      scriptHash
+    );
     return +accountId;
   }
 
   public async getScriptHashByShortAddress(
     shortAddress: HexString
   ): Promise<Hash | undefined> {
-    const scriptHash: Hash | undefined =
-      await this.rpc.gw_get_script_hash_by_short_address(shortAddress);
+    const scriptHash: Hash | undefined = await this.rpcCall(
+      "get_script_hash_by_short_address",
+      shortAddress
+    );
     return scriptHash;
   }
 
@@ -49,7 +53,8 @@ export class GodwokenClient {
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
-    const balance: HexNumber = await this.rpc.gw_get_balance(
+    const balance: HexNumber = await this.rpcCall(
+      "get_balance",
       short_address,
       toHex(sudtId),
       toHex(blockParameter)
@@ -62,7 +67,8 @@ export class GodwokenClient {
     key: HexString,
     blockParameter?: BlockParameter
   ): Promise<Hash> {
-    return await this.rpc.gw_get_storage_at(
+    return await this.rpcCall(
+      "get_storage_at",
       toHex(accountId),
       key,
       toHex(blockParameter)
@@ -70,14 +76,15 @@ export class GodwokenClient {
   }
 
   public async getScript(scriptHash: Hash): Promise<Script | undefined> {
-    return await this.rpc.gw_get_script(scriptHash);
+    return await this.rpcCall("get_script", scriptHash);
   }
 
   public async getNonce(
     accountId: U32,
     blockParameter?: BlockParameter
   ): Promise<U32> {
-    const nonce: HexNumber = await this.rpc.gw_get_nonce(
+    const nonce: HexNumber = await this.rpcCall(
+      "get_nonce",
       toHex(accountId),
       toHex(blockParameter)
     );
@@ -88,7 +95,7 @@ export class GodwokenClient {
     dataHash: Hash,
     blockParameter?: BlockParameter
   ): Promise<HexString> {
-    return await this.rpc.gw_get_data(dataHash, toHex(blockParameter));
+    return await this.rpcCall("get_data", dataHash, toHex(blockParameter));
   }
 
   public async executeRawL2Transaction(
@@ -98,7 +105,8 @@ export class GodwokenClient {
     const data: HexString = new Reader(
       SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
     ).serializeJson();
-    return await this.rpc.gw_execute_raw_l2transaction(
+    return await this.rpcCall(
+      "execute_raw_l2transaction",
       data,
       toHex(blockParameter)
     );
@@ -108,26 +116,37 @@ export class GodwokenClient {
     const data: HexString = new Reader(
       SerializeL2Transaction(NormalizeL2Transaction(l2tx))
     ).serializeJson();
-    return await this.rpc.gw_execute_raw_l2transaction(data);
+    return await this.rpcCall("execute_l2transaction", data);
   }
 
   public async submitL2Transaction(l2tx: L2Transaction): Promise<Hash> {
     const data: HexString = new Reader(
       SerializeL2Transaction(NormalizeL2Transaction(l2tx))
     ).serializeJson();
-    return await this.rpc.gw_submit_raw_l2transaction(data);
+    return await this.rpcCall("submit_l2transaction", data);
   }
 
   public async getTransaction(
     hash: Hash
   ): Promise<L2TransactionWithStatus | undefined> {
-    return await this.rpc.gw_get_transaction(hash);
+    return await this.rpcCall("get_transaction", hash);
   }
 
   public async getTransactionReceipt(
     hash: Hash
   ): Promise<L2TransactionReceipt | undefined> {
-    return await this.rpc.gw_get_transaction_receipt(hash);
+    return await this.rpcCall("get_transaction_receipt", hash);
+  }
+
+  private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
+    const name = "gw_" + methodName;
+    try {
+      const result = await this.rpc[name](...args);
+      return result;
+    } catch (err) {
+      console.log(`Call gw rpc "${name}" error:`, err.message);
+      throw err;
+    }
   }
 }
 
