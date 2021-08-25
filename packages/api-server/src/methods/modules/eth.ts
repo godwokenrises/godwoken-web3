@@ -45,7 +45,7 @@ import {
   EthTransactionReceipt,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
-import { Abi } from "@polyjuice-provider/base";
+import { Abi, ShortAddress, ShortAddressType } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
@@ -1078,9 +1078,13 @@ async function ethCallTx(
   }
 
   const abi = new Abi(SUDT_ERC20_PROXY_ABI);
-  const ethToGwAddr = async (addr: HexString): Promise<HexString> => {
+  // TODO: save addressMapping into db when encounter not-exist-eth-eoa-address
+  const ethToGwAddr = async (addr: HexString): Promise<ShortAddress> => {
     const result = await allTypeEthAddressToShortAddress(rpc, addr);
-    return result!;
+    return {
+      value: result!,
+      type: ShortAddressType.eoaAddress, // TODO: return correct address type
+    };
   };
 
   // TODO: find by db.addresses when not found

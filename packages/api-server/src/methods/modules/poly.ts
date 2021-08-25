@@ -13,13 +13,13 @@ import { isAddressMatch } from "../../base/address";
 import { RPC } from "ckb-js-toolkit";
 import { GW_RPC_REQUEST_ERROR } from "../error-code";
 import {
+  decodeArgs,
   deserializeL2TransactionWithAddressMapping,
   deserializeRawL2TransactionWithAddressMapping,
   serializeL2Transaction,
   serializeRawL2Transaction,
 } from "@polyjuice-provider/base";
 import {
-  AddressMapping,
   L2TransactionWithAddressMapping,
   RawL2TransactionWithAddressMapping,
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
@@ -75,14 +75,10 @@ export class Poly {
       const data = args[0];
       const txWithAddressMapping: L2TransactionWithAddressMapping =
         deserializeL2TransactionWithAddressMapping(data);
-      const l2_tx = serializeL2Transaction(txWithAddressMapping.tx);
-      const result = await this.rpc.gw_submit_l2transaction(l2_tx);
+      const l2Tx = serializeL2Transaction(txWithAddressMapping.tx);
+      const result = await this.rpc.gw_submit_l2transaction(l2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      // todo: check in eth tx data, not args
-      this.saveAddressMappingToDb(
-        txWithAddressMapping.addresses,
-        txWithAddressMapping.tx.raw.args
-      );
+      this.saveAddressMapping(txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -94,14 +90,10 @@ export class Poly {
       const data = args[0];
       const txWithAddressMapping: RawL2TransactionWithAddressMapping =
         deserializeRawL2TransactionWithAddressMapping(data);
-      const raw_l2_tx = serializeRawL2Transaction(txWithAddressMapping.raw_tx);
-      const result = await this.rpc.gw_execute_raw_l2transaction(raw_l2_tx);
+      const rawL2Tx = serializeRawL2Transaction(txWithAddressMapping.raw_tx);
+      const result = await this.rpc.gw_execute_raw_l2transaction(rawL2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      // todo: check in eth tx data, not args
-      this.saveAddressMappingToDb(
-        txWithAddressMapping.addresses,
-        txWithAddressMapping.raw_tx.args
-      );
+      this.saveAddressMapping(txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -200,16 +192,25 @@ export class Poly {
     }
   }
 
-  private async saveAddressMappingToDb(
-    addressMapping: AddressMapping,
-    ethTxData: HexString
+  private async saveAddressMapping(
+    txWithAddressMapping:
+      | L2TransactionWithAddressMapping
+      | RawL2TransactionWithAddressMapping
   ) {
-    addressMapping.data.forEach(async (item) => {
+    const polyjuice_args = //@ts-ignore
+      txWithAddressMapping.tx.raw.args || txWithAddressMapping.raw_tx.args;
+    const ethTxData = decodeArgs(polyjuice_args).data;
+
+    txWithAddressMapping.addresses.data.forEach(async (item) => {
       const ethAddress: HexString = item.eth_address;
       const godwokenShortAddress: HexString = item.gw_short_address;
 
       if (!ethTxData.includes(godwokenShortAddress)) {
+        // TODO: decode txData with abi
         // the short address not in eth tx data param, don't save.
+        console.log(
+          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the eth tx data.`
+        );
         return;
       }
 
@@ -223,7 +224,7 @@ export class Poly {
         }
         if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
           throw new Error(
-            "eth_address and godwoken_short_address unmatched! abort saving!"
+            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
           );
         }
 
