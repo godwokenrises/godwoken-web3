@@ -9,28 +9,26 @@ import {
   Web3Error,
 } from "../error";
 import { Query } from "../../db";
-import { isAddressMatch } from "../../base/address";
-import { RPC } from "ckb-js-toolkit";
+import { isAddressMatch, isShortAddressOnChain } from "../../base/address";
 import { GW_RPC_REQUEST_ERROR } from "../error-code";
 import {
   decodeArgs,
   deserializeL2TransactionWithAddressMapping,
   deserializeRawL2TransactionWithAddressMapping,
-  serializeL2Transaction,
-  serializeRawL2Transaction,
 } from "@polyjuice-provider/base";
 import {
   L2TransactionWithAddressMapping,
   RawL2TransactionWithAddressMapping,
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
 
 export class Poly {
   private query: Query;
-  private rpc: RPC;
+  private rpc: GodwokenClient;
 
   constructor() {
     this.query = new Query(envConfig.databaseUrl);
-    this.rpc = new RPC(envConfig.godwokenJsonRpc);
+    this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
@@ -75,10 +73,10 @@ export class Poly {
       const data = args[0];
       const txWithAddressMapping: L2TransactionWithAddressMapping =
         deserializeL2TransactionWithAddressMapping(data);
-      const l2Tx = serializeL2Transaction(txWithAddressMapping.tx);
-      const result = await this.rpc.gw_submit_l2transaction(l2Tx);
+      const l2Tx = txWithAddressMapping.tx;
+      const result = await this.rpc.submitL2Transaction(l2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      this.saveAddressMapping(txWithAddressMapping);
+      saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -90,10 +88,10 @@ export class Poly {
       const data = args[0];
       const txWithAddressMapping: RawL2TransactionWithAddressMapping =
         deserializeRawL2TransactionWithAddressMapping(data);
-      const rawL2Tx = serializeRawL2Transaction(txWithAddressMapping.raw_tx);
-      const result = await this.rpc.gw_execute_raw_l2transaction(rawL2Tx);
+      const rawL2Tx = txWithAddressMapping.raw_tx;
+      const result = await this.rpc.executeRawL2Transaction(rawL2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      this.saveAddressMapping(txWithAddressMapping);
+      saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -103,6 +101,7 @@ export class Poly {
   async saveEthAddressGodwokenShortAddressMapping(
     args: [string, string]
   ): Promise<string> {
+    // TODO: remove this function when provider is migrate to new version
     try {
       const ethAddress = args[0];
       const godwokenShortAddress = args[1];
@@ -191,56 +190,69 @@ export class Poly {
       throw new Web3Error(error.message);
     }
   }
+}
 
-  private async saveAddressMapping(
-    txWithAddressMapping:
-      | L2TransactionWithAddressMapping
-      | RawL2TransactionWithAddressMapping
-  ) {
-    const polyjuice_args = //@ts-ignore
-      txWithAddressMapping.tx.raw.args || txWithAddressMapping.raw_tx.args;
-    const ethTxData = decodeArgs(polyjuice_args).data;
-
-    txWithAddressMapping.addresses.data.forEach(async (item) => {
-      const ethAddress: HexString = item.eth_address;
-      const godwokenShortAddress: HexString = item.gw_short_address;
-
-      if (!ethTxData.includes(godwokenShortAddress)) {
-        // TODO: decode txData with abi
-        // the short address not in eth tx data param, don't save.
-        console.log(
-          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the eth tx data.`
-        );
-        return;
-      }
-
-      try {
-        const exists = await this.query.accounts.exists(
-          ethAddress,
-          godwokenShortAddress
-        );
-        if (exists) {
-          return;
-        }
-        if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
-          throw new Error(
-            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
-          );
-        }
-
-        await this.query.accounts.save(ethAddress, godwokenShortAddress);
-        console.log(
-          `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
-        );
-        return;
-      } catch (error) {
-        console.log(
-          `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
-          error
-        );
-      }
-    });
+async function saveAddressMapping(
+  query: Query,
+  rpc: GodwokenClient,
+  txWithAddressMapping:
+    | L2TransactionWithAddressMapping
+    | RawL2TransactionWithAddressMapping
+) {
+  let raw_tx;
+  if ("raw_tx" in txWithAddressMapping) {
+    raw_tx = txWithAddressMapping.raw_tx;
+  } else {
+    raw_tx = txWithAddressMapping.tx.raw;
   }
+  const polyjuice_args = raw_tx.args;
+  const ethTxData = decodeArgs(polyjuice_args).data;
+
+  txWithAddressMapping.addresses.data.forEach(async (item) => {
+    const ethAddress: HexString = item.eth_address;
+    const godwokenShortAddress: HexString = item.gw_short_address;
+
+    if (!ethTxData.includes(godwokenShortAddress)) {
+      // TODO: decode txData with abi, and check address with abi
+      console.log(
+        `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the eth tx data.`
+      );
+      return;
+    }
+
+    try {
+      const exists = await query.accounts.exists(
+        ethAddress,
+        godwokenShortAddress
+      );
+      if (exists) {
+        return;
+      }
+      if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+        throw new Error(
+          `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
+        );
+      }
+
+      if (isShortAddressOnChain(rpc, godwokenShortAddress)) {
+        console.log(
+          `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+        );
+        return;
+      }
+
+      await query.accounts.save(ethAddress, godwokenShortAddress);
+      console.log(
+        `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+      );
+      return;
+    } catch (error) {
+      console.log(
+        `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
+        error
+      );
+    }
+  });
 }
 
 function parseError(error: any): void {
