@@ -76,7 +76,7 @@ export class Poly {
       const l2Tx = txWithAddressMapping.tx;
       const result = await this.rpc.submitL2Transaction(l2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
+      await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -91,7 +91,7 @@ export class Poly {
       const rawL2Tx = txWithAddressMapping.raw_tx;
       const result = await this.rpc.executeRawL2Transaction(rawL2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
+      await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
       return result;
     } catch (error) {
       parseError(error);
@@ -207,12 +207,11 @@ async function saveAddressMapping(
   }
   const polyjuice_args = raw_tx.args;
   const ethTxData = decodeArgs(polyjuice_args).data;
-
   txWithAddressMapping.addresses.data.forEach(async (item) => {
     const ethAddress: HexString = item.eth_address;
     const godwokenShortAddress: HexString = item.gw_short_address;
 
-    if (!ethTxData.includes(godwokenShortAddress)) {
+    if (!ethTxData.includes(godwokenShortAddress.slice(2))) {
       // TODO: decode txData with abi, and check address with abi
       console.log(
         `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the eth tx data.`
@@ -226,6 +225,9 @@ async function saveAddressMapping(
         godwokenShortAddress
       );
       if (exists) {
+        console.log(
+          `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
+        );
         return;
       }
       if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
@@ -233,8 +235,8 @@ async function saveAddressMapping(
           `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
         );
       }
-
-      if (isShortAddressOnChain(rpc, godwokenShortAddress)) {
+      const isExistOnChain = await isShortAddressOnChain(rpc, godwokenShortAddress);
+      if (isExistOnChain) {
         console.log(
           `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
         );
