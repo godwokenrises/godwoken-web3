@@ -4,6 +4,11 @@ import { Query } from "./db";
 import { EventEmitter } from "events";
 import { toApiNewHead } from "./db/types";
 
+let newrelic: any = undefined;
+if (envConfig.newRelicLicenseKey) {
+  newrelic = require("newrelic");
+}
+
 export class BlockEmitter {
   private query: Query;
   private isRunning: boolean;
@@ -60,6 +65,32 @@ export class BlockEmitter {
     const tip = await this.query.getTipBlockNumber();
     if (tip == null || this.currentTip >= tip) {
       return timeout;
+    }
+
+    // add new relic background transaction
+    if (envConfig.newRelicLicenseKey) {
+      return newrelic.startBackgroundTransaction(
+        `BlockEmitter#pool`,
+        async () => {
+          newrelic.getTransaction();
+          try {
+            const min = this.currentTip;
+            const max = tip;
+            const blocks = await this.query.getBlocksByNumbers(min, max);
+            const newHeads = blocks.map((b) => toApiNewHead(b));
+            this.emitter.emit("newHeads", newHeads);
+            const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+            this.emitter.emit("logs", logs);
+            this.currentTip = tip;
+
+            return timeout;
+          } catch (error) {
+            throw error;
+          } finally {
+            newrelic.endTransaction();
+          }
+        }
+      );
     }
 
     const min = this.currentTip;
