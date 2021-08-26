@@ -21,6 +21,7 @@ L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
 TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
+NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
 EOF
 
 $ yarn

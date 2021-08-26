@@ -17,6 +17,7 @@ export const envConfig = {
   polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
   tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
+  newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
 };
 
 function getRequired(name: string): string {
