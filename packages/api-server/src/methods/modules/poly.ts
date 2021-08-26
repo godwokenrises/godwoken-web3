@@ -235,7 +235,10 @@ async function saveAddressMapping(
           `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
         );
       }
-      const isExistOnChain = await isShortAddressOnChain(rpc, godwokenShortAddress);
+      const isExistOnChain = await isShortAddressOnChain(
+        rpc,
+        godwokenShortAddress
+      );
       if (isExistOnChain) {
         console.log(
           `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
