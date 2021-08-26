@@ -101,36 +101,9 @@ export class Poly {
   async saveEthAddressGodwokenShortAddressMapping(
     args: [string, string]
   ): Promise<string> {
-    // TODO: remove this function when provider is migrate to new version
-    try {
-      const ethAddress = args[0];
-      const godwokenShortAddress = args[1];
-
-      // check if it exist
-      const exists = await this.query.accounts.exists(
-        ethAddress,
-        godwokenShortAddress
-      );
-      if (exists) {
-        return "ok";
-      }
-
-      if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
-        throw new Error(
-          "eth_address and godwoken_short_address unmatched! abort saving!"
-        );
-      }
-
-      await this.query.accounts.save(ethAddress, godwokenShortAddress);
-
-      console.log(
-        `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
-      );
-      return "ok";
-    } catch (error) {
-      console.log(error);
-      throw new InvalidParamsError(error.message);
-    }
+    throw new Web3Error(
+      "this method is deprecated! please upgrade @polyjuice-provider over 0.0.1-rc9 version! see: https://www.npmjs.com/org/polyjuice-provider"
+    );
   }
 
   async getCreatorId(_args: []): Promise<HexNumber> {
