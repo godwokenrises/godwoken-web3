@@ -1118,7 +1118,7 @@ async function ethCallTx(
     blockNumber
   );
 
-  const abiItem = abi.get_intereted_abi_item_by_encoded_data(data);
+  const abiItem = abi.get_interested_abi_item_by_encoded_data(data);
 
   if (abiItem && isEthWallet) {
     const returnDataWithShortAddress =
