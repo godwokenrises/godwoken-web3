@@ -1078,6 +1078,7 @@ async function ethCallTx(
   }
 
   const abi = new Abi(SUDT_ERC20_PROXY_ABI);
+
   // TODO: save addressMapping into db when encounter not-exist-eth-eoa-address
   const ethToGwAddr = async (addr: HexString): Promise<ShortAddress> => {
     const result = await allTypeEthAddressToShortAddress(rpc, addr);

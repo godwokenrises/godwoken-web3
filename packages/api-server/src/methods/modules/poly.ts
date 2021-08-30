@@ -15,7 +15,11 @@ import {
   decodeArgs,
   deserializeL2TransactionWithAddressMapping,
   deserializeRawL2TransactionWithAddressMapping,
+  deserializeAbiItem,
+  getAddressesFromInputDataByAbi,
+  EMPTY_ABI_ITEM_SERIALIZE_STR,
 } from "@polyjuice-provider/base";
+import { AbiItem } from "@polyjuice-provider/godwoken/lib/abiTypes";
 import {
   L2TransactionWithAddressMapping,
   RawL2TransactionWithAddressMapping,
@@ -172,22 +176,52 @@ async function saveAddressMapping(
     | L2TransactionWithAddressMapping
     | RawL2TransactionWithAddressMapping
 ) {
-  let raw_tx;
-  if ("raw_tx" in txWithAddressMapping) {
-    raw_tx = txWithAddressMapping.raw_tx;
-  } else {
-    raw_tx = txWithAddressMapping.tx.raw;
+  console.log(JSON.stringify(txWithAddressMapping, null, 2));
+
+  if (
+    txWithAddressMapping.addresses.length === "0x0" ||
+    txWithAddressMapping.addresses.data.length === 0
+  ) {
+    console.log(`empty addressMapping, abort saving.`);
+    return;
   }
-  const polyjuice_args = raw_tx.args;
-  const ethTxData = decodeArgs(polyjuice_args).data;
+
+  if (txWithAddressMapping.extra === EMPTY_ABI_ITEM_SERIALIZE_STR) {
+    console.log(`addressMapping without abiItem, abort saving.`);
+    return;
+  }
+
+  let rawTx;
+  if ("raw_tx" in txWithAddressMapping) {
+    rawTx = txWithAddressMapping.raw_tx;
+  } else {
+    rawTx = txWithAddressMapping.tx.raw;
+  }
+  const ethTxData = decodeArgs(rawTx.args).data;
+  const abiItemStr = txWithAddressMapping.extra;
+  const abiItem: AbiItem = deserializeAbiItem(abiItemStr);
+  const addressesFromEthTxData = getAddressesFromInputDataByAbi(
+    ethTxData,
+    abiItem
+  );
+  if (addressesFromEthTxData.length === 0) {
+    console.log(
+      `eth tx data ${ethTxData} contains no valid address, abort saving.`
+    );
+    return;
+  }
+
   txWithAddressMapping.addresses.data.forEach(async (item) => {
     const ethAddress: HexString = item.eth_address;
     const godwokenShortAddress: HexString = item.gw_short_address;
 
-    if (!ethTxData.includes(godwokenShortAddress.slice(2))) {
-      // TODO: decode txData with abi, and check address with abi
+    if (!addressesFromEthTxData.includes(godwokenShortAddress)) {
       console.log(
-        `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the eth tx data.`
+        `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
+          addressesFromEthTxData,
+          null,
+          2
+        )}`
       );
       return;
     }
