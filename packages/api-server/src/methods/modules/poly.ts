@@ -106,7 +106,7 @@ export class Poly {
     args: [string, string]
   ): Promise<string> {
     throw new Web3Error(
-      "this method is deprecated! please upgrade @polyjuice-provider over 0.0.1-rc9 version! see: https://www.npmjs.com/org/polyjuice-provider"
+      "this method is deprecated! please upgrade @polyjuice-provider over 0.0.1-rc10 version! see: https://www.npmjs.com/org/polyjuice-provider"
     );
   }
 
