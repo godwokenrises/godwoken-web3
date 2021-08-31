@@ -37,6 +37,7 @@ export interface EthBlock {
   receiptsRoot: Hash;
   transactionsRoot: Hash;
   uncles: [];
+  difficulty: HexNumber;
   totalDifficulty: HexNumber;
   extraData: HexString;
 }
