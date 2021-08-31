@@ -211,60 +211,62 @@ async function saveAddressMapping(
     return;
   }
 
-  txWithAddressMapping.addresses.data.forEach(async (item) => {
-    const ethAddress: HexString = item.eth_address;
-    const godwokenShortAddress: HexString = item.gw_short_address;
+  await Promise.all(
+    txWithAddressMapping.addresses.data.map(async (item) => {
+      const ethAddress: HexString = item.eth_address;
+      const godwokenShortAddress: HexString = item.gw_short_address;
 
-    if (!addressesFromEthTxData.includes(godwokenShortAddress)) {
-      console.log(
-        `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
-          addressesFromEthTxData,
-          null,
-          2
-        )}`
-      );
-      return;
-    }
-
-    try {
-      const exists = await query.accounts.exists(
-        ethAddress,
-        godwokenShortAddress
-      );
-      if (exists) {
+      if (!addressesFromEthTxData.includes(godwokenShortAddress)) {
         console.log(
-          `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
-        );
-        return;
-      }
-      if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
-        throw new Error(
-          `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
-        );
-      }
-      const isExistOnChain = await isShortAddressOnChain(
-        rpc,
-        godwokenShortAddress
-      );
-      if (isExistOnChain) {
-        console.log(
-          `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
+            addressesFromEthTxData,
+            null,
+            2
+          )}`
         );
         return;
       }
 
-      await query.accounts.save(ethAddress, godwokenShortAddress);
-      console.log(
-        `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
-      );
-      return;
-    } catch (error) {
-      console.log(
-        `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
-        error
-      );
-    }
-  });
+      try {
+        const exists = await query.accounts.exists(
+          ethAddress,
+          godwokenShortAddress
+        );
+        if (exists) {
+          console.log(
+            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
+          );
+          return;
+        }
+        if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+          throw new Error(
+            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
+          );
+        }
+        const isExistOnChain = await isShortAddressOnChain(
+          rpc,
+          godwokenShortAddress
+        );
+        if (isExistOnChain) {
+          console.log(
+            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+          );
+          return;
+        }
+
+        await query.accounts.save(ethAddress, godwokenShortAddress);
+        console.log(
+          `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+        );
+        return;
+      } catch (error) {
+        console.log(
+          `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
+          error
+        );
+      }
+    })
+  );
 }
 
 function parseError(error: any): void {
