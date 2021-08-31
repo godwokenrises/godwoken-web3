@@ -94,6 +94,7 @@ export function toApiBlock(
     receiptsRoot: EMPTY_HASH,
     transactionsRoot: EMPTY_HASH,
     uncles: [],
+    difficulty: toHexNumber(POLY_BLOCK_DIFFICULTY),
     totalDifficulty: toHexNumber(POLY_BLOCK_DIFFICULTY),
     extraData: "0x",
   };
