@@ -7,6 +7,14 @@ const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
 
+NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
+
+let newrelic = undefined;
+if (NEW_RELIC_LICENSE_KEY) {
+  console.log("new relic init !!!");
+  newrelic = require("newrelic");
+}
+
 const app = express();
 
 app.use(express.json());
@@ -50,6 +58,14 @@ app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false }));
 
 app.use(function (req, _res, next) {
+  if (NEW_RELIC_LICENSE_KEY) {
+    // set new relic name
+    const transactionName = `${req.method} ${req.url}#${req.body.method}`;
+    console.log("#transactionName:", transactionName);
+    newrelic.setTransactionName(transactionName);
+  }
+
+  // log request method / body
   if (process.env.WEB3_LOG_REQUEST_BODY) {
     console.log("request.body:", req.body);
   } else {
