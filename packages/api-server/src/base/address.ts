@@ -48,3 +48,16 @@ export function isAddressMatch(
   const computedShortAddress = ethAddressToShortAddress(ethAddress);
   return shortAddress === computedShortAddress;
 }
+
+export async function isShortAddressOnChain(
+  godwokenClient: GodwokenClient,
+  shortAddress: HexString
+) {
+  const scriptHash = await godwokenClient.getScriptHashByShortAddress(
+    shortAddress
+  );
+  if (scriptHash == null) {
+    return false;
+  }
+  return true;
+}

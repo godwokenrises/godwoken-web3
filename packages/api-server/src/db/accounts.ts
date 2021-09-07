@@ -46,10 +46,9 @@ export class AccountsQuery {
     shortAddress: HexString
   ): Promise<boolean> {
     const result = await this.knex<DbAccount>(ACCOUNTS_TABLE_NAME)
-      .where("eth_address", ethAddress)
-      .orWhere("gw_short_address", shortAddress)
+      .where("eth_address", toBuffer(ethAddress))
+      .orWhere("gw_short_address", toBuffer(shortAddress))
       .first();
-
     return result != null;
   }
 

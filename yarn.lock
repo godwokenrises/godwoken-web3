@@ -327,13 +327,13 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@polyjuice-provider/base@^0.0.1-rc7":
-  version "0.0.1-rc7"
-  resolved "https://registry.yarnpkg.com/@polyjuice-provider/base/-/base-0.0.1-rc7.tgz#5df16cccc178f049192139758ecd7852e4529480"
-  integrity sha512-wFwDBf2xpDBySAjBKI0A1ugfJ8398MW+LiLPQiJoY1Ca1e85+I6OMYCjQGGGYB2gbALWKwAcplin7RVbGiajPA==
+"@polyjuice-provider/base@^0.0.1-rc10":
+  version "0.0.1-rc10"
+  resolved "https://registry.yarnpkg.com/@polyjuice-provider/base/-/base-0.0.1-rc10.tgz#23e8c74993eaaaa18a391a103e18f1aedcc369f4"
+  integrity sha512-2cGKXh2ST57qMlthL8tKVv5/JM+RtrJnIjifD1Sx7zWpKuFa+m6MWjwK+LUNWJzO3/6NKjhotIEMOqr3jI++HQ==
   dependencies:
     "@ckb-lumos/base" "^0.16.0"
-    "@polyjuice-provider/godwoken" "^0.0.1-rc7"
+    "@polyjuice-provider/godwoken" "^0.0.1-rc10"
     buffer "^6.0.3"
     encoding "^0.1.13"
     eth-sig-util "^3.0.1"
@@ -342,10 +342,10 @@
     web3 "^1.3.4"
     xhr2-cookies "^1.1.0"
 
-"@polyjuice-provider/godwoken@^0.0.1-rc7":
-  version "0.0.1-rc7"
-  resolved "https://registry.yarnpkg.com/@polyjuice-provider/godwoken/-/godwoken-0.0.1-rc7.tgz#1c7ff81d92061adbbd1da51721d1545d20e4a2a1"
-  integrity sha512-jBQ1Ivf1TbcX935bUh+QPWwCdueQEsEmLzU6gU3/luTVNwBHHrNElwMDtoqrTVi0akA9CRMWoNMKzSTjNnTNNw==
+"@polyjuice-provider/godwoken@^0.0.1-rc10":
+  version "0.0.1-rc10"
+  resolved "https://registry.yarnpkg.com/@polyjuice-provider/godwoken/-/godwoken-0.0.1-rc10.tgz#ca927aac16d80046440b278cdba7f08b85c5c832"
+  integrity sha512-8Em+jlKqaoDqFM3Ab+fax3dV6gZbMB0oAdsHgxyuiP0XmNBccZRA1PnHwgTzB1hcauqAz4J9IbO92tDY717Vfg==
   dependencies:
     "@ckb-lumos/base" "^0.16.0"
     ckb-js-toolkit "^0.9.3"
