@@ -874,7 +874,7 @@ export class Eth {
   ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return await this.getTipNumber();
+        return undefined;
       case "earliest":
         return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
