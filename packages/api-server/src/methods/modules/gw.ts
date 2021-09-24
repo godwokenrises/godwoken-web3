@@ -232,5 +232,10 @@ function parseError(error: any): void {
     throw new RpcError(err.code, err.message);
   }
 
+  // connection error
+  if (message.startsWith("request to")) {
+    throw new Error(message);
+  }
+
   throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
 }
