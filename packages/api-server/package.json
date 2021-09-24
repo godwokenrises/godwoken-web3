@@ -15,7 +15,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@ckb-lumos/base": "^0.16.0",
+    "@ckb-lumos/base": "^0.18.0-rc1",
     "@godwoken-web3/godwoken": "0.6.0-rc8",
     "@newrelic/native-metrics": "^7.0.1",
     "@polyjuice-provider/base": "^0.0.1-rc10",
