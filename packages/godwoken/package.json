@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@ckb-lumos/base": "^0.16.0",
+    "@ckb-lumos/base": "^0.18.0-rc1",
     "ckb-js-toolkit": "^0.9.3"
   }
 }

@@ -9,6 +9,11 @@
   ],
   "declarations": [
     {
+      "type": "fixvec",
+      "name": "Uint32Vec",
+      "item": "Uint32"
+    },
+    {
       "type": "struct",
       "name": "BlockMerkleState",
       "fields": [
@@ -701,6 +706,10 @@
           "type": "KVPairVec"
         },
         {
+          "name": "load_data",
+          "type": "BytesVec"
+        },
+        {
           "name": "scripts",
           "type": "ScriptVec"
         },
@@ -711,6 +720,20 @@
         {
           "name": "block_hashes",
           "type": "BlockHashEntryVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "CKBMerkleProof",
+      "fields": [
+        {
+          "name": "indices",
+          "type": "Uint32Vec"
+        },
+        {
+          "name": "lemmas",
+          "type": "Byte32Vec"
         }
       ]
     },
@@ -728,7 +751,7 @@
         },
         {
           "name": "tx_proof",
-          "type": "Bytes"
+          "type": "CKBMerkleProof"
         },
         {
           "name": "kv_state_proof",
@@ -776,7 +799,7 @@
         },
         {
           "name": "tx_proof",
-          "type": "Bytes"
+          "type": "CKBMerkleProof"
         },
         {
           "name": "kv_state_proof",
@@ -802,7 +825,7 @@
         },
         {
           "name": "withdrawal_proof",
-          "type": "Bytes"
+          "type": "CKBMerkleProof"
         }
       ]
     },
@@ -1148,7 +1171,7 @@
           "type": "Byte32"
         },
         {
-          "name": "uncles_hash",
+          "name": "extra_hash",
           "type": "Byte32"
         },
         {
@@ -1207,6 +1230,33 @@
         {
           "name": "proposals",
           "type": "ProposalShortIdVec"
+        }
+      ],
+      "imported_depth": 1
+    },
+    {
+      "type": "table",
+      "name": "BlockV1",
+      "fields": [
+        {
+          "name": "header",
+          "type": "Header"
+        },
+        {
+          "name": "uncles",
+          "type": "UncleBlockVec"
+        },
+        {
+          "name": "transactions",
+          "type": "TransactionVec"
+        },
+        {
+          "name": "proposals",
+          "type": "ProposalShortIdVec"
+        },
+        {
+          "name": "extension",
+          "type": "Bytes"
         }
       ],
       "imported_depth": 1
