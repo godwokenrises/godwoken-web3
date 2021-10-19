@@ -3,7 +3,8 @@
   "version": "0.7.0-rc1",
   "private": true,
   "scripts": {
-    "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/www\"",
+    "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/cluster\"",
+    "start:alone": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/www\"",
     "test": "ava",
     "fmt": "prettier --write \"{migrations,tests}/**/*.js\" app.js src/* package.json",
     "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
