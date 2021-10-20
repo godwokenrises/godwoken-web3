@@ -15,7 +15,7 @@ if (envConfig.newRelicLicenseKey) {
 }
 
 const blockEmitter = new BlockEmitter();
-blockEmitter.start();
+blockEmitter.startWorker();
 
 export function wrapper(ws: any, _req: any) {
   // this function gets called on each connection
