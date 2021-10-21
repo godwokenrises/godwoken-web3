@@ -22,6 +22,7 @@ TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
+CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 EOF
 
 $ yarn

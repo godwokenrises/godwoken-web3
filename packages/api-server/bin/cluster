@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+
+require("dotenv").config({path: "./.env"})
+
+const cluster = require("cluster");
+const { cpus } = require("os");
+const { BlockEmitter } = require("../lib/block-emitter")
+
+const numCPUs = cpus().length;
+const clusterCount = +process.env.CLUSTER_COUNT;
+const numOfCluster = clusterCount || numCPUs;
+
+if (cluster.isMaster) {
+  console.log(`Master ${process.pid} is running`);
+
+  // Fork workers.
+  for (let i = 0; i < numOfCluster; i++) {
+    cluster.fork();
+  }
+
+  const blockEmitter = new BlockEmitter();
+  blockEmitter.start();
+
+  cluster.on('exit', (worker, _code, _signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+  });
+} else {
+  require("./www")
+
+  console.log(`Worker ${process.pid} started`);
+}

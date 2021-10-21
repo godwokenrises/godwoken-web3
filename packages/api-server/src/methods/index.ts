@@ -47,7 +47,7 @@ function getMethods() {
       });
   });
 
-  console.log(methods);
+  // console.log(methods);
   return methods;
 }
 
@@ -83,7 +83,7 @@ function getEthWalletMethods() {
       };
     });
 
-  console.log(methods);
+  // console.log(methods);
   return methods;
 }
 
