@@ -60,8 +60,8 @@ export function camelToSnake(t: object) {
   return snake;
 }
 
-export function toHex(i: number) {
-  if (typeof i !== "number") return i;
+export function toHex(i: number | string) {
+  if (typeof i !== "number" && typeof i !== "string") return i;
 
   return "0x" + BigInt(i).toString(16);
 }

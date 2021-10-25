@@ -11,4 +11,9 @@ export interface FilterObject {
 
 export type FilterTopic = HexString | null | HexString[];
 
-export type FilterType = FilterObject | 1 | 2; // 1: block filter 2: pending transaction filter
+export enum FilterFlag {
+  blockFilter = 1,
+  pendingTransaction = 2,
+}
+
+export type FilterType = FilterObject | FilterFlag; // 1: block filter 2: pending transaction filter

@@ -1,33 +1,36 @@
-import { Map, Set } from "immutable";
-import { FilterType } from "./types";
+import { FilterFlag, FilterObject, FilterType } from "./types";
 import EventEmitter from "events";
+import { SingleFieldTable, Store } from "./store";
+import crypto from "crypto";
+import { HexString } from "@ckb-lumos/base";
+
+const CacheLifeTableName = "CacheLifeManager";
+const FilterSetTableName = "FilterSet";
+const LastPollsSetTableName = "lastPollsSet";
 
 class CacheEmitter extends EventEmitter {}
 
-export class Cache {
-  // todo: add a maxCacheLimit to prevent memory leak.
-
+export class Cache extends SingleFieldTable {
   private milsecsToLive: number; // how long the cache data to live, unit: milsec
   private watch_interval: number; // how often to check if cache data is expired, unit: milsec
   private expireWatcher: any; // expire cache watch timer
-  private lifeManager: Set<Map<number, number>>; // key: id, value: life's birth timestamp in milsec
   private eventEmitter;
 
   constructor(
     milsecsToLive = 5 * 60 * 1000, // default 5 minutes
-    watch_interval = 5 * 1000 // default 5 seconds
+    watch_interval = 5 * 1000, // default 5 seconds
+    store?: Store
   ) {
+    super(CacheLifeTableName, store);
     this.milsecsToLive = milsecsToLive;
-    this.lifeManager = Set();
     this.watch_interval = watch_interval;
     this.expireWatcher = null;
-
     this.eventEmitter = new CacheEmitter();
   }
 
   startWatcher() {
     this.expireWatcher = setInterval(
-      () => this.checker(this.lifeManager),
+      async () => await this.checker(),
       this.watch_interval
     );
   }
@@ -39,189 +42,190 @@ export class Cache {
     return true;
   }
 
-  size() {
-    if (!this.lifeManager) return 0;
-
-    return this.lifeManager.size;
+  async size() {
+    return await this._size();
   }
 
-  addLife(key: number, value: number) {
-    this.lifeManager = this.lifeManager.add(
-      Map<number, number>().set(key, value)
-    );
+  async addLife(id: string, birthTimeStamp: number) {
+    return await this._insert(id, birthTimeStamp);
   }
 
-  updateLife(key: number, value: number) {
-    const life = this.lifeManager.findEntry(
-      (life) => life.get(key) !== undefined
-    )?.[0];
-    if (!life) return false;
-
-    const new_life = Map<number, number>().set(key, value);
-    this.lifeManager = this.lifeManager.delete(life);
-    this.lifeManager = this.lifeManager.add(new_life);
-    return true;
+  async updateLife(id: string, newBirthTimeStamp: number) {
+    return await this._update(id, newBirthTimeStamp);
   }
 
-  killLife(key: number) {
-    const life = this.lifeManager.findEntry(
-      (life) => life.get(key) !== undefined
-    )?.[0];
-    if (!life) return false;
-
-    this.lifeManager = this.lifeManager.delete(life);
-    return true;
+  async killLife(id: string) {
+    return await this._delete(id);
   }
 
-  isExpired(key: number) {
-    const life = this.lifeManager.findEntry(
-      (life) => life.get(key) !== undefined
-    )?.[0];
-    if (!life) return false;
-
-    return Date.now() - life.get(key)! >= this.milsecsToLive;
+  async isExpired(id: string) {
+    const birthTimeStamp = await this._get(id);
+    if (birthTimeStamp == undefined) {
+      // todo: should throw error?
+      return false;
+    }
+    return Date.now() - parseInt(birthTimeStamp) >= this.milsecsToLive;
   }
 
-  public onExpired(callback = (_key: number) => {}) {
+  public onExpired(callback = (_key: string) => {}) {
     this.eventEmitter.on("kill", callback);
   }
 
-  private checker(lifeManager: Set<Map<number, number>>) {
-    lifeManager.forEach((life) => {
-      const entries = life.entries();
-      for (const eny of entries) {
-        const key = eny[0];
-
-        if (!this.isExpired(key)) return false;
-
-        this.killLife(key);
-        this.eventEmitter.emit("kill", key);
-      }
+  private async checker() {
+    const data = await this._getAll();
+    const ids = Object.keys(data);
+    ids.forEach(async (id) => {
+      if (!(await this.isExpired(id))) return false;
+      await this.killLife(id);
+      this.eventEmitter.emit("kill", id);
     });
   }
 }
 
-export class FilterManager extends Cache {
-  // private cache: Cache;
-  // self-increase number
-  // will be used as the filter id when creating a new filter
-  private uid: number;
+export class FilterSet extends SingleFieldTable {
+  constructor(store?: Store) {
+    super(FilterSetTableName, store);
+  }
 
   // key: filter_id,
   // value: filter value
-  private filtersSet: Set<Map<number, FilterType>>;
+  async add(id: string, filter: FilterType) {
+    if (typeof filter === "number") {
+      return await this._insert(id, filter);
+    }
 
-  // todo: change last poll record to bigint type, in case block number get out of range
+    // verify and normalize the FilterObject before serialize
+    const filterString = JSON.stringify(filter);
+    return await this._insert(id, filterString);
+  }
+
+  async get(id: string) {
+    const filterString = await this._get(id);
+    if (filterString == undefined) {
+      return undefined;
+    }
+
+    try {
+      // todo: check if filterObject is valid
+      return JSON.parse(filterString) as FilterObject;
+    } catch (e) {
+      const filterFlag = parseInt(filterString);
+      if (
+        filterFlag !== FilterFlag.blockFilter &&
+        filterFlag !== FilterFlag.pendingTransaction
+      ) {
+        throw new Error("invalid value for filterType");
+      }
+
+      return filterFlag as FilterFlag;
+    }
+  }
+}
+
+export class LastPollSet extends SingleFieldTable {
+  constructor(store?: Store) {
+    super(LastPollsSetTableName, store);
+  }
+
   // key: filter_id,
   // value: the filter's last poll record:
-  //          - for eth_newBlockFilter, the last poll record is the block number (number)
-  //          - for eth_newPendingTransactionFilter, the last poll record is the pending transaction id (number) (currently not support)
-  //          - for normal filter, the last poll record is log_id of log (number)
-  private lastPollsSet: Set<Map<number, number>>;
+  //          - for eth_newBlockFilter, the last poll record is the block number (bigint)
+  //          - for eth_newPendingTransactionFilter, the last poll record is the pending transaction id (bigint) (currently not support)
+  //          - for normal filter, the last poll record is log_id of log (bigint)
+  async add(id: string, lastPollRecord: bigint) {
+    this._insert(id, "0x" + lastPollRecord.toString(16));
+  }
+
+  async get(id: string) {
+    const lastPollRecordString = await this._get(id);
+    if (lastPollRecordString == undefined) {
+      return undefined;
+    }
+    const lastPollRecord: bigint = BigInt(lastPollRecordString);
+    return lastPollRecord;
+  }
+}
+
+export class FilterManager extends Cache {
+  public filtersSet: FilterSet;
+  public lastPollsSet: LastPollSet;
 
   constructor(
     cacheTTL = 5 * 60 * 1000, // milsec, default 5 minutes
     cacheWI = 5 * 10000, // milsec, default 5 seconds
-    enableExpired = true
+    enableExpired = true,
+    _store?: Store
   ) {
-    super(cacheTTL, cacheWI);
-
-    this.uid = 0;
-    this.filtersSet = Set<Map<number, FilterType>>();
-    this.lastPollsSet = Set<Map<number, number>>();
+    const store = _store || new Store();
+    super(cacheTTL, cacheWI, store);
+    this.filtersSet = new FilterSet(store);
+    this.lastPollsSet = new LastPollSet(store);
 
     if (enableExpired) {
       this.startWatcher();
       const that = this;
-      this.onExpired(function (key: number) {
-        that.removeExpiredFilter(key);
+      this.onExpired(function (id: string) {
+        that.removeExpiredFilter(id);
       });
     }
   }
 
-  install(filter: FilterType) {
-    // increase the global id number
-    // todo: maybe replace with a more robust id method like uuid ?
-    this.uid++;
-
+  async install(filter: FilterType): Promise<HexString> {
     // add filter to filter cache
-    const id = this.uid;
-    const fc = Map<number, FilterType>().set(id, filter);
-    this.filtersSet = this.filtersSet.add(fc);
-
+    const id = newId();
+    await this.filtersSet.add(id, filter);
     // add filter's last poll record to cache
     // the initial value should be 0
-    const lp_record = Map<number, number>().set(id, 0);
-    this.lastPollsSet = this.lastPollsSet.add(lp_record);
-
-    this.addLife(id, Date.now());
-
+    await this.lastPollsSet.add(id, BigInt(0));
+    await this.addLife(id, Date.now());
     return id;
   }
 
-  get(id: number): FilterType | undefined {
-    const filter = this.filtersSet
-      .findEntry((f) => f.get(id) !== undefined)?.[0]
-      .get(id);
+  async get(id: string): Promise<FilterType | undefined> {
+    const filter = await this.filtersSet.get(id);
     return filter;
   }
 
-  uninstall(id: number): boolean {
-    const filter = this.filtersSet.findEntry(
-      (f) => f.get(id) !== undefined
-    )?.[0];
-    const lastPoll = this.lastPollsSet.findEntry(
-      (f) => f.get(id) !== undefined
-    )?.[0];
-
+  async uninstall(id: string): Promise<boolean> {
+    const filter = await this.filtersSet._get(id);
     if (!filter) return false; // or maybe throw `filter not exits by id: ${id}`;
 
-    this.filtersSet = this.filtersSet.delete(filter);
-    this.lastPollsSet = this.lastPollsSet.delete(lastPoll!);
-
-    this.killLife(id);
+    await this.filtersSet._delete(id);
+    await this.lastPollsSet._delete(id);
+    await this.killLife(id);
 
     return true;
   }
 
-  removeExpiredFilter(id: number) {
-    const filter = this.filtersSet.findEntry(
-      (f) => f.get(id) !== undefined
-    )?.[0];
-    const lastPoll = this.lastPollsSet.findEntry(
-      (f) => f.get(id) !== undefined
-    )?.[0];
-
+  async removeExpiredFilter(id: string) {
+    const filter = await this.filtersSet.get(id);
     if (!filter) return false; // or maybe throw `filter not exits by id: ${id}`;
 
-    this.filtersSet = this.filtersSet.delete(filter);
-    this.lastPollsSet = this.lastPollsSet.delete(lastPoll!);
+    await this.filtersSet._delete(id);
+    await this.lastPollsSet._delete(id);
   }
 
-  size() {
-    return this.filtersSet.size;
+  async size() {
+    return await this.filtersSet._size();
   }
 
-  updateLastPoll(id: number, last_poll: number) {
-    const lp = this.lastPollsSet.findEntry((f) => f.get(id) !== undefined)?.[0];
+  async updateLastPoll(id: string, lastPoll: bigint) {
+    const lp = await this.lastPollsSet.get(id);
+    if (lp == undefined)
+      throw new Error(`lastPollCache not exits, filter_id: ${id}`);
 
-    if (!lp) throw `lastPollCache not exits, filter_id: ${id}`;
-
-    const new_lp = Map<number, number>().set(id, last_poll);
-
-    this.lastPollsSet = this.lastPollsSet.delete(lp);
-    this.lastPollsSet = this.lastPollsSet.add(new_lp);
-
+    await this.lastPollsSet.add(id, lastPoll);
     this.updateLife(id, Date.now());
   }
 
-  getLastPoll(id: number) {
-    const lastPoll = this.lastPollsSet.findEntry(
-      (f) => f.get(id) !== undefined
-    )?.[0];
-
-    if (!lastPoll) throw `lastPollCache not exits, filter_id: ${id}`;
-
-    return lastPoll.get(id);
+  async getLastPoll(id: string) {
+    const lp = await this.lastPollsSet.get(id);
+    if (lp == undefined)
+      throw new Error(`lastPollCache not exits, filter_id: ${id}`);
+    return lp;
   }
+}
+
+export function newId(): HexString {
+  return "0x" + crypto.randomBytes(16).toString("hex");
 }

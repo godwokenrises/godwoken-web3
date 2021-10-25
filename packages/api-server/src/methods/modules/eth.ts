@@ -9,7 +9,7 @@ import {
   BlockParameter,
 } from "../types";
 import { middleware, validators } from "../validator";
-import { FilterObject } from "../../cache/types";
+import { FilterFlag, FilterObject } from "../../cache/types";
 import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
@@ -310,7 +310,7 @@ export class Eth {
 
       const balanceHex = new Uint128(balance).toHex();
       return balanceHex;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -333,7 +333,7 @@ export class Eth {
       const key = buildStorageKey(storagePosition);
       const value = await this.rpc.getStorageAt(accountId, key, blockNumber);
       return value;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -359,7 +359,7 @@ export class Eth {
       const nonce = await this.rpc.getNonce(accountId, blockNumber);
       const transactionCount = new Uint32(nonce).toHex();
       return transactionCount;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -384,7 +384,7 @@ export class Eth {
       );
       const data = await this.rpc.getData(dataHash, blockNumber);
       return data || defaultResult;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -404,7 +404,7 @@ export class Eth {
       );
       console.log("RunResult:", runResult);
       return runResult.return_data;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -432,7 +432,7 @@ export class Eth {
       );
 
       return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -458,7 +458,7 @@ export class Eth {
         const apiBlock = toApiBlock(block, txHashes);
         return apiBlock;
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
@@ -470,7 +470,7 @@ export class Eth {
 
     try {
       blockNumber = await this.blockParameterToBlockNumber(blockParameter);
-    } catch (error) {
+    } catch (error: any) {
       return null;
     }
 
@@ -696,30 +696,30 @@ export class Eth {
   }
 
   /* #region filter-related api methods */
-  newFilter(args: [FilterObject]): HexNumber {
-    const filter_id = this.filterManager.install(args[0]);
+  async newFilter(args: [FilterObject]): Promise<HexString> {
+    const filter_id = await this.filterManager.install(args[0]);
     return toHex(filter_id);
   }
 
-  newBlockFilter(args: []): HexNumber {
-    const filter_id = this.filterManager.install(1); // 1 for block filter
+  async newBlockFilter(args: []): Promise<HexString> {
+    const filter_id = await this.filterManager.install(1); // 1 for block filter
     return toHex(filter_id);
   }
 
-  newPendingTransactionFilter(args: []): HexNumber {
-    const filter_id = this.filterManager.install(2); // 2 for pending tx filter
+  async newPendingTransactionFilter(args: []): Promise<HexString> {
+    const filter_id = await this.filterManager.install(2); // 2 for pending tx filter
     return toHex(filter_id);
   }
 
-  uninstallFilter(args: [string]): boolean {
-    const filter_id = parseInt(args[0], 16);
-    const isUninstalled = this.filterManager.uninstall(filter_id);
+  async uninstallFilter(args: [HexString]): Promise<boolean> {
+    const filter_id = args[0];
+    const isUninstalled = await this.filterManager.uninstall(filter_id);
     return isUninstalled;
   }
 
   async getFilterLogs(args: [string]): Promise<Array<any>> {
-    const filter_id = parseInt(args[0], 16);
-    const filter = this.filterManager.get(filter_id);
+    const filter_id = args[0];
+    const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
       throw new Web3Error(
@@ -727,7 +727,7 @@ export class Eth {
       );
     }
 
-    if (filter === 1) {
+    if (filter === FilterFlag.blockFilter) {
       // block filter
       // return all blocks
       const blocks = await this.query.getBlocksAfterBlockNumber(
@@ -738,17 +738,17 @@ export class Eth {
       return block_hashes;
     }
 
-    if (filter === 2) {
+    if (filter === FilterFlag.pendingTransaction) {
       // pending tx filter, not supported.
       return [];
     }
 
-    return this.getLogs([filter!]);
+    return await this.getLogs([filter!]);
   }
 
   async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
-    const filter_id = parseInt(args[0], 16);
-    const filter = this.filterManager.get(filter_id);
+    const filter_id = args[0];
+    const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
       throw new Web3Error(
@@ -757,12 +757,14 @@ export class Eth {
     }
 
     //***** handle block-filter
-    if (filter === 1) {
-      const last_poll_block_number = this.filterManager.getLastPoll(filter_id);
+    if (filter === FilterFlag.blockFilter) {
+      const last_poll_block_number = await this.filterManager.getLastPoll(
+        filter_id
+      );
       // get all block occurred since last poll
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(last_poll_block_number!),
+        BigInt(last_poll_block_number),
         "desc"
       );
 
@@ -770,18 +772,18 @@ export class Eth {
 
       // remember to update the last poll cache
       // blocks[0] is now the highest block number(meaning it is the newest cache block number)
-      this.filterManager.updateLastPoll(filter_id, Number(blocks[0].number));
+      await this.filterManager.updateLastPoll(filter_id, blocks[0].number);
       const block_hashes = blocks.map((block) => block.hash);
       return block_hashes;
     }
 
     //***** handle pending-tx-filter, currently not supported.
-    if (filter === 2) {
+    if (filter === FilterFlag.pendingTransaction) {
       return [];
     }
 
     //***** handle normal-filter
-    const lastPollLogId = this.filterManager.getLastPoll(filter_id);
+    const lastPollLogId = await this.filterManager.getLastPoll(filter_id);
     const blockHash = filter.blockHash;
     const address = filter.address;
     const topics = filter.topics;
@@ -793,14 +795,14 @@ export class Eth {
     // if blockHash exits, fromBlock and toBlock is not allowed.
     if (blockHash) {
       const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId!,
+        lastPollLogId,
         queryOption,
         blockHash
       );
       if (logs.length === 0) return [];
       // remember to update the last poll cache
       // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-      this.filterManager.updateLastPoll(filter_id, Number(logs[0].id));
+      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
       return logs.map((log) => toApiLog(log));
     }
 
@@ -820,7 +822,7 @@ export class Eth {
 
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-    this.filterManager.updateLastPoll(filter_id, Number(logs[0].id));
+    await this.filterManager.updateLastPoll(filter_id, logs[0].id);
     return logs.map((log) => toApiLog(log));
   }
 
@@ -949,7 +951,7 @@ async function ethContractAddressToAccountId(
     const accountId = await rpc.getAccountIdByScriptHash(scriptHash);
     console.log(`eth contract address: ${address}, account id: ${accountId}`);
     return accountId == null ? undefined : +accountId;
-  } catch (error) {
+  } catch (error: any) {
     return undefined;
   }
 }
