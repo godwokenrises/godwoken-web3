@@ -14,7 +14,7 @@ const LastPollsSetTableName = "lastPollsSet";
 
 class CacheEmitter extends EventEmitter {}
 
-export class Cache extends SingleFieldTable {
+export class CacheLifeSet extends SingleFieldTable {
   private timeToLiveMilsecs: number; // how long the cache data to live, unit: milsec
   private watchIntervalMilsecs: number; // how often to check if cache data is expired, unit: milsec
   private expireWatcher: any; // expire cache watch timer
@@ -154,7 +154,8 @@ export class LastPollSet extends SingleFieldTable {
   }
 }
 
-export class FilterManager extends Cache {
+export class FilterManager {
+  public cacheLifeSet: CacheLifeSet;
   public filtersSet: FilterSet;
   public lastPollsSet: LastPollSet;
 
@@ -165,14 +166,18 @@ export class FilterManager extends Cache {
     _store?: Store
   ) {
     const store = _store || new Store();
-    super(cacheTimeToLiveMilsecs, cacheWatchIntervalMilsecs, store);
+    this.cacheLifeSet = new CacheLifeSet(
+      cacheTimeToLiveMilsecs,
+      cacheWatchIntervalMilsecs,
+      store
+    );
     this.filtersSet = new FilterSet(store);
     this.lastPollsSet = new LastPollSet(store);
 
     if (enableExpired) {
-      this.startWatcher();
+      this.cacheLifeSet.startWatcher();
       const that = this;
-      this.onExpired(function (id: string) {
+      this.cacheLifeSet.onExpired(function (id: string) {
         that.removeExpiredFilter(id);
       });
     }
@@ -182,7 +187,7 @@ export class FilterManager extends Cache {
     console.log(
       this.filtersSet.store.client.isOpen,
       this.lastPollsSet.store.client.isOpen,
-      this.store.client.isOpen
+      this.cacheLifeSet.store.client.isOpen
     );
   }
 
@@ -195,8 +200,8 @@ export class FilterManager extends Cache {
       await this.lastPollsSet._connect();
     }
 
-    if (!this.store.client.isOpen) {
-      await this._connect();
+    if (!this.cacheLifeSet.store.client.isOpen) {
+      await this.cacheLifeSet._connect();
     }
   }
 
@@ -207,7 +212,8 @@ export class FilterManager extends Cache {
     // add filter's last poll record to cache
     // the initial value should be 0
     await this.lastPollsSet.add(id, BigInt(0));
-    await this.addLife(id, Date.now());
+    // record the filter cache life
+    await this.cacheLifeSet.addLife(id, Date.now());
     return id;
   }
 
@@ -222,7 +228,7 @@ export class FilterManager extends Cache {
 
     await this.filtersSet._delete(id);
     await this.lastPollsSet._delete(id);
-    await this.killLife(id);
+    await this.cacheLifeSet.killLife(id);
 
     return true;
   }
@@ -245,7 +251,7 @@ export class FilterManager extends Cache {
       throw new Error(`lastPollCache not exits, filter_id: ${id}`);
 
     await this.lastPollsSet.add(id, lastPoll);
-    this.updateLife(id, Date.now());
+    this.cacheLifeSet.updateLife(id, Date.now());
   }
 
   async getLastPoll(id: string) {
