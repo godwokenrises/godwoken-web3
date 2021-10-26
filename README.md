@@ -64,6 +64,25 @@ Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please co
 
 WebSocket url: ws://your-url/ws
 
+### Docker Prebuilds
+
+local development:
+
+```sh
+make build-test-image # (tag: latest-test)
+```
+
+push to docker:
+
+```sh
+make build-push # needs login, will ask you for tag
+```
+
+resource:
+
+- docker image: https://hub.docker.com/repository/docker/nervos/godwoken-web3-prebuilds
+- code is located in `/godwoken-web3` with node_modules already installed and typescript compiled to js code.
+
 ## Web3 RPC Modules
 
 ### net

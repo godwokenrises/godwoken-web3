@@ -1,3 +1,5 @@
 .git
 node_modules
 npm-debug
+packages/api-server/lib
+packages/godwoken/lib
