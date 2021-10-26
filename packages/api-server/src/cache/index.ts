@@ -3,6 +3,10 @@ import EventEmitter from "events";
 import { SingleFieldTable, Store } from "./store";
 import crypto from "crypto";
 import { HexString } from "@ckb-lumos/base";
+import {
+  CACHE_TIME_TO_LIVE_MILSECS,
+  CACHE_WATCH_INTERVAL_MILSECS,
+} from "../methods/constant";
 
 const CacheLifeTableName = "CacheLifeManager";
 const FilterSetTableName = "FilterSet";
@@ -11,19 +15,19 @@ const LastPollsSetTableName = "lastPollsSet";
 class CacheEmitter extends EventEmitter {}
 
 export class Cache extends SingleFieldTable {
-  private milsecsToLive: number; // how long the cache data to live, unit: milsec
-  private watch_interval: number; // how often to check if cache data is expired, unit: milsec
+  private timeToLiveMilsecs: number; // how long the cache data to live, unit: milsec
+  private watchIntervalMilsecs: number; // how often to check if cache data is expired, unit: milsec
   private expireWatcher: any; // expire cache watch timer
   private eventEmitter;
 
   constructor(
-    milsecsToLive = 5 * 60 * 1000, // default 5 minutes
-    watch_interval = 5 * 1000, // default 5 seconds
+    timeToLiveMilsecs = CACHE_TIME_TO_LIVE_MILSECS, // default 5 minutes
+    watchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // default 5 seconds
     store?: Store
   ) {
     super(CacheLifeTableName, store);
-    this.milsecsToLive = milsecsToLive;
-    this.watch_interval = watch_interval;
+    this.timeToLiveMilsecs = timeToLiveMilsecs;
+    this.watchIntervalMilsecs = watchIntervalMilsecs;
     this.expireWatcher = null;
     this.eventEmitter = new CacheEmitter();
   }
@@ -31,7 +35,7 @@ export class Cache extends SingleFieldTable {
   startWatcher() {
     this.expireWatcher = setInterval(
       async () => await this.checker(),
-      this.watch_interval
+      this.watchIntervalMilsecs
     );
   }
 
@@ -64,7 +68,7 @@ export class Cache extends SingleFieldTable {
       // todo: should throw error?
       return false;
     }
-    return Date.now() - parseInt(birthTimeStamp) >= this.milsecsToLive;
+    return Date.now() - parseInt(birthTimeStamp) >= this.timeToLiveMilsecs;
   }
 
   public onExpired(callback = (_key: string) => {}) {
@@ -72,6 +76,10 @@ export class Cache extends SingleFieldTable {
   }
 
   private async checker() {
+    if (!this.store.client.isOpen) {
+      await this.store.init();
+    }
+
     const data = await this._getAll();
     const ids = Object.keys(data);
     ids.forEach(async (id) => {
@@ -151,13 +159,13 @@ export class FilterManager extends Cache {
   public lastPollsSet: LastPollSet;
 
   constructor(
-    cacheTTL = 5 * 60 * 1000, // milsec, default 5 minutes
-    cacheWI = 5 * 10000, // milsec, default 5 seconds
+    cacheTimeToLiveMilsecs = CACHE_TIME_TO_LIVE_MILSECS, // milsec, default 5 minutes
+    cacheWatchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // milsec, default 5 seconds
     enableExpired = true,
     _store?: Store
   ) {
     const store = _store || new Store();
-    super(cacheTTL, cacheWI, store);
+    super(cacheTimeToLiveMilsecs, cacheWatchIntervalMilsecs, store);
     this.filtersSet = new FilterSet(store);
     this.lastPollsSet = new LastPollSet(store);
 
@@ -167,6 +175,28 @@ export class FilterManager extends Cache {
       this.onExpired(function (id: string) {
         that.removeExpiredFilter(id);
       });
+    }
+  }
+
+  isConnect() {
+    console.log(
+      this.filtersSet.store.client.isOpen,
+      this.lastPollsSet.store.client.isOpen,
+      this.store.client.isOpen
+    );
+  }
+
+  async connect() {
+    if (!this.filtersSet.store.client.isOpen) {
+      await this.filtersSet._connect();
+    }
+
+    if (!this.lastPollsSet.store.client.isOpen) {
+      await this.lastPollsSet._connect();
+    }
+
+    if (!this.store.client.isOpen) {
+      await this._connect();
     }
   }
 

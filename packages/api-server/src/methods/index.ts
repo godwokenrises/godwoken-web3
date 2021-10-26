@@ -2,6 +2,7 @@ import * as modules from "./modules";
 import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
 import { INVALID_PARAMS } from "./error-code";
+import { Eth } from "./modules";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -19,7 +20,7 @@ function getMethodNames(mod: any): string[] {
 function getMethods() {
   const methods: any = {};
 
-  modules.list.forEach((modName: string) => {
+  modules.list.forEach(async (modName: string) => {
     const mod = new (modules as any)[modName]();
     getMethodNames((modules as any)[modName])
       .filter((methodName: string) => methodName !== "constructor")
@@ -27,9 +28,12 @@ function getMethods() {
         const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
         methods[concatedMethodName] = async (args: any[], cb: Callback) => {
           try {
+            if (modName === "Eth") {
+              await (mod as Eth).filterManager.connect();
+            }
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
-          } catch (err) {
+          } catch (err: any) {
             if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
               Sentry.captureException(err, {
                 extra: { method: concatedMethodName, params: args },
@@ -66,7 +70,7 @@ function getEthWalletMethods() {
         try {
           const result = await mod[methodName].bind(mod)(args);
           cb(null, result);
-        } catch (err) {
+        } catch (err: any) {
           if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
             Sentry.captureException(err, {
               extra: { method: concatedMethodName, params: args },

@@ -19,3 +19,7 @@ export const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
 export const POLYJUICE_USER_LOG_FLAG = "0x3";
 
 export const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
+
+// default filter cache setting
+export const CACHE_TIME_TO_LIVE_MILSECS = 5 * 60 * 1000; // milsec, default 5 minutes
+export const CACHE_WATCH_INTERVAL_MILSECS = 5 * 10000; // milsec, default 5 seconds

@@ -63,7 +63,7 @@ export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
   private ethWallet: boolean;
-  private filterManager: FilterManager;
+  public filterManager: FilterManager;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
