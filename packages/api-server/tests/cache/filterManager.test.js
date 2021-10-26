@@ -21,8 +21,8 @@ let f_id;
 let f1_id;
 
 test.before("init-filter-manager", async (t) => {
-  await filter._connect();
-  await filter.store.client.sendCommand(["FLUSHDB"]);
+  await filter.connect();
+  await filter.cacheLifeSet.store.client.sendCommand(["FLUSHDB"]);
 });
 
 test.serial("filter_install", async (t) => {

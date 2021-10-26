@@ -1,12 +1,12 @@
 const test = require("ava");
-const { Cache } = require("../../lib/cache/index");
+const { CacheLifeSet } = require("../../lib/cache/index");
 const { asyncSleep } = require("./util");
 
-const cache = new Cache(1000, 1000);
+const cache = new CacheLifeSet(1000, 1000);
 
 test.before("init-cache", async (t) => {
   await cache._connect();
-  await filter.store.client.sendCommand(["FLUSHDB"]);
+  await cache.store.client.sendCommand(["FLUSHDB"]);
   cache.startWatcher();
 });
 

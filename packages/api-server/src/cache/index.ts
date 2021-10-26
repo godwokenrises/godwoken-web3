@@ -75,15 +75,14 @@ export class CacheLifeSet extends SingleFieldTable {
   }
 
   private async checker() {
-    if (!this.store.client.isOpen) {
-      await this.store.init();
+    if (!this._isConnected()) {
+      await this._connect();
     }
 
     const data = await this._getAll();
     const ids = Object.keys(data);
     ids.forEach(async (id) => {
       if (!(await this.isExpired(id))) return false;
-      await this.killLife(id);
       this.eventEmitter.emit("kill", id);
     });
   }
@@ -154,6 +153,7 @@ export class LastPollSet extends SingleFieldTable {
 }
 
 export class FilterManager {
+  public store: Store;
   public cacheLifeSet: CacheLifeSet;
   public filtersSet: FilterSet;
   public lastPollsSet: LastPollSet;
@@ -161,10 +161,11 @@ export class FilterManager {
   constructor(
     cacheTimeToLiveMilsecs = CACHE_TIME_TO_LIVE_MILSECS, // milsec, default 5 minutes
     cacheWatchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // milsec, default 1 minute
-    enableExpired = true,
+    enableExpired = false,
     _store?: Store
   ) {
     const store = _store || new Store();
+    this.store = store;
     this.cacheLifeSet = new CacheLifeSet(
       cacheTimeToLiveMilsecs,
       cacheWatchIntervalMilsecs,
@@ -172,7 +173,6 @@ export class FilterManager {
     );
     this.filtersSet = new FilterSet(store);
     this.lastPollsSet = new LastPollSet(store);
-
     if (enableExpired) {
       this.cacheLifeSet.startWatcher();
       const that = this;
@@ -182,25 +182,13 @@ export class FilterManager {
     }
   }
 
-  isConnect() {
-    console.log(
-      this.filtersSet.store.client.isOpen,
-      this.lastPollsSet.store.client.isOpen,
-      this.cacheLifeSet.store.client.isOpen
-    );
+  isConnected() {
+    return this.store.client.isOpen;
   }
 
   async connect() {
-    if (!this.filtersSet.store.client.isOpen) {
-      await this.filtersSet._connect();
-    }
-
-    if (!this.lastPollsSet.store.client.isOpen) {
-      await this.lastPollsSet._connect();
-    }
-
-    if (!this.cacheLifeSet.store.client.isOpen) {
-      await this.cacheLifeSet._connect();
+    if (!this.isConnected()) {
+      await this.store.client.connect();
     }
   }
 
@@ -236,6 +224,7 @@ export class FilterManager {
     const filter = await this.filtersSet.get(id);
     if (!filter) return false; // or maybe throw `filter not exits by id: ${id}`;
 
+    await this.cacheLifeSet.killLife(id);
     await this.filtersSet._delete(id);
     await this.lastPollsSet._delete(id);
   }

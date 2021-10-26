@@ -68,6 +68,10 @@ export class SingleFieldTable {
     await this.store.init();
   }
 
+  _isConnected() {
+    return this.store.client.isOpen;
+  }
+
   // only support single field
   async _insert(key: string, value: number | string) {
     return await this.store.insert(this.tableName, key, value.toString());

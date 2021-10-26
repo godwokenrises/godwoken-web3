@@ -20,17 +20,17 @@ function getMethodNames(mod: any): string[] {
 function getMethods() {
   const methods: any = {};
 
-  modules.list.forEach(async (modName: string) => {
+  modules.list.forEach((modName: string) => {
     const mod = new (modules as any)[modName]();
+    if (modName === "Eth") {
+      (mod as Eth).filterManager.connect();
+    }
     getMethodNames((modules as any)[modName])
       .filter((methodName: string) => methodName !== "constructor")
       .forEach((methodName: string) => {
         const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
         methods[concatedMethodName] = async (args: any[], cb: Callback) => {
           try {
-            if (modName === "Eth") {
-              await (mod as Eth).filterManager.connect();
-            }
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
           } catch (err: any) {
