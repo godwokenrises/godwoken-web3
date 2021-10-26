@@ -4,13 +4,12 @@ import { SingleFieldTable, Store } from "./store";
 import crypto from "crypto";
 import { HexString } from "@ckb-lumos/base";
 import {
+  CacheLifeTableName,
+  FilterSetTableName,
+  LastPollsSetTableName,
   CACHE_TIME_TO_LIVE_MILSECS,
   CACHE_WATCH_INTERVAL_MILSECS,
 } from "../methods/constant";
-
-const CacheLifeTableName = "CacheLifeManager";
-const FilterSetTableName = "FilterSet";
-const LastPollsSetTableName = "lastPollsSet";
 
 class CacheEmitter extends EventEmitter {}
 
@@ -22,7 +21,7 @@ export class CacheLifeSet extends SingleFieldTable {
 
   constructor(
     timeToLiveMilsecs = CACHE_TIME_TO_LIVE_MILSECS, // default 5 minutes
-    watchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // default 5 seconds
+    watchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // default 1 minute
     store?: Store
   ) {
     super(CacheLifeTableName, store);
@@ -161,7 +160,7 @@ export class FilterManager {
 
   constructor(
     cacheTimeToLiveMilsecs = CACHE_TIME_TO_LIVE_MILSECS, // milsec, default 5 minutes
-    cacheWatchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // milsec, default 5 seconds
+    cacheWatchIntervalMilsecs = CACHE_WATCH_INTERVAL_MILSECS, // milsec, default 1 minute
     enableExpired = true,
     _store?: Store
   ) {
