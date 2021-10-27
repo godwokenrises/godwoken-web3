@@ -2,19 +2,25 @@ const test = require("ava");
 const { FilterManager } = require("../../lib/cache/index");
 const { asyncSleep } = require("./util");
 
-const filter = new FilterManager(1000, 1000);
+const filter = new FilterManager(1000, 1000, true);
 const f = {
-  address: "0x0000",
-  fromBlock: 123,
+  address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
+  fromBlock: "0x123",
   toBlock: "latest",
-  topics: ["0x00012103230230", "0x00000000000000"],
+  topics: [
+    "0x0001020000000000000000000000000000000000000000000000000000000000",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+  ],
 };
 
 const f1 = {
-  address: "0x0000",
-  fromBlock: 123,
-  toBlock: 520,
-  topics: ["0x00012103230230", "0x00000000000000"],
+  address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
+  fromBlock: "0x123",
+  toBlock: "0x520",
+  topics: [
+    "0x00000000f0000000000000000000000000000000000000000000000000000000",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+  ],
 };
 
 let f_id;

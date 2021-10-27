@@ -1,4 +1,4 @@
-import { FilterFlag, FilterObject, FilterType } from "./types";
+import { FilterFlag, FilterObject, FilterTopic, FilterType } from "./types";
 import EventEmitter from "events";
 import { SingleFieldTable, Store } from "./store";
 import crypto from "crypto";
@@ -9,7 +9,9 @@ import {
   LastPollsSetTableName,
   CACHE_TIME_TO_LIVE_MILSECS,
   CACHE_WATCH_INTERVAL_MILSECS,
-} from "../methods/constant";
+  MAX_FILTER_TOPIC_ARRAY_LENGTH,
+} from "./constant";
+import { validators } from "../methods/validator";
 
 class CacheEmitter extends EventEmitter {}
 
@@ -97,10 +99,18 @@ export class FilterSet extends SingleFieldTable {
   // value: filter value
   async add(id: string, filter: FilterType) {
     if (typeof filter === "number") {
+      if (
+        filter !== FilterFlag.blockFilter &&
+        filter !== FilterFlag.pendingTransaction
+      )
+        throw new Error(`invalid value for filterFlag`);
+
       return await this._insert(id, filter);
     }
 
-    // verify and normalize the FilterObject before serialize
+    // verify and limit the size of FilterObject before serialize it
+    verifyFilterObject(filter);
+    verifyLimitSizeForTopics(filter.topics);
     const filterString = JSON.stringify(filter);
     return await this._insert(id, filterString);
   }
@@ -252,4 +262,30 @@ export class FilterManager {
 
 export function newId(): HexString {
   return "0x" + crypto.randomBytes(16).toString("hex");
+}
+
+export function verifyLimitSizeForTopics(topics?: FilterTopic[]) {
+  if (topics == null) {
+    return;
+  }
+
+  if (topics.length > MAX_FILTER_TOPIC_ARRAY_LENGTH) {
+    throw new Error(
+      `got FilterTopics.length ${topics.length}, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
+    );
+  }
+
+  for (const topic of topics) {
+    if (Array.isArray(topic)) {
+      if (topic.length > MAX_FILTER_TOPIC_ARRAY_LENGTH) {
+        throw new Error(
+          `got one or more topic item's length ${topic.length}, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
+        );
+      }
+    }
+  }
+}
+
+export function verifyFilterObject(target: any) {
+  return validators.newFilterParams([target], 0);
 }

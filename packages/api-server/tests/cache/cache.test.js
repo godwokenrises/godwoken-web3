@@ -8,6 +8,9 @@ test.before("init-cache", async (t) => {
   await cache._connect();
   await cache.store.client.sendCommand(["FLUSHDB"]);
   cache.startWatcher();
+  cache.onExpired(function (id) {
+    cache.killLife(id);
+  });
 });
 
 test.serial("addlife", async (t) => {
