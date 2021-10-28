@@ -39,20 +39,8 @@ export class FilterManager {
   }
 
   async install(filter: FilterType): Promise<HexString> {
+    verifyFilterType(filter);
     const id = newId();
-    if (
-      typeof filter === "number" &&
-      filter !== FilterFlag.blockFilter &&
-      filter !== FilterFlag.pendingTransaction
-    ) {
-      throw new Error(`invalid value for filterFlag`);
-    }
-
-    if (typeof filter !== "number") {
-      verifyFilterObject(filter);
-      verifyLimitSizeForTopics(filter.topics);
-    }
-
     const filterCache: FilterCache = {
       filter: filter,
       lastPoll: BigInt(0), // initial lastPoll should be 0
@@ -80,7 +68,7 @@ export class FilterManager {
   async getFilterCache(id: string): Promise<FilterCache> {
     const data = await this.store.get(id);
     if (data == null)
-      throw new Error(`lastPollCache not exits, filter_id: ${id}`);
+      throw new Error(`filter ${id} not exits, might be out of dated.`);
 
     return deserializeFilterCache(data);
   }
@@ -127,6 +115,28 @@ export function verifyLimitSizeForTopics(topics?: FilterTopic[]) {
   }
 }
 
+export function verifyFilterType(filter: any) {
+  if (typeof filter === "number") {
+    verifyFilterFlag(filter);
+  }
+
+  if (typeof filter !== "number") {
+    verifyFilterObject(filter);
+    verifyLimitSizeForTopics(filter.topics);
+  }
+  return;
+}
+
+export function verifyFilterFlag(target: any) {
+  if (
+    target !== FilterFlag.blockFilter &&
+    target !== FilterFlag.pendingTransaction
+  ) {
+    throw new Error(`invalid value for filterFlag`);
+  }
+  return;
+}
+
 export function verifyFilterObject(target: any) {
   return validators.newFilterParams([target], 0);
 }
@@ -147,6 +157,7 @@ export function deserializeFilterCache(data: string): FilterCache {
     filter: _filterCache.filter,
     lastPoll: BigInt(_filterCache.lastPoll),
   };
+
   verifyFilterObject(filterCache.filter);
   return filterCache;
 }
