@@ -158,6 +158,6 @@ export function deserializeFilterCache(data: string): FilterCache {
     lastPoll: BigInt(_filterCache.lastPoll),
   };
 
-  verifyFilterObject(filterCache.filter);
+  verifyFilterType(filterCache.filter);
   return filterCache;
 }
