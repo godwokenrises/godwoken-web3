@@ -5,7 +5,6 @@ require("dotenv").config({path: "./.env"})
 const cluster = require("cluster");
 const { cpus } = require("os");
 const { BlockEmitter } = require("../lib/block-emitter");
-const { startCacheCleaner } = require("../lib/cache-cleaner");
 
 const numCPUs = cpus().length;
 const clusterCount = +process.env.CLUSTER_COUNT;
@@ -21,9 +20,6 @@ if (cluster.isMaster) {
 
   const blockEmitter = new BlockEmitter();
   blockEmitter.start();
-
-  // clean filter cache only in master
-  startCacheCleaner();
 
   cluster.on('exit', (worker, _code, _signal) => {
     console.log(`worker ${worker.process.pid} died`);

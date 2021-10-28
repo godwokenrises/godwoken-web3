@@ -1,99 +1,74 @@
 import { createClient } from "redis";
 import { RedisClientType } from "redis/dist/lib/client";
-import { envConfig } from "../base/env-config";
+import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
+
+// redis SET type
+// take from https://github.com/redis/node-redis/blob/2a7a7c1c2e484950ceb57497f786658dacf19127/lib/commands/SET.ts
+type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T
+  ? { [P in K]?: T[K] } & Partial<Record<Exclude<keyof T, K>, never>>
+  : never;
+type SetTTL = MaximumOneOf<{
+  EX: number;
+  PX: number;
+  EXAT: number;
+  PXAT: number;
+  KEEPTTL: true;
+}>;
+type SetGuards = MaximumOneOf<{
+  NX: true;
+  XX: true;
+}>;
+interface SetCommonOptions {
+  GET?: true;
+}
+type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 
 export class Store {
   public client: RedisClientType;
+  public setOptions: SetOptions;
 
-  constructor() {
-    const url = envConfig.redisUrl;
+  constructor(
+    url?: string,
+    enableExpired?: boolean,
+    keyExpiredTimeMilSecs?: number
+  ) {
     this.client = createClient({
       url: url,
     });
-
     this.client.on("error", (err) => console.log("Redis Client Error", err));
+
+    if (enableExpired == null) {
+      enableExpired = false;
+    }
+
+    this.setOptions = enableExpired
+      ? {
+          PX: keyExpiredTimeMilSecs || CACHE_EXPIRED_TIME_MILSECS,
+        }
+      : {};
   }
 
   async init() {
-    await this.client.connect();
+    if (!this.client.isOpen) await this.client.connect();
   }
 
-  async insert(table: string, filed: string, value: string) {
-    return await this.client.hSet(table, filed, value);
+  async insert(key: string, value: string | number) {
+    return await this.client.set(key, value.toString(), this.setOptions);
   }
 
-  async delete(table: string, filed: string) {
-    return await this.client.hDel(table, filed);
+  async delete(key: string) {
+    return await this.client.del(key);
   }
 
-  async get(table: string, filed: string) {
-    return await this.client.hGet(table, filed);
-  }
-
-  async size(table: string) {
-    return await this.client.hLen(table);
-  }
-
-  async getAll(table: string) {
-    return await this.client.hGetAll(table);
-  }
-
-  async setKV(key: string, value: number | string) {
-    return await this.client.set(key, value.toString());
-  }
-
-  async getKV(key: string) {
+  async get(key: string) {
     return await this.client.get(key);
   }
 
-  async deleteKV(key: string) {
-    return await this.client.del(key);
+  async size() {
+    return await this.client.dbSize();
   }
 
   async addSet(name: string, members: string | string[]) {
     return await this.client.sAdd(name, members);
-  }
-}
-
-export class SingleFieldTable {
-  public store: Store;
-  public tableName: string;
-
-  constructor(tableName: string, store?: Store) {
-    this.store = store || new Store();
-    this.tableName = tableName;
-  }
-
-  async _connect() {
-    await this.store.init();
-  }
-
-  _isConnected() {
-    return this.store.client.isOpen;
-  }
-
-  // only support single field
-  async _insert(key: string, value: number | string) {
-    return await this.store.insert(this.tableName, key, value.toString());
-  }
-
-  async _update(key: string, newValue: number | string) {
-    return await this.store.insert(this.tableName, key, newValue.toString());
-  }
-
-  async _delete(key: string) {
-    return await this.store.delete(this.tableName, key);
-  }
-
-  async _get(key: string) {
-    return await this.store.get(this.tableName, key);
-  }
-
-  async _getAll() {
-    return await this.store.getAll(this.tableName);
-  }
-
-  async _size() {
-    return await this.store.size(this.tableName);
   }
 }

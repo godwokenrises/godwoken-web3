@@ -2,7 +2,7 @@ const test = require("ava");
 const { FilterManager } = require("../../lib/cache/index");
 const { MAX_FILTER_TOPIC_ARRAY_LENGTH } = require("../../lib/cache/constant");
 
-const filter = new FilterManager(1000, 1000, true);
+const filter = new FilterManager(true, 1000);
 
 const invalid_f0 = {
   address: "0x0000",
@@ -37,7 +37,7 @@ const invalid_f2 = {
 
 test.before("init-filter-manager", async (t) => {
   await filter.connect();
-  await filter.cacheLifeSet.store.client.sendCommand(["FLUSHDB"]);
+  await filter.store.client.sendCommand(["FLUSHDB"]);
 });
 
 test.serial("filter_install", async (t) => {

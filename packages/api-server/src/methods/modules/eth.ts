@@ -69,7 +69,7 @@ export class Eth {
     this.ethWallet = ethWallet;
     this.query = new Query(envConfig.databaseUrl);
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
-    this.filterManager = new FilterManager();
+    this.filterManager = new FilterManager(true);
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
