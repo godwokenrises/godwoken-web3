@@ -1,5 +1,5 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
-import { Block, Transaction, Log } from "./types";
+import { Block, Transaction, Log, ErrorTransactionReceipt } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
@@ -216,6 +216,23 @@ export class Query {
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
 
+  async getErrorTransactionReceipt(
+    txHash: Hash
+  ): Promise<ErrorTransactionReceipt | undefined> {
+    const receipt = await this.knex<ErrorTransactionReceipt>(
+      "error_transactions"
+    )
+      .where("hash", txHash)
+      .first();
+
+    if (receipt == null) {
+      return undefined;
+    }
+
+    const result = formatErrorTransactionReceipt(receipt);
+    return result;
+  }
+
   private async queryLogsByBlockHash(
     blockHash: HexString,
     address?: HexString,
@@ -365,6 +382,20 @@ function formatLog(log: Log): Log {
     transaction_index: +log.transaction_index,
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
+  };
+}
+
+function formatErrorTransactionReceipt(
+  e: ErrorTransactionReceipt
+): ErrorTransactionReceipt {
+  return {
+    ...e,
+    id: BigInt(e.id),
+    block_number: BigInt(e.block_number),
+    cumulative_gas_used: BigInt(e.cumulative_gas_used),
+    gas_used: BigInt(e.gas_used),
+    status_code: +e.status_code,
+    status_reason: Buffer.from(e.status_reason).toString("utf-8"),
   };
 }
 

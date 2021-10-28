@@ -28,7 +28,7 @@ export function middleware(
 
       const err = validators[i](params, i);
       if (err) {
-        throw new RpcError(err.code, err.message);
+        throw new RpcError(err.code, err.message, err.data);
       }
     }
 
@@ -38,7 +38,7 @@ export function middleware(
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
       );
-      throw new RpcError(err.code, err.message);
+      throw new RpcError(err.code, err.message, err.data);
     }
   };
 }
