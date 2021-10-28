@@ -4,7 +4,7 @@ import { GW_RPC_REQUEST_ERROR } from "../error-code";
 import { middleware } from "../validator";
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { LogItem } from "../types";
-import { gwStatusNameMapping, parsePolyjuiceSystemLog } from "../gw-error";
+import { evmcCodeTypeMapping, parsePolyjuiceSystemLog } from "../gw-error";
 import { FailedReason } from "../../base/types/api";
 
 export class Gw {
@@ -244,12 +244,12 @@ function parseError(error: any): void {
       ) as unknown as string;
       const failedReason: FailedReason = {
         status_code: "0x" + polyjuiceSystemLog.statusCode.toString(16),
-        status_name:
-          gwStatusNameMapping[polyjuiceSystemLog.statusCode.toString()],
+        status_type:
+          evmcCodeTypeMapping[polyjuiceSystemLog.statusCode.toString()],
         message: statusReason,
       };
       const data = { failed_reason: failedReason };
-      const newMessage = `${failedReason.status_name.toLowerCase()}: ${
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
         failedReason.message
       }`;
       throw new RpcError(err.code, newMessage, data);

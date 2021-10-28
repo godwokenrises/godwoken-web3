@@ -3,7 +3,7 @@
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { LogItem, PolyjuiceSystemLog } from "./types";
 
-export const gwStatusNameMapping: {
+export const evmcCodeTypeMapping: {
   [key: string]: string;
 } = {
   "0": "SUCCESS",

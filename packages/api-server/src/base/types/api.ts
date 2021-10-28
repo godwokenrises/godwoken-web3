@@ -44,7 +44,7 @@ export interface EthBlock {
 
 export interface FailedReason {
   status_code: HexNumber;
-  status_name: string;
+  status_type: string;
   message: string;
 }
 

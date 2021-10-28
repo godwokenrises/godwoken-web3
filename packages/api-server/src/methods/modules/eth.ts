@@ -54,7 +54,7 @@ import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
-import { gwStatusNameMapping } from "../gw-error";
+import { evmcCodeTypeMapping } from "../gw-error";
 
 const Config = require("../../../config/eth.json");
 
@@ -415,8 +415,8 @@ export class Eth {
         const failedReason: any = {};
         if (gwErr.statusCode != null) {
           failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
-          failedReason.status_name =
-            gwStatusNameMapping[gwErr.statusCode.toString()];
+          failedReason.status_type =
+            evmcCodeTypeMapping[gwErr.statusCode.toString()];
         }
         if (gwErr.statusReason != null) {
           failedReason.message = gwErr.statusReason;
@@ -427,10 +427,10 @@ export class Eth {
         }
 
         let errorMessage = gwErr.message;
-        if (gwErr.statusReason != null && failedReason.status_name != null) {
+        if (gwErr.statusReason != null && failedReason.status_type != null) {
           // REVERT => revert
           // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
-          errorMessage = `${failedReason.status_name.toLowerCase()}: ${
+          errorMessage = `${failedReason.status_type.toLowerCase()}: ${
             gwErr.statusReason
           }`;
         }
@@ -737,7 +737,7 @@ export class Eth {
       );
       const failedReason: FailedReason = {
         status_code: "0x" + errorReceipt.status_code.toString(16),
-        status_name: gwStatusNameMapping[errorReceipt.status_code.toString()],
+        status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
         message: errorReceipt.status_reason,
       };
       receipt.failed_reason = failedReason;
