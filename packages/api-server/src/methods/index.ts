@@ -2,7 +2,6 @@ import * as modules from "./modules";
 import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
 import { INVALID_PARAMS } from "./error-code";
-import { Eth } from "./modules";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -22,9 +21,6 @@ function getMethods() {
 
   modules.list.forEach((modName: string) => {
     const mod = new (modules as any)[modName]();
-    if (modName === "Eth") {
-      (mod as Eth).filterManager.connect();
-    }
     getMethodNames((modules as any)[modName])
       .filter((methodName: string) => methodName !== "constructor")
       .forEach((methodName: string) => {

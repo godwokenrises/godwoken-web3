@@ -21,11 +21,10 @@ export class FilterManager {
   constructor(
     enableExpired = false,
     expiredTimeMilsecs = CACHE_EXPIRED_TIME_MILSECS, // milsec, default 5 minutes
-    _store?: Store
+    store?: Store
   ) {
     this.store =
-      _store ||
-      new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
+      store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
   }
 
   isConnected() {
@@ -117,14 +116,11 @@ export function verifyLimitSizeForTopics(topics?: FilterTopic[]) {
 
 export function verifyFilterType(filter: any) {
   if (typeof filter === "number") {
-    verifyFilterFlag(filter);
+    return verifyFilterFlag(filter);
   }
 
-  if (typeof filter !== "number") {
-    verifyFilterObject(filter);
-    verifyLimitSizeForTopics(filter.topics);
-  }
-  return;
+  verifyFilterObject(filter);
+  verifyLimitSizeForTopics(filter.topics);
 }
 
 export function verifyFilterFlag(target: any) {
@@ -150,12 +146,12 @@ export function serializeFilterCache(data: FilterCache) {
 }
 
 export function deserializeFilterCache(data: string): FilterCache {
-  const _filterCache: FilterCacheInDb = JSON.parse(data);
-  validators.hexNumber([_filterCache.lastPoll], 0);
+  const filterCacheInDb: FilterCacheInDb = JSON.parse(data);
+  validators.hexNumber([filterCacheInDb.lastPoll], 0);
 
   const filterCache: FilterCache = {
-    filter: _filterCache.filter,
-    lastPoll: BigInt(_filterCache.lastPoll),
+    filter: filterCacheInDb.filter,
+    lastPoll: BigInt(filterCacheInDb.lastPoll),
   };
 
   verifyFilterType(filterCache.filter);

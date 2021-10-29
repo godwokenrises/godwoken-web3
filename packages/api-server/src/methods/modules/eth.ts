@@ -63,13 +63,14 @@ export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
   private ethWallet: boolean;
-  public filterManager: FilterManager;
+  private filterManager: FilterManager;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
     this.query = new Query(envConfig.databaseUrl);
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.filterManager = new FilterManager(true);
+    this.filterManager.connect();
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
