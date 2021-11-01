@@ -4,7 +4,7 @@ require("dotenv").config({path: "./.env"})
 
 const cluster = require("cluster");
 const { cpus } = require("os");
-const { BlockEmitter } = require("../lib/block-emitter")
+const { BlockEmitter } = require("../lib/block-emitter");
 
 const numCPUs = cpus().length;
 const clusterCount = +process.env.CLUSTER_COUNT;
@@ -25,7 +25,7 @@ if (cluster.isMaster) {
     console.log(`worker ${worker.process.pid} died`);
   });
 } else {
-  require("./www")
+  require("./www");
 
   console.log(`Worker ${process.pid} started`);
 }
