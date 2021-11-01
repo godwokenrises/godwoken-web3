@@ -18,6 +18,7 @@ export const envConfig = {
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
   tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
+  redisUrl: getOptional("REDIS_URL"),
 };
 
 function getRequired(name: string): string {

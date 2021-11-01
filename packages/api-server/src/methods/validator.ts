@@ -34,7 +34,7 @@ export function middleware(
 
     try {
       return await method(params);
-    } catch (err) {
+    } catch (err: any) {
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
       );
@@ -252,6 +252,10 @@ function verifyAddress(address: any, index: number): any {
   }
 
   if (!validateAddress(address)) {
+    return invalidParamsError(
+      index,
+      `address must be a 20 bytes-length hex string`
+    );
   }
 
   return undefined;

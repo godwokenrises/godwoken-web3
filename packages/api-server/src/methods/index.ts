@@ -30,7 +30,7 @@ function getMethods() {
           try {
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
-          } catch (err) {
+          } catch (err: any) {
             if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
               Sentry.captureException(err, {
                 extra: { method: concatedMethodName, params: args },
@@ -74,7 +74,7 @@ function getEthWalletMethods() {
         try {
           const result = await mod[methodName].bind(mod)(args);
           cb(null, result);
-        } catch (err) {
+        } catch (err: any) {
           if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
             Sentry.captureException(err, {
               extra: { method: concatedMethodName, params: args },

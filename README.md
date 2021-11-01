@@ -23,6 +23,7 @@ SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
 CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
+REDIS_URL=<redis url, optional, default to localhost on port 6379>
 EOF
 
 $ yarn
@@ -63,6 +64,25 @@ Normal mode: http://your-url/
 Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)
 
 WebSocket url: ws://your-url/ws
+
+### Docker Prebuilds
+
+local development:
+
+```sh
+make build-test-image # (tag: latest-test)
+```
+
+push to docker:
+
+```sh
+make build-push # needs login, will ask you for tag
+```
+
+resource:
+
+- docker image: https://hub.docker.com/repository/docker/nervos/godwoken-web3-prebuilds
+- code is located in `/godwoken-web3` with node_modules already installed and typescript compiled to js code.
 
 ## Web3 RPC Modules
 

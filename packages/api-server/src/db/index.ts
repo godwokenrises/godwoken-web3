@@ -236,14 +236,14 @@ export class Query {
   private async queryLogsByBlockHash(
     blockHash: HexString,
     address?: HexString,
-    lastPollId?: number
+    lastPollId?: bigint
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
     let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_hash", blockHash)
-      .where("id", ">", queryLastPollId)
+      .where("id", ">", queryLastPollId.toString(10))
       .orderBy("id", "desc");
     logs = logs.map((log) => formatLog(log));
     return logs;
@@ -253,7 +253,7 @@ export class Query {
     fromBlock: HexNumber,
     toBlock: HexNumber,
     address?: HexString,
-    lastPollId?: number
+    lastPollId?: bigint
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
@@ -261,7 +261,7 @@ export class Query {
       .where(queryAddress)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
-      .where("id", ">", queryLastPollId)
+      .where("id", ">", queryLastPollId.toString(10))
       .orderBy("id", "desc");
     logs = logs.map((log) => formatLog(log));
     return logs;
@@ -304,20 +304,20 @@ export class Query {
   }
 
   getLogsAfterLastPoll(
-    lastPollId: number,
+    lastPollId: bigint,
     option: LogQueryOption,
     blockHash: HexString
   ): Promise<Log[]>;
 
   getLogsAfterLastPoll(
-    lastPollId: number,
+    lastPollId: bigint,
     option: LogQueryOption,
     fromBlock: bigint,
     toBlock: bigint
   ): Promise<Log[]>;
 
   async getLogsAfterLastPoll(
-    lastPollId: number,
+    lastPollId: bigint,
     option: LogQueryOption,
     blockHashOrFromBlock: HexString | bigint,
     toBlock?: bigint
