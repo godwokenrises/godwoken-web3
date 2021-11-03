@@ -27,6 +27,8 @@ import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
 import {
+  errorReceiptToApiTransaction,
+  errorReceiptToApiTransactionReceipt,
   LogQueryOption,
   toApiBlock,
   toApiLog,
@@ -36,6 +38,7 @@ import {
 import {
   HeaderNotFoundError,
   MethodNotSupportError,
+  RpcError,
   Web3Error,
 } from "../error";
 import {
@@ -43,12 +46,15 @@ import {
   EthLog,
   EthTransaction,
   EthTransactionReceipt,
+  FailedReason,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { Abi, ShortAddress, ShortAddressType } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
+import { parseGwError } from "../gw-error";
+import { evmcCodeTypeMapping } from "../gw-error";
 
 const Config = require("../../../config/eth.json");
 
@@ -397,28 +403,68 @@ export class Eth {
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
 
-      const runResult = await ethCallTx(
-        txCallObj,
-        this.rpc,
-        this.ethWallet,
-        blockNumber
-      );
+      let runResult;
+      try {
+        runResult = await ethCallTx(
+          txCallObj,
+          this.rpc,
+          this.ethWallet,
+          blockNumber
+        );
+      } catch (err) {
+        const gwErr = parseGwError(err);
+        const failedReason: any = {};
+        if (gwErr.statusCode != null) {
+          failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
+          failedReason.status_type =
+            evmcCodeTypeMapping[gwErr.statusCode.toString()];
+        }
+        if (gwErr.statusReason != null) {
+          failedReason.message = gwErr.statusReason;
+        }
+        let errorData: any = undefined;
+        if (Object.keys(failedReason).length !== 0) {
+          errorData = { failed_reason: failedReason };
+        }
+
+        let errorMessage = gwErr.message;
+        if (gwErr.statusReason != null && failedReason.status_type != null) {
+          // REVERT => revert
+          // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
+          errorMessage = `${failedReason.status_type.toLowerCase()}: ${
+            gwErr.statusReason
+          }`;
+        }
+        throw new RpcError(gwErr.code, errorMessage, errorData);
+      }
+
       console.log("RunResult:", runResult);
       return runResult.return_data;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
+    } catch (error) {
+      throw new Web3Error(error.message, error.data);
     }
   }
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
       const txCallObj = args[0];
-      const runResult = await ethCallTx(
-        txCallObj,
-        this.rpc,
-        this.ethWallet,
-        undefined
-      );
+      let runResult;
+      try {
+        runResult = await ethCallTx(
+          txCallObj,
+          this.rpc,
+          this.ethWallet,
+          undefined
+        );
+      } catch (err) {
+        const gwErr = parseGwError(err);
+        const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
+        if (gasUsed != null) {
+          const gasUsedHex = "0x" + gasUsed.toString(16);
+          return gasUsedHex;
+        }
+        throw err;
+      }
 
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
         runResult.logs
@@ -569,6 +615,21 @@ export class Eth {
       return apiTx;
     }
 
+    // find error receipt
+    const errorReceipt = await this.query.getErrorTransactionReceipt(txHash);
+    if (errorReceipt != null) {
+      const blockNumber = errorReceipt.block_number;
+      const downBlockNumber = blockNumber - 1n;
+      const downBlock = await this.query.getBlockByNumber(downBlockNumber);
+      let blockHash = "0x" + "00".repeat(32);
+      if (downBlock != null) {
+        const downBlockHash = downBlock.hash;
+        blockHash =
+          "0x" + (BigInt(downBlockHash) + 1n).toString(16).padStart(64, "0");
+      }
+      return errorReceiptToApiTransaction(errorReceipt, blockHash);
+    }
+
     // if null, find pending transactions
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
     if (godwokenTxWithStatus == null) {
@@ -658,6 +719,30 @@ export class Eth {
       const apiLogs = logs.map((log) => toApiLog(log));
       const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
       return transactionReceipt;
+    }
+
+    const errorReceipt = await this.query.getErrorTransactionReceipt(txHash);
+    if (errorReceipt != null) {
+      const blockNumber = errorReceipt.block_number;
+      const downBlockNumber = blockNumber - 1n;
+      const downBlock = await this.query.getBlockByNumber(downBlockNumber);
+      let blockHash = "0x" + "00".repeat(32);
+      if (downBlock != null) {
+        const downBlockHash = downBlock.hash;
+        blockHash =
+          "0x" + (BigInt(downBlockHash) + 1n).toString(16).padStart(64, "0");
+      }
+      const receipt = errorReceiptToApiTransactionReceipt(
+        errorReceipt,
+        blockHash
+      );
+      const failedReason: FailedReason = {
+        status_code: "0x" + errorReceipt.status_code.toString(16),
+        status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
+        message: errorReceipt.status_reason,
+      };
+      receipt.failed_reason = failedReason;
+      return receipt;
     }
 
     const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);

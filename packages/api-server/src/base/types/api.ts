@@ -42,6 +42,12 @@ export interface EthBlock {
   extraData: HexString;
 }
 
+export interface FailedReason {
+  status_code: HexNumber;
+  status_type: string;
+  message: string;
+}
+
 export interface EthTransactionReceipt {
   transactionHash: Hash;
   transactionIndex: HexNumber;
@@ -54,7 +60,8 @@ export interface EthTransactionReceipt {
   logsBloom: HexString;
   logs: EthLog[];
   contractAddress: HexString | null;
-  status: HexNumber;
+  status: HexNumber; // 0 => failed, 1 => success
+  failed_reason?: FailedReason; // null if success
 }
 
 export interface EthLog {

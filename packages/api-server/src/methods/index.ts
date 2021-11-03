@@ -2,6 +2,7 @@ import * as modules from "./modules";
 import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
 import { INVALID_PARAMS } from "./error-code";
+import { RpcError } from "./error";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -36,6 +37,13 @@ function getMethods() {
               });
             }
             if (err.name === "RpcError") {
+              if (err.data) {
+                return cb({
+                  code: err.code,
+                  message: err.message,
+                  data: err.data,
+                } as RpcError);
+              }
               return cb({
                 code: err.code,
                 message: err.message,
@@ -73,6 +81,13 @@ function getEthWalletMethods() {
             });
           }
           if (err.name === "RpcError") {
+            if (err.data) {
+              return cb({
+                code: err.code,
+                message: err.message,
+                data: err.data,
+              } as RpcError);
+            }
             return cb({
               code: err.code,
               message: err.message,

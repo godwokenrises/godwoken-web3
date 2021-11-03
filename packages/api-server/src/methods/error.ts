@@ -22,8 +22,8 @@ export class RpcError extends Error implements JSONRPCError {
 }
 
 export class Web3Error extends RpcError {
-  constructor(message: string) {
-    super(WEB3_ERROR, message);
+  constructor(message: string, data?: object) {
+    super(WEB3_ERROR, message, data);
   }
 }
 

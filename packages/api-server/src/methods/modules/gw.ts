@@ -2,6 +2,10 @@ import { RPC } from "ckb-js-toolkit";
 import { RpcError } from "../error";
 import { GW_RPC_REQUEST_ERROR } from "../error-code";
 import { middleware } from "../validator";
+import abiCoder, { AbiCoder } from "web3-eth-abi";
+import { LogItem } from "../types";
+import { evmcCodeTypeMapping, parsePolyjuiceSystemLog } from "../gw-error";
+import { FailedReason } from "../../base/types/api";
 
 export class Gw {
   private rpc: RPC;
@@ -229,6 +233,28 @@ function parseError(error: any): void {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    const last_log: LogItem | undefined = err.data?.last_log;
+    if (last_log != null) {
+      const polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
+      const abi = abiCoder as unknown as AbiCoder;
+      const statusReason = abi.decodeParameter(
+        "string",
+        err.data.return_data.substring(10)
+      ) as unknown as string;
+      const failedReason: FailedReason = {
+        status_code: "0x" + polyjuiceSystemLog.statusCode.toString(16),
+        status_type:
+          evmcCodeTypeMapping[polyjuiceSystemLog.statusCode.toString()],
+        message: statusReason,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
+    }
+
     throw new RpcError(err.code, err.message);
   }
 
