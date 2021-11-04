@@ -79,6 +79,19 @@ CREATE TABLE accounts (
 
 CREATE UNIQUE INDEX accounts_eth_address_unique ON accounts (eth_address);
 CREATE INDEX accounts_gw_short_address_index ON accounts (gw_short_address);
+
+CREATE TABLE error_transactions (
+    id BIGSERIAL PRIMARY KEY,
+    hash TEXT UNIQUE NOT NULL,
+    block_number NUMERIC NOT NULL,
+    cumulative_gas_used NUMERIC,
+    gas_used NUMERIC,
+    status_code NUMERIC NOT NULL,
+    status_reason bytea NOT NULL
+);
+
+CREATE INDEX ON error_transactions (block_number);
+CREATE INDEX ON error_transactions (hash);
 ```
 
 ## 字段含义
@@ -142,3 +155,12 @@ CREATE INDEX accounts_gw_short_address_index ON accounts (gw_short_address);
 ### accounts
 - eth_address: eth address
 - gw_short_address: godwoken short address
+
+## error_transactions
+- id: id, primary key,
+- hash: transaction hash,
+- block_number: transaction block number,
+- cumulative_gas_used: cumulative gas used,
+- gas_used NUMERIC: gas used,
+- status_code: error status code
+- status_reason: error status reason
