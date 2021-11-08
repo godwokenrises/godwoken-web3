@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "crates/indexer",
+]
+
+[profile.release]
+overflow-checks = true
