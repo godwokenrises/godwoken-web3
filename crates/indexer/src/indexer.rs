@@ -81,8 +81,7 @@ impl Web3Indexer {
             //     .ok_or_else(|| anyhow!("can't find genesis by hash"))?;
             let genesis_block = self
                 .godwoken_rpc_client
-                .get_block_by_number(0)
-                .map_err(|err| anyhow!(err))?
+                .get_block_by_number(0)?
                 .ok_or_else(|| anyhow!("no genesis block found"))?;
 
             let genesis = convertion::to_l2_block(genesis_block);
@@ -328,8 +327,7 @@ impl Web3Indexer {
                 let ttt = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
                 let tx_receipt: gw_types::packed::TxReceipt = self
                     .godwoken_rpc_client
-                    .get_transaction_receipt(&ttt)
-                    .map_err(|err| anyhow!(err))?
+                    .get_transaction_receipt(&ttt)?
                     .ok_or_else(|| anyhow!("tx receipt not found"))?
                     .into();
                 let log_item_vec = tx_receipt.logs();
@@ -547,9 +545,7 @@ async fn get_script_hash(
 
     // let script_hash = tree.get_script_hash(account_id)?;
 
-    let script_hash = godwoken_rpc_client
-        .get_script_hash(account_id)
-        .map_err(|err| anyhow!(err))?;
+    let script_hash = godwoken_rpc_client.get_script_hash(account_id)?;
 
     let hash: gw_common::H256 = {
         let mut s = [0u8; 32];
@@ -577,8 +573,7 @@ async fn get_script(
     let hash = ckb_types::H256::from_slice(script_hash.as_slice())?;
 
     let script_opt = godwoken_rpc_client
-        .get_script(hash)
-        .map_err(|err| anyhow!(err))?
+        .get_script(hash)?
         .map(convertion::to_script);
 
     Ok(script_opt)

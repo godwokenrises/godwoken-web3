@@ -1897,6 +1897,7 @@ dependencies = [
 name = "gw-web3-rpc-client"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ckb-jsonrpc-types",
  "ckb-types",
  "gw-common",

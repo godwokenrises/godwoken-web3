@@ -17,3 +17,4 @@ gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.
 gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 jsonrpc-core = "17"
 rand = "0.8"
+anyhow = "1.0"
