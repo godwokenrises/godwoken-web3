@@ -7,15 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-db = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-chain = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-store = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-config = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-generator = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-traits = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
+gw-jsonrpc-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 ckb-hash = "0.100.0"
 ckb-types = "0.100.0"
 anyhow = "1.0"
@@ -29,3 +24,4 @@ log = "0.4"
 rlp = "0.5"
 sha3 = "0.9.1"
 ethabi = "15.0.0"
+gw-web3-rpc-client = { path = "../rpc-client" }

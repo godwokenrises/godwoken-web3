@@ -14,20 +14,16 @@ use anyhow::{anyhow, Result};
 use ckb_hash::blake2b_256;
 use ckb_types::H256;
 use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
-use gw_common::state::State;
-use gw_store::{
-    state_db::{CheckPoint, StateDBMode, StateDBTransaction, SubState},
-    Store,
-};
-use gw_traits::CodeStore;
-use gw_types::packed::{
-    L2Block, RollupAction, RollupActionReader, RollupActionUnion, Transaction, WitnessArgs,
-};
 use gw_types::{
     bytes::Bytes,
-    packed::{SUDTArgs, SUDTArgsUnion, Script},
+    packed::{
+        L2Block, RollupAction, RollupActionReader, RollupActionUnion, SUDTArgs, SUDTArgsUnion,
+        Script, Transaction, WitnessArgs,
+    },
+    prelude::Unpack as GwUnpack,
     prelude::*,
 };
+use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
 use sqlx::PgPool;
@@ -39,6 +35,7 @@ pub struct Web3Indexer {
     polyjuice_type_script_hash: H256,
     rollup_type_hash: H256,
     allowed_eoa_hashes: HashSet<H256>,
+    godwoken_rpc_client: GodwokenRpcClient,
 }
 
 impl Web3Indexer {
@@ -49,43 +46,55 @@ impl Web3Indexer {
         rollup_type_hash: H256,
         eth_account_lock_hash: H256,
         tron_account_lock_hash: Option<H256>,
+        gw_rpc_url: &str,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
         if let Some(code_hash) = tron_account_lock_hash {
             allowed_eoa_hashes.insert(code_hash);
         };
+        let godwoken_rpc_client = GodwokenRpcClient::new(gw_rpc_url);
+
         Web3Indexer {
             pool,
             l2_sudt_type_script_hash,
             polyjuice_type_script_hash,
             rollup_type_hash,
             allowed_eoa_hashes,
+            godwoken_rpc_client,
         }
     }
 
-    pub async fn store_genesis(&self, store: Store) -> Result<()> {
+    pub async fn store_genesis(&mut self) -> Result<()> {
         let row: Option<(Decimal,)> =
             sqlx::query_as("SELECT number FROM blocks WHERE number=0 LIMIT 1")
                 .fetch_optional(&self.pool)
                 .await?;
         if row.is_none() {
             // find genesis
-            let db = store.begin_transaction();
-            let block_hash = db
-                .get_block_hash_by_number(0)?
-                .ok_or_else(|| anyhow!("no genesis block in the db"))?;
-            let genesis = db
-                .get_block(&block_hash)?
-                .ok_or_else(|| anyhow!("can't find genesis by hash"))?;
+            // let db = store.begin_transaction();
+            // let block_hash = db
+            //     .get_block_hash_by_number(0)?
+            //     .ok_or_else(|| anyhow!("no genesis block in the db"))?;
+            // let genesis = db
+            //     .get_block(&block_hash)?
+            //     .ok_or_else(|| anyhow!("can't find genesis by hash"))?;
+            let genesis_block = self
+                .godwoken_rpc_client
+                .get_block_by_number(0)
+                .map_err(|err| anyhow!(err))?
+                .ok_or_else(|| anyhow!("no genesis block found"))?;
+
+            let genesis = convertion::to_l2_block(genesis_block);
+
             // insert
-            self.insert_l2block(store, genesis).await?;
+            self.insert_l2block(genesis).await?;
             log::debug!("web3 indexer: sync genesis block #0");
         }
         Ok(())
     }
 
-    pub async fn store(&self, store: Store, l1_transaction: &Transaction) -> Result<()> {
+    pub async fn store(&self, l1_transaction: &Transaction) -> Result<()> {
         let l2_block = match self.extract_l2_block(l1_transaction)? {
             Some(block) => block,
             None => return Err(anyhow!("can't find l2 block from l1 transaction")),
@@ -93,7 +102,7 @@ impl Web3Indexer {
         let number: u64 = l2_block.raw().number().unpack();
         let local_tip_number = self.tip_number().await?.unwrap_or(0);
         if number > local_tip_number || self.query_number(number).await?.is_none() {
-            self.insert_l2block(store, l2_block).await?;
+            self.insert_l2block(l2_block).await?;
             log::debug!("web3 indexer: sync new block #{}", number);
         }
         Ok(())
@@ -117,12 +126,10 @@ impl Web3Indexer {
         Ok(row.and_then(|(n,)| n.to_u64()))
     }
 
-    async fn insert_l2block(&self, store: Store, l2_block: L2Block) -> Result<()> {
-        let web3_tx_with_logs_vec = self
-            .filter_web3_transactions(store.clone(), l2_block.clone())
-            .await?;
+    async fn insert_l2block(&self, l2_block: L2Block) -> Result<()> {
+        let web3_tx_with_logs_vec = self.filter_web3_transactions(l2_block.clone()).await?;
         let web3_block = self
-            .build_web3_block(store.clone(), &l2_block, &web3_tx_with_logs_vec)
+            .build_web3_block(&l2_block, &web3_tx_with_logs_vec)
             .await?;
         let mut tx = self.pool.begin().await?;
         sqlx::query("INSERT INTO blocks (number, hash, parent_hash, logs_bloom, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
@@ -224,7 +231,6 @@ impl Web3Indexer {
 
     async fn filter_web3_transactions(
         &self,
-        store: Store,
         l2_block: L2Block,
     ) -> Result<Vec<Web3TransactionWithLogs>> {
         let block_number = l2_block.raw().number().unpack();
@@ -236,8 +242,8 @@ impl Web3Indexer {
         for l2_transaction in l2_transactions {
             let gw_tx_hash: gw_common::H256 = l2_transaction.hash().into();
             let from_id: u32 = l2_transaction.raw().from_id().unpack();
-            let from_script_hash = get_script_hash(store.clone(), from_id).await?;
-            let from_script = get_script(store.clone(), from_script_hash)
+            let from_script_hash = get_script_hash(&self.godwoken_rpc_client, from_id).await?;
+            let from_script = get_script(&self.godwoken_rpc_client, from_script_hash)
                 .await?
                 .ok_or_else(|| {
                     anyhow!("Can't get script by script_hash: {:?}", from_script_hash)
@@ -263,8 +269,8 @@ impl Web3Indexer {
 
             // extract to_id corresponding script, check code_hash is either polyjuice contract code_hash or sudt contract code_hash
             let to_id = l2_transaction.raw().to_id().unpack();
-            let to_script_hash = get_script_hash(store.clone(), to_id).await?;
-            let to_script = get_script(store.clone(), to_script_hash)
+            let to_script_hash = get_script_hash(&self.godwoken_rpc_client, to_id).await?;
+            let to_script = get_script(&self.godwoken_rpc_client, to_script_hash)
                 .await?
                 .ok_or_else(|| anyhow!("Can't get script by script_hash: {:?}", to_script_hash))?;
 
@@ -311,12 +317,21 @@ impl Web3Indexer {
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
                 // read logs
-                let db = store.begin_transaction();
-                let tx_receipt = {
-                    db.get_transaction_receipt(&gw_tx_hash)?.ok_or_else(|| {
-                        anyhow!("can't find receipt for transaction: {:?}", gw_tx_hash)
-                    })?
-                };
+                // let db = store.begin_transaction();
+                // let tx_receipt = {
+                //     db.get_transaction_receipt(&gw_tx_hash)?.ok_or_else(|| {
+                //         anyhow!("can't find receipt for transaction: {:?}", gw_tx_hash)
+                //     })?
+                // };
+                // let log_item_vec = tx_receipt.logs();
+
+                let ttt = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+                let tx_receipt: gw_types::packed::TxReceipt = self
+                    .godwoken_rpc_client
+                    .get_transaction_receipt(&ttt)
+                    .map_err(|err| anyhow!(err))?
+                    .ok_or_else(|| anyhow!("tx receipt not found"))?
+                    .into();
                 let log_item_vec = tx_receipt.logs();
 
                 // read polyjuice system log
@@ -482,7 +497,6 @@ impl Web3Indexer {
 
     async fn build_web3_block(
         &self,
-        store: Store,
         l2_block: &L2Block,
         web3_tx_with_logs_vec: &[Web3TransactionWithLogs],
     ) -> Result<Web3Block> {
@@ -496,7 +510,8 @@ impl Web3Indexer {
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
         let block_producer_id: u32 = l2_block.raw().block_producer_id().unpack();
-        let block_producer_script_hash = get_script_hash(store.clone(), block_producer_id).await?;
+        let block_producer_script_hash =
+            get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
         let miner_address = account_script_hash_to_eth_address(block_producer_script_hash);
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();
         let timestamp =
@@ -517,30 +532,54 @@ impl Web3Indexer {
     }
 }
 
-async fn get_script_hash(store: Store, account_id: u32) -> Result<gw_common::H256> {
-    let db = store.begin_transaction();
-    let tip_hash = db.get_tip_block_hash()?;
-    let state_db = StateDBTransaction::from_checkpoint(
-        &db,
-        CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
-        StateDBMode::ReadOnly,
-    )?;
-    let tree = state_db.state_tree()?;
+async fn get_script_hash(
+    godwoken_rpc_client: &GodwokenRpcClient,
+    account_id: u32,
+) -> Result<gw_common::H256> {
+    // let db = store.begin_transaction();
+    // let tip_hash = db.get_tip_block_hash()?;
+    // let state_db = StateDBTransaction::from_checkpoint(
+    //     &db,
+    //     CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
+    //     StateDBMode::ReadOnly,
+    // )?;
+    // let tree = state_db.state_tree()?;
 
-    let script_hash = tree.get_script_hash(account_id)?;
-    Ok(script_hash)
+    // let script_hash = tree.get_script_hash(account_id)?;
+
+    let script_hash = godwoken_rpc_client
+        .get_script_hash(account_id)
+        .map_err(|err| anyhow!(err))?;
+
+    let hash: gw_common::H256 = {
+        let mut s = [0u8; 32];
+        s.copy_from_slice(script_hash.as_bytes());
+        s.into()
+    };
+    Ok(hash)
 }
 
-async fn get_script(store: Store, script_hash: gw_common::H256) -> Result<Option<Script>> {
-    let db = store.begin_transaction();
-    let tip_hash = db.get_tip_block_hash()?;
-    let state_db = StateDBTransaction::from_checkpoint(
-        &db,
-        CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
-        StateDBMode::ReadOnly,
-    )?;
-    let tree = state_db.state_tree()?;
+async fn get_script(
+    godwoken_rpc_client: &GodwokenRpcClient,
+    script_hash: gw_common::H256,
+) -> Result<Option<Script>> {
+    // let db = store.begin_transaction();
+    // let tip_hash = db.get_tip_block_hash()?;
+    // let state_db = StateDBTransaction::from_checkpoint(
+    //     &db,
+    //     CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
+    //     StateDBMode::ReadOnly,
+    // )?;
+    // let tree = state_db.state_tree()?;
 
-    let script_opt = tree.get_script(&script_hash);
+    // let script_opt = tree.get_script(&script_hash);
+
+    let hash = ckb_types::H256::from_slice(script_hash.as_slice())?;
+
+    let script_opt = godwoken_rpc_client
+        .get_script(hash)
+        .map_err(|err| anyhow!(err))?
+        .map(convertion::to_script);
+
     Ok(script_opt)
 }
