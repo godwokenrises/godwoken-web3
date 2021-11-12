@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use ckb_jsonrpc_types::Script;
 use ckb_types::H256;
 use gw_jsonrpc_types::{
-    ckb_jsonrpc_types::{JsonBytes, Uint128, Uint32},
+    ckb_jsonrpc_types::{JsonBytes, Uint128, Uint32, Uint64},
     debugger::{DumpChallengeTarget, ReprMockTransaction},
     godwoken::{L2BlockView, L2BlockWithStatus, RunResult, TxReceipt},
 };
@@ -107,7 +107,7 @@ impl GodwokenRpcClient {
     }
 
     pub fn get_block_by_number(&self, block_number: u64) -> Result<Option<L2BlockView>> {
-        let params = serde_json::to_value((block_number,))?;
+        let params = serde_json::to_value((Uint64::from(block_number),))?;
         self.rpc::<Option<L2BlockView>>("get_block_by_number", params)
             .map(|opt| opt.map(Into::into))
     }
@@ -136,7 +136,7 @@ impl GodwokenRpcClient {
         params: serde_json::Value,
     ) -> Result<SuccessResponse> {
         let mut rng = rand::thread_rng();
-        let id = rng.gen_range(0..u64::MAX);
+        let id = rng.gen_range(0..u16::MAX);
 
         let mut req_json = serde_json::Map::new();
         req_json.insert("id".to_owned(), serde_json::to_value(id).unwrap());

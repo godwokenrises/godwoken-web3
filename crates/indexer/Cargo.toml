@@ -24,4 +24,7 @@ log = "0.4"
 rlp = "0.5"
 sha3 = "0.9.1"
 ethabi = "15.0.0"
+toml = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+env_logger = "0.8.3"
 gw-web3-rpc-client = { path = "../rpc-client" }

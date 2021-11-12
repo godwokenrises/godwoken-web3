@@ -65,6 +65,7 @@ impl Web3Indexer {
         }
     }
 
+    // TODO: no need now
     pub async fn store_genesis(&mut self) -> Result<()> {
         let row: Option<(Decimal,)> =
             sqlx::query_as("SELECT number FROM blocks WHERE number=0 LIMIT 1")
@@ -93,11 +94,22 @@ impl Web3Indexer {
         Ok(())
     }
 
+    // TODO: no need now
     pub async fn store(&self, l1_transaction: &Transaction) -> Result<()> {
         let l2_block = match self.extract_l2_block(l1_transaction)? {
             Some(block) => block,
             None => return Err(anyhow!("can't find l2 block from l1 transaction")),
         };
+        let number: u64 = l2_block.raw().number().unpack();
+        let local_tip_number = self.tip_number().await?.unwrap_or(0);
+        if number > local_tip_number || self.query_number(number).await?.is_none() {
+            self.insert_l2block(l2_block).await?;
+            log::debug!("web3 indexer: sync new block #{}", number);
+        }
+        Ok(())
+    }
+
+    pub async fn store_l2_block(&self, l2_block: L2Block) -> Result<()> {
         let number: u64 = l2_block.raw().number().unpack();
         let local_tip_number = self.tip_number().await?.unwrap_or(0);
         if number > local_tip_number || self.query_number(number).await?.is_none() {

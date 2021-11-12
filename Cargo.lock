@@ -1876,6 +1876,7 @@ dependencies = [
  "anyhow",
  "ckb-hash",
  "ckb-types",
+ "env_logger",
  "ethabi",
  "faster-hex 0.5.0",
  "gw-common",
@@ -1887,10 +1888,12 @@ dependencies = [
  "num-bigint 0.4.3",
  "rlp",
  "rust_decimal",
+ "serde",
  "sha3",
  "smol",
  "sqlx",
  "thiserror",
+ "toml",
 ]
 
 [[package]]
