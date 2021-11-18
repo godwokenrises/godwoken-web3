@@ -48,11 +48,17 @@ export function parseGwError(error: any): GwErrorDetail {
     if (err.data.last_log) {
       polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
     }
-    const abi = abiCoder as unknown as AbiCoder;
-    const statusReason = abi.decodeParameter(
-      "string",
-      err.data.return_data.substring(10)
-    ) as unknown as string;
+
+    const return_data = err.data.return_data;
+    let statusReason = "";
+    if (return_data !== "0x") {
+      const abi = abiCoder as unknown as AbiCoder;
+      statusReason = abi.decodeParameter(
+        "string",
+        return_data.substring(10)
+      ) as unknown as string;
+    }
+
     return {
       code: err.code,
       message: err.message,

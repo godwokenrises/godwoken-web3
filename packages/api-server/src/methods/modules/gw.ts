@@ -237,11 +237,17 @@ function parseError(error: any): void {
     const last_log: LogItem | undefined = err.data?.last_log;
     if (last_log != null) {
       const polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
-      const abi = abiCoder as unknown as AbiCoder;
-      const statusReason = abi.decodeParameter(
-        "string",
-        err.data.return_data.substring(10)
-      ) as unknown as string;
+      const return_data = err.data.return_data;
+
+      let statusReason = "";
+      if (return_data !== "0x") {
+        const abi = abiCoder as unknown as AbiCoder;
+        statusReason = abi.decodeParameter(
+          "string",
+          return_data.substring(10)
+        ) as unknown as string;
+      }
+
       const failedReason: FailedReason = {
         status_code: "0x" + polyjuiceSystemLog.statusCode.toString(16),
         status_type:
