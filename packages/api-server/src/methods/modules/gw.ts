@@ -6,6 +6,7 @@ import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { LogItem } from "../types";
 import { evmcCodeTypeMapping, parsePolyjuiceSystemLog } from "../gw-error";
 import { FailedReason } from "../../base/types/api";
+import { HexNumber } from "@ckb-lumos/base";
 
 export class Gw {
   private rpc: RPC;
@@ -71,8 +72,15 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [block_number]
+   * @returns
+   */
   async get_block_hash(args: any[]) {
     try {
+      args[0] = formatHexNumber(args[0]);
+
       const result = await this.rpc.gw_get_block_hash(...args);
       return result;
     } catch (error) {
@@ -80,6 +88,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [block_hash]
+   * @returns
+   */
   async get_block(args: any[]) {
     try {
       const result = await this.rpc.gw_get_block(...args);
@@ -89,8 +102,15 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [block_number]
+   * @returns
+   */
   async get_block_by_number(args: any[]) {
     try {
+      args[0] = formatHexNumber(args[0]);
+
       const result = await this.rpc.gw_get_block_by_number(...args);
       return result;
     } catch (error) {
@@ -98,8 +118,16 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [script_hash_160, sudt_id, (block_number)]
+   * @returns
+   */
   async get_balance(args: any[]) {
     try {
+      args[1] = formatHexNumber(args[1]);
+      args[2] = formatHexNumber(args[2]);
+
       const result = await this.rpc.gw_get_balance(...args);
       return result;
     } catch (error) {
@@ -107,8 +135,16 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [account_id, key(Hash), (block_number)]
+   * @returns
+   */
   async get_storage_at(args: any[]) {
     try {
+      args[0] = formatHexNumber(args[0]);
+      args[2] = formatHexNumber(args[2]);
+
       const result = await this.rpc.gw_get_storage_at(...args);
       return result;
     } catch (error) {
@@ -116,6 +152,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [script_hash]
+   * @returns
+   */
   async get_account_id_by_script_hash(args: any[]) {
     try {
       const result = await this.rpc.gw_get_account_id_by_script_hash(...args);
@@ -125,8 +166,16 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [account_id, (block_number)]
+   * @returns
+   */
   async get_nonce(args: any[]) {
     try {
+      args[0] = formatHexNumber(args[0]);
+      args[1] = formatHexNumber(args[1]);
+
       const result = await this.rpc.gw_get_nonce(...args);
       return result;
     } catch (error) {
@@ -134,6 +183,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [script_hash]
+   * @returns
+   */
   async get_script(args: any[]) {
     try {
       const result = await this.rpc.gw_get_script(...args);
@@ -143,8 +197,15 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [account_id]
+   * @returns
+   */
   async get_script_hash(args: any[]) {
     try {
+      args[0] = formatHexNumber(args[0]);
+
       const result = await this.rpc.gw_get_script_hash(...args);
       return result;
     } catch (error) {
@@ -152,8 +213,15 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [data_hash, (block_number)]
+   * @returns
+   */
   async get_data(args: any[]) {
     try {
+      args[1] = formatHexNumber(args[1]);
+
       const result = await this.rpc.gw_get_data(...args);
       return result;
     } catch (error) {
@@ -161,6 +229,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [tx_hash]
+   * @returns
+   */
   async get_transaction_receipt(args: any[]) {
     try {
       const result = await this.rpc.gw_get_transaction_receipt(...args);
@@ -170,6 +243,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [tx_hash, (verbose)]
+   * @returns
+   */
   async get_transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_get_transaction(...args);
@@ -179,6 +257,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [l2tx(HexString)]
+   * @returns
+   */
   async execute_l2transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_execute_l2transaction(...args);
@@ -188,8 +271,15 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [raw_l2tx(HexString), (block_number)]
+   * @returns
+   */
   async execute_raw_l2transaction(args: any[]) {
     try {
+      args[1] = formatHexNumber(args[1]);
+
       const result = await this.rpc.gw_execute_raw_l2transaction(...args);
       return result;
     } catch (error) {
@@ -197,6 +287,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [l2tx(HexString)]
+   * @returns
+   */
   async submit_l2transaction(args: any[]) {
     try {
       const result = await this.rpc.gw_submit_l2transaction(...args);
@@ -206,6 +301,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [withdrawal_request(HexString)]
+   * @returns
+   */
   async submit_withdrawal_request(args: any[]) {
     try {
       const result = await this.rpc.gw_submit_withdrawal_request(...args);
@@ -215,6 +315,11 @@ export class Gw {
     }
   }
 
+  /**
+   *
+   * @param args [short_address]
+   * @returns
+   */
   async get_script_hash_by_short_address(args: any[]) {
     try {
       const result = await this.rpc.gw_get_script_hash_by_short_address(
@@ -270,4 +375,14 @@ function parseError(error: any): void {
   }
 
   throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
+}
+
+function formatHexNumber(
+  num: HexNumber | undefined | null
+): HexNumber | undefined | null {
+  if (num == null) {
+    return num;
+  }
+
+  return num.toLowerCase();
 }
