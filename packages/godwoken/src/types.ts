@@ -11,6 +11,19 @@ export type HexU128 = HexNumber;
 // null means `pending`
 export type BlockParameter = U64 | null;
 
+export interface FeeConfig {
+  /**
+   * known as gasPrice in Ethereum
+   *
+   * denoted in shannons, which itself is a fractional denomination of CKBytes.
+   * 1 CKByte = 100,000,000 Shannons
+   */
+  fee_rate: U64;
+  meta_contract_fee_weight: number;
+  sudt_transfer_fee_weight: number;
+  withdraw_fee_weight: number;
+}
+
 export interface LogItem {
   account_id: HexU32;
   // The actual type is `u8`

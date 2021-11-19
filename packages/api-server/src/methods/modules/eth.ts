@@ -90,6 +90,7 @@ export class Eth {
       validators.address,
       validators.blockParameter,
     ]);
+    // this.gasPrice = middleware(this.gasPrice.bind(this), 0);
     this.getStorageAt = middleware(this.getStorageAt.bind(this), 3, [
       validators.address,
       validators.hexNumber,
@@ -254,8 +255,14 @@ export class Eth {
     return "0x0";
   }
 
-  async gasPrice(args: []): Promise<HexNumber> {
-    return "0x1";
+  /**
+   * Get the current price per gas in shannon.
+   *   1 CKB = 100,000,000 Shannons
+   * @returns gasPrice (unit: shannon)
+   */
+  async gasPrice(_args: []): Promise<HexNumber> {
+    const GodwokenFeeConfig = await this.rpc.getFeeConfig();
+    return "0x" + GodwokenFeeConfig.fee_rate.toString(16);
   }
 
   /**
