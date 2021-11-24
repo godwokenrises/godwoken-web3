@@ -65,6 +65,26 @@ yarn run start
 yarn run build && yarn run start:prod
 ```
 
+#### Start via pm2
+
+```bash
+yarn run build && yarn run start:pm2
+```
+
+#### Start using docker image
+
+```bash
+docker run -d -it -v <YOUR .env FILE PATH>:/godwoken-web3/packages/api-server/.env  -w /godwoken-web3  --name godwoken-web3 nervos/godwoken-web3-prebuilds:<TAG> bash -c "yarn workspace @godwoken-web3/api-server start:pm2 && node"
+```
+
+then you can monit web3 via pm2 inside docker container:
+
+```bash
+docker exec -it <CONTAINER NAME> /bin/bash
+```
+```
+$ root@ec562fe2172b:/godwoken-web3# pm2 monit
+```
 Normal mode: http://your-url/
 
 Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)
