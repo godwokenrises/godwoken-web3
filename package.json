@@ -19,7 +19,8 @@
     "migrate:latest": "yarn workspace @godwoken-web3/api-server run migrate:latest",
     "migrate-accounts": "yarn workspace @godwoken-web3/api-server run migrate-accounts",
     "start": "yarn workspace @godwoken-web3/api-server run start",
-    "start:prod": "yarn workspace @godwoken-web3/api-server run start:prod"
+    "start:prod": "yarn workspace @godwoken-web3/api-server run start:prod",
+    "start:pm2": "yarn workspace @godwoken-web3/api-server run start:pm2"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.28.2",
