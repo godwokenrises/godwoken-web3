@@ -5,7 +5,7 @@
   "scripts": {
     "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/cluster\"",
     "start:prod": "NODE_ENV=production DEBUG=godwoken-web3-api:server node ./bin/cluster",
-    "start:pm2": "NODE_ENV=production DEBUG=godwoken-web3-api:server pm2 start ./bin/cluster --name gw-web3 --max-memory-restart 1G",
+    "start:pm2": "NODE_ENV=production DEBUG=godwoken-web3-api:server pm2 start ./bin/cluster --no-daemon --name gw-web3 --max-memory-restart 1G",
     "test": "ava",
     "fmt": "prettier --write \"{migrations,tests}/**/*.js\" app.js src/* package.json",
     "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
