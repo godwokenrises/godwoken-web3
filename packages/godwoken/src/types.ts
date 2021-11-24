@@ -19,9 +19,6 @@ export interface FeeConfig {
    * 1 CKByte = 100,000,000 Shannons
    */
   fee_rate: U64;
-  meta_contract_fee_weight: number;
-  sudt_transfer_fee_weight: number;
-  withdraw_fee_weight: number;
 }
 
 export interface LogItem {
