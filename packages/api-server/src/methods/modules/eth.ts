@@ -11,7 +11,7 @@ import {
 import { middleware, validators } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
+import { FeeConfig, RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
 import {
   CKB_SUDT_ID,
@@ -258,11 +258,23 @@ export class Eth {
   /**
    * Get the current price per gas in shannon.
    *   1 CKB = 100,000,000 Shannons
+   *
+   * Note: Polyjuice use CKB to pay fee by default.
    * @returns gasPrice (unit: shannon)
    */
   async gasPrice(_args: []): Promise<HexNumber> {
-    const GodwokenFeeConfig = await this.rpc.getFeeConfig();
-    return "0x" + GodwokenFeeConfig.fee_rate.toString(16);
+    try {
+      let GodwokenFeeConfig: FeeConfig = await this.rpc.getFeeConfig();
+      if (!GodwokenFeeConfig?.fee_rates || Object.keys(GodwokenFeeConfig.fee_rates).length === 0) {
+        // default gasPrice = 0, if GodwokenFeeConfig.fee_rates is empty
+        return "0x0";
+      }
+      // Note: Polyjuice use CKB to pay fee by default.
+      const CKB_SUDT_ID = "0x1";
+      return GodwokenFeeConfig.fee_rates[CKB_SUDT_ID];
+    } catch (error: any) {
+      throw new Web3Error(error.message);
+    }
   }
 
   /**

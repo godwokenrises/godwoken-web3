@@ -11,14 +11,18 @@ export type HexU128 = HexNumber;
 // null means `pending`
 export type BlockParameter = U64 | null;
 
+/**
+ * HashMap<fee_sudt_id, fee_rate>
+ * fee_rate is known as gasPrice in Ethereum.
+ */
+interface FeeRates {
+  readonly [sudtId: string]: HexU64;
+}
+/**
+ * e.g. {"fee_rates":{"0x1":"0x1f4"},...}
+ */
 export interface FeeConfig {
-  /**
-   * known as gasPrice in Ethereum
-   *
-   * denoted in shannons, which itself is a fractional denomination of CKBytes.
-   * 1 CKByte = 100,000,000 Shannons
-   */
-  fee_rate: U64;
+  fee_rates: FeeRates;
 }
 
 export interface LogItem {
