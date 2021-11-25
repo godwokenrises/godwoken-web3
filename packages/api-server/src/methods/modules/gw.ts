@@ -1,5 +1,5 @@
 import { parseGwRpcError } from "../gw-error";
-import { RPC } from "../../base/rpc";
+import { RPC } from "@godwoken-web3/godwoken";
 import { middleware } from "../validator";
 import { HexNumber } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
