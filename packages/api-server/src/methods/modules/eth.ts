@@ -11,7 +11,11 @@ import {
 import { middleware, validators } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { FeeConfig, RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
+import {
+  FeeConfig,
+  RawL2Transaction,
+  RunResult,
+} from "@godwoken-web3/godwoken";
 import { Script } from "@ckb-lumos/base";
 import {
   CKB_SUDT_ID,
@@ -265,7 +269,10 @@ export class Eth {
   async gasPrice(_args: []): Promise<HexNumber> {
     try {
       let GodwokenFeeConfig: FeeConfig = await this.rpc.getFeeConfig();
-      if (!GodwokenFeeConfig?.fee_rates || Object.keys(GodwokenFeeConfig.fee_rates).length === 0) {
+      if (
+        !GodwokenFeeConfig?.fee_rates ||
+        Object.keys(GodwokenFeeConfig.fee_rates).length === 0
+      ) {
         // default gasPrice = 0, if GodwokenFeeConfig.fee_rates is empty
         return "0x0";
       }
