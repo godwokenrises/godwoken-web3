@@ -1,5 +1,6 @@
 import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
-import { Reader, RPC } from "ckb-js-toolkit";
+import { Reader } from "ckb-js-toolkit";
+import { RPC } from "./rpc";
 import {
   BlockParameter,
   L2Transaction,
@@ -141,7 +142,7 @@ export class GodwokenClient {
   private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
     const name = "gw_" + methodName;
     try {
-      const result = await this.rpc[name](...args);
+      const result = await this.rpc.call(name, args);
       return result;
     } catch (err) {
       console.log(`Call gw rpc "${name}" error:`, err.message);
