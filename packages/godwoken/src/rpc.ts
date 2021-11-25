@@ -94,7 +94,10 @@ export class RPC {
 
           if (error) return reject(error);
 
-          return resolve(result);
+          if ((result as any).error) {
+            return reject((result as any).error);
+          }
+          return resolve((result as any).result);
         }
       };
 
