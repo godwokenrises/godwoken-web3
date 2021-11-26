@@ -26,13 +26,9 @@ export class RPC {
     // keepAlive is true unless explicitly set to false
     const keepAlive = options.keepAlive !== false;
     const keepAliveMsecs = 100000;
-    const maxSockets = 1;
     if (!this.agent) {
-      if (this.host.substring(0, 5) === "https") {
-        this.httpsAgent = new https.Agent({ keepAlive, keepAliveMsecs, maxSockets });
-      } else {
-        this.httpAgent = new http.Agent({ keepAlive, keepAliveMsecs, maxSockets });
-      }
+      this.httpAgent = new http.Agent({ keepAlive, keepAliveMsecs });
+      this.httpsAgent = new https.Agent({ keepAlive, keepAliveMsecs });
     }
   }
 
@@ -65,7 +61,7 @@ export class RPC {
       });
     }
 
-    console.log(`prepare request: ${JSON.stringify(request, null, 2)}`)
+    //console.log(`prepare request: ${JSON.stringify(request, null, 2)}`)
     return request;
   }
 
@@ -84,6 +80,7 @@ export class RPC {
     return new Promise(function (resolve, reject) {
       request.onreadystatechange = function () {
         if (request.readyState === 4 && request.timeout !== 1) {
+          console.log(request);
           let result = request.responseText;
           let error = null;
 
