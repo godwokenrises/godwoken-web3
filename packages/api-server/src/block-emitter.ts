@@ -2,7 +2,7 @@ import { envConfig } from "./base/env-config";
 import { logger } from "./base/logger";
 import { Query } from "./db";
 import { EventEmitter } from "events";
-import { toApiNewHead } from "./db/types";
+import { toApiLog, toApiNewHead } from "./db/types";
 import cluster from "cluster";
 
 let newrelic: any = undefined;
@@ -115,8 +115,9 @@ export class BlockEmitter {
     const newHeads = blocks.map((b) => toApiNewHead(b));
     this.notify("newHeads", newHeads);
     const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+    const newLogs = logs.map((log) => toApiLog(log));
     if (logs.length > 0) {
-      this.notify("logs", logs);
+      this.notify("logs", newLogs);
     }
     this.currentTip = tip;
 
