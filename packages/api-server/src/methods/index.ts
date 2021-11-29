@@ -14,14 +14,19 @@ function getMethodNames(mod: any): string[] {
   return Object.getOwnPropertyNames(mod.prototype);
 }
 
+export interface ModConstructorArgs {
+  [modName: string]: any[];
+}
+
 /**
  * return all the methods in all module
  */
-function getMethods() {
+function getMethods(argsList: ModConstructorArgs = {}) {
   const methods: any = {};
 
   modules.list.forEach((modName: string) => {
-    const mod = new (modules as any)[modName]();
+    const args = argsList[modName.toLowerCase()] || [];
+    const mod = new (modules as any)[modName](...args);
     getMethodNames((modules as any)[modName])
       .filter((methodName: string) => methodName !== "constructor")
       .forEach((methodName: string) => {
@@ -59,48 +64,7 @@ function getMethods() {
   return methods;
 }
 
-// TODO: maybe can merge to `getMethods`
-// only `eth` module, `poly` module will conflict with leveldb lock.
-function getEthWalletMethods() {
-  const methods: any = {};
-
-  const modName = "Eth";
-  const mod = new (modules as any)[modName](true);
-  getMethodNames((modules as any)[modName])
-    .filter((methodName: string) => methodName !== "constructor")
-    .forEach((methodName: string) => {
-      const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
-      methods[concatedMethodName] = async (args: any[], cb: Callback) => {
-        try {
-          const result = await mod[methodName].bind(mod)(args);
-          cb(null, result);
-        } catch (err: any) {
-          if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
-            Sentry.captureException(err, {
-              extra: { method: concatedMethodName, params: args },
-            });
-          }
-          if (err.name === "RpcError") {
-            if (err.data) {
-              return cb({
-                code: err.code,
-                message: err.message,
-                data: err.data,
-              } as RpcError);
-            }
-            return cb({
-              code: err.code,
-              message: err.message,
-            });
-          }
-          throw err;
-        }
-      };
-    });
-
-  // console.log(methods);
-  return methods;
-}
+const ethWalletMode = true;
 
 export const methods = getMethods();
-export const ethWalletMethods = getEthWalletMethods();
+export const ethWalletMethods = getMethods({ eth: [ethWalletMode] });
