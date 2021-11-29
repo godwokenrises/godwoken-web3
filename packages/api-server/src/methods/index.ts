@@ -14,14 +14,14 @@ function getMethodNames(mod: any): string[] {
   return Object.getOwnPropertyNames(mod.prototype);
 }
 
-export interface ConstructorArgs {
+export interface ModConstructorArgs {
   [modName: string]: any[];
 }
 
 /**
  * return all the methods in all module
  */
-function getMethods(argsList: ConstructorArgs = {}) {
+function getMethods(argsList: ModConstructorArgs = {}) {
   const methods: any = {};
 
   modules.list.forEach((modName: string) => {
