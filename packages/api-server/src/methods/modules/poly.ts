@@ -240,6 +240,14 @@ async function saveAddressMapping(
   // we just check if ethTxInputData include substring of address for simplicity
   // later we can rewrite serialization to decode the exact data using abiItem and bytecode length
   if (abiItem.type === "constructor") {
+    if (!containsAddressType(abiItem)) {
+      console.log(
+        `constructor abiItem ${JSON.stringify(
+          abiItem
+        )} doesn't contains address type, abort saving.`
+      );
+    }
+
     return await saveConstructorArgsAddressMapping(
       query,
       rpc,
@@ -382,6 +390,22 @@ async function saveConstructorArgsAddressMapping(
       }
     })
   );
+}
+
+function containsAddressType(abiItem: AbiItem) {
+  if (!abiItem.inputs) {
+    return false;
+  }
+
+  const interestedInputs = abiItem.inputs.filter(
+    (input) => input.type === "address" || input.type === "address[]"
+  );
+
+  if (interestedInputs.length === 0) {
+    return false;
+  }
+
+  return true;
 }
 
 function parseError(error: any): void {
