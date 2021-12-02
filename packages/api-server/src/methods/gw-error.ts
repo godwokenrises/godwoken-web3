@@ -111,10 +111,7 @@ export function parseGwRpcError(error: any): void {
 
     // can't find backend by script hash error
     if (err.message?.startsWith("can't find backend for script_hash")) {
-      throw new RpcError(
-        err.code,
-        "to address is not a valid contract. you might accidentally calling the wrong EOA address."
-      );
+      throw new RpcError(err.code, "to address is not a valid contract.");
     }
 
     throw new RpcError(err.code, err.message);
