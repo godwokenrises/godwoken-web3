@@ -4,16 +4,21 @@ import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
 import { AccountsQuery } from "./accounts";
+import { envConfig } from "../base/env-config";
+
+const poolMax = envConfig.pgPoolMax || 20;
+const GLOBAL_KNEX = Knex({
+  client: "postgresql",
+  connection: envConfig.databaseUrl,
+  pool: { min: 2, max: +poolMax },
+});
 
 export class Query {
   private knex: KnexType;
   private innerAccounts: AccountsQuery;
 
-  constructor(databaseUrl: string) {
-    this.knex = Knex({
-      client: "postgresql",
-      connection: databaseUrl,
-    });
+  constructor() {
+    this.knex = GLOBAL_KNEX;
     this.innerAccounts = new AccountsQuery(this.knex);
   }
 

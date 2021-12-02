@@ -18,7 +18,7 @@ export class BlockEmitter {
   private emitter: EventEmitter;
 
   constructor() {
-    this.query = new Query(envConfig.databaseUrl);
+    this.query = new Query();
     this.isRunning = false;
     this.currentTip = -1n;
     this.emitter = new EventEmitter();

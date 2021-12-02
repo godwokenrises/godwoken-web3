@@ -24,6 +24,7 @@ SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
 CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
+PG_POOL_MAX=<pg pool max count, optional, default to 20>
 EOF
 
 $ yarn
