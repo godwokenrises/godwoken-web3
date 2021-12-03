@@ -22,6 +22,10 @@ import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { parseGwRpcError } from "../gw-error";
 import { AccessGuard } from "../../cache/guard";
 
+const MAX_RPM = {
+  poly_executeRawL2Transaction: 30, // max: 0.5 req/s = 30 req/m
+};
+
 export class Poly {
   private query: Query;
   private rpc: GodwokenClient;
@@ -32,7 +36,10 @@ export class Poly {
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.accessGuard = new AccessGuard();
     this.accessGuard.connect();
-    this.accessGuard.setMaxRpm("poly_executeRawL2Transaction", 60); // max: 1 req/s = 60 req/m
+    this.accessGuard.setMaxRpm(
+      "poly_executeRawL2Transaction",
+      MAX_RPM.poly_executeRawL2Transaction
+    );
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
