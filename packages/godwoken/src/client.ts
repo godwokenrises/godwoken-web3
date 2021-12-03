@@ -9,6 +9,7 @@ import {
   RunResult,
   U128,
   U32,
+  FeeConfig,
 } from "./types";
 import { SerializeL2Transaction, SerializeRawL2Transaction } from "../schemas";
 import {
@@ -89,6 +90,14 @@ export class GodwokenClient {
       toHex(blockParameter)
     );
     return +nonce;
+  }
+
+  /**
+   * getFeeConfig from Godwoken RPC
+   */
+  public async getFeeConfig(): Promise<FeeConfig> {
+    // TODO: cache FeeConfig
+    return this.rpcCall("get_fee_config");
   }
 
   public async getData(
