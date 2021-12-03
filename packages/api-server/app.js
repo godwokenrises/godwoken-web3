@@ -88,14 +88,12 @@ function hasMethod(body, name) {
 }
 
 function getIp(req) {
-  if (
-    Array.isArray(req.headers["x-forwarded-for"]) &&
-    req.headers["x-forwarded-for"].length > 0
-  ) {
-    return req.headers["x-forwarded-for"][0];
+  let ip;
+  if (req.headers["x-forwarded-for"] != null) {
+    ip = req.headers["x-forwarded-for"].split(",").map((i) => i.trim())[0];
   }
 
-  return req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  return ip || req.socket.remoteAddress;
 }
 
 const MAX_RPM = {
