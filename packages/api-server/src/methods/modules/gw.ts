@@ -1,23 +1,23 @@
 import { RPC } from "ckb-js-toolkit";
 import { parseGwRpcError } from "../gw-error";
 import { middleware } from "../validator";
-import { Hash, HexNumber } from "@ckb-lumos/base";
-import { HexU32 } from "@godwoken-web3/godwoken";
-
-// TODO: use Redis
-// import { Store } from "../../cache/store";
-// import { envConfig } from "../../base/env-config";
-// import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
+import { HexNumber } from "@ckb-lumos/base";
+import { Store } from "../../cache/store";
+import { envConfig } from "../../base/env-config";
+import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 
 export class Gw {
   private rpc: RPC;
-  private scriptHashToAccountIdcache: Map<Hash, HexU32>;
+  private gwCache: Store;
 
   constructor() {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
-    // this.cache = new Store(envConfig.redisUrl, true, CACHE_EXPIRED_TIME_MILSECS);
-    // this.cahce.init();
-    this.scriptHashToAccountIdcache = new Map();
+    this.gwCache = new Store(
+      envConfig.redisUrl,
+      true,
+      CACHE_EXPIRED_TIME_MILSECS
+    );
+    this.gwCache.init();
 
     this.ping = middleware(this.ping.bind(this), 0);
     this.get_tip_block_hash = middleware(this.get_tip_block_hash.bind(this), 0);
@@ -166,18 +166,17 @@ export class Gw {
   async get_account_id_by_script_hash(args: any[]) {
     try {
       const scriptHash = args[0];
-      let result = this.scriptHashToAccountIdcache.get(scriptHash);
-      if (result !== undefined) {
+      let result = await this.gwCache.get(`${GW_RPC_KEY}_${scriptHash}`);
+      if (result != null) {
         console.debug(`using cache: ${scriptHash} -> ${result}`);
         return result;
       }
 
       result = await this.rpc.gw_get_account_id_by_script_hash(...args);
-      if (result) {
+      if (result != null) {
         console.debug(`update cache: ${scriptHash} -> ${result}`);
-        this.scriptHashToAccountIdcache.set(scriptHash, result);
+        this.gwCache.insert(`${GW_RPC_KEY}_${scriptHash}`, result);
       }
-
       return result;
     } catch (error) {
       parseGwRpcError(error);
