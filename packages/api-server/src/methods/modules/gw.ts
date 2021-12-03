@@ -6,12 +6,23 @@ import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { LogItem } from "../types";
 import { evmcCodeTypeMapping, parsePolyjuiceSystemLog } from "../gw-error";
 import { FailedReason } from "../../base/types/api";
-import { HexNumber } from "@ckb-lumos/base";
+import { Hash, HexNumber } from "@ckb-lumos/base";
+import { HexU32 } from "@godwoken-web3/godwoken";
+
+// TODO: use Redis
+// import { Store } from "../../cache/store";
+// import { envConfig } from "../../base/env-config";
+// import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 
 export class Gw {
   private rpc: RPC;
+  private scriptHashToAccountIdcache: Map<Hash, HexU32>;
+
   constructor() {
     this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
+    // this.cache = new Store(envConfig.redisUrl, true, CACHE_EXPIRED_TIME_MILSECS);
+    // this.cahce.init();
+    this.scriptHashToAccountIdcache = new Map();
 
     this.ping = middleware(this.ping.bind(this), 0);
     this.get_tip_block_hash = middleware(this.get_tip_block_hash.bind(this), 0);
@@ -159,7 +170,19 @@ export class Gw {
    */
   async get_account_id_by_script_hash(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_account_id_by_script_hash(...args);
+      const scriptHash = args[0];
+      let result = this.scriptHashToAccountIdcache.get(scriptHash);
+      if (result !== undefined) {
+        console.debug(`using cache: ${scriptHash} -> ${result}`);
+        return result;
+      }
+
+      result = await this.rpc.gw_get_account_id_by_script_hash(...args);
+      if (result) {
+        console.debug(`update cache: ${scriptHash} -> ${result}`);
+        this.scriptHashToAccountIdcache.set(scriptHash, result);
+      }
+      
       return result;
     } catch (error) {
       parseError(error);
