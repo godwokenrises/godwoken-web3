@@ -1,6 +1,9 @@
 // From https://github.com/ethereum/evmc/blob/v9.0.0/include/evmc/evmc.h#L212
 
 import abiCoder, { AbiCoder } from "web3-eth-abi";
+import { FailedReason } from "../base/types/api";
+import { RpcError } from "./error";
+import { GW_RPC_REQUEST_ERROR } from "./error-code";
 import { LogItem, PolyjuiceSystemLog } from "./types";
 
 export const evmcCodeTypeMapping: {
@@ -70,6 +73,56 @@ export function parseGwError(error: any): GwErrorDetail {
   }
 
   throw error;
+}
+
+export function parseGwRpcError(error: any): void {
+  const prefix = "JSONRPCError: server error ";
+  let message: string = error.message;
+  if (message.startsWith(prefix)) {
+    const jsonErr = message.slice(prefix.length);
+    const err = JSON.parse(jsonErr);
+
+    const last_log: LogItem | undefined = err.data?.last_log;
+    if (last_log != null) {
+      const polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
+      const return_data = err.data.return_data;
+
+      let statusReason = "";
+      if (return_data !== "0x") {
+        const abi = abiCoder as unknown as AbiCoder;
+        statusReason = abi.decodeParameter(
+          "string",
+          return_data.substring(10)
+        ) as unknown as string;
+      }
+
+      const failedReason: FailedReason = {
+        status_code: "0x" + polyjuiceSystemLog.statusCode.toString(16),
+        status_type:
+          evmcCodeTypeMapping[polyjuiceSystemLog.statusCode.toString()],
+        message: statusReason,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
+    }
+
+    // can't find backend by script hash error
+    if (err.message?.startsWith("can't find backend for script_hash")) {
+      throw new RpcError(err.code, "to address is not a valid contract.");
+    }
+
+    throw new RpcError(err.code, err.message);
+  }
+
+  // connection error
+  if (message.startsWith("request to")) {
+    throw new Error(message);
+  }
+
+  throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
 }
 
 export function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
