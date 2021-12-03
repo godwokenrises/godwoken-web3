@@ -20,26 +20,14 @@ import {
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { parseGwRpcError } from "../gw-error";
-import { AccessGuard } from "../../cache/guard";
-
-const MAX_RPM = {
-  poly_executeRawL2Transaction: 30, // max: 0.5 req/s = 30 req/m
-};
 
 export class Poly {
   private query: Query;
   private rpc: GodwokenClient;
-  private accessGuard: AccessGuard;
 
   constructor() {
     this.query = new Query();
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
-    this.accessGuard = new AccessGuard();
-    this.accessGuard.connect();
-    this.accessGuard.setMaxRpm(
-      "poly_executeRawL2Transaction",
-      MAX_RPM.poly_executeRawL2Transaction
-    );
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
@@ -100,22 +88,6 @@ export class Poly {
       const txWithAddressMapping: RawL2TransactionWithAddressMapping =
         deserializeRawL2TransactionWithAddressMapping(data);
       const rawL2Tx = txWithAddressMapping.raw_tx;
-
-      // access control
-      const rpcRouter = "poly_executeRawL2Transaction";
-      const reqId = rawL2Tx.from_id;
-      const isExist = await this.accessGuard.isExist(rpcRouter, reqId);
-      if (!isExist) {
-        await this.accessGuard.add(rpcRouter, reqId);
-      }
-      const isOverRate = await this.accessGuard.isOverRate(rpcRouter, reqId);
-      if (isOverRate) {
-        throw new Error(
-          "you are temporally restrict to the service, please wait."
-        );
-      }
-      await this.accessGuard.updateCount(rpcRouter, reqId);
-      // end of access control
 
       const result = await this.rpc.executeRawL2Transaction(rawL2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping

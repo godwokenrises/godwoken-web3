@@ -6,6 +6,7 @@ var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
+const { AccessGuard } = require("../api-server/lib/cache/guard");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 
@@ -74,6 +75,68 @@ app.use(function (req, _res, next) {
       : req.body.method;
     console.log("request.method:", name);
   }
+  next();
+});
+
+function hasMethod(body, name) {
+  if (Array.isArray(body)) {
+    return body.map((b) => b.method).includes(name);
+  }
+
+  return body.method === name;
+}
+
+function getIp(req) {
+  if (
+    Array.isArray(req.headers["x-forwarded-for"]) &&
+    req.headers["x-forwarded-for"].length > 0
+  ) {
+    return req.headers["x-forwarded-for"][0];
+  }
+
+  return req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+}
+
+const MAX_RPM = {
+  poly_executeRawL2Transaction: 30, // max: 0.5 req/s = 30 req/m
+};
+
+const accessGuard = new AccessGuard();
+accessGuard.connect();
+accessGuard.setMaxRpm(
+  "poly_executeRawL2Transaction",
+  MAX_RPM.poly_executeRawL2Transaction
+);
+
+app.use(async function (req, _res, next) {
+  const ip = getIp(req);
+  console.debug("#for debug:", {
+    ip: ip,
+    body: req.body,
+    method: req.body.method,
+    has: hasMethod("poly_executeRawL2Transaction"),
+  });
+
+  // restrict access rate limit
+  if (hasMethod("poly_executeRawL2Transaction") && ip != null) {
+    const rpcRouter = "poly_executeRawL2Transaction";
+    const reqId = ip;
+    const isExist = await accessGuard.isExist(rpcRouter, reqId);
+    if (!isExist) {
+      await accessGuard.add(rpcRouter, reqId);
+    }
+    const isOverRate = await accessGuard.isOverRate(rpcRouter, reqId);
+    if (isOverRate) {
+      return _res.send({
+        jsonrpc: "2.0",
+        id: req.body.id,
+        error: "you are temporally restrict to the service, please wait.",
+      });
+    }
+
+    await accessGuard.updateCount(rpcRouter, reqId);
+  }
+
   next();
 });
 
