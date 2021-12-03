@@ -122,17 +122,19 @@ app.use(async function (req, res, next) {
     const isOverRate = await accessGuard.isOverRate(rpcRouter, reqId);
     if (isOverRate) {
       if (Array.isArray(req.body)) {
-        return res.send([
-          {
-            jsonrpc: "2.0",
-            id: req.body[0].id,
-            error: {
-              code: LIMIT_EXCEEDED,
-              message:
-                "you are temporally restrict to the service, please wait.",
-            },
-          },
-        ]);
+        return res.send(
+          req.body.map((b) => {
+            return {
+              jsonrpc: "2.0",
+              id: b.id,
+              error: {
+                code: LIMIT_EXCEEDED,
+                message:
+                  "you are temporally restrict to the service, please wait.",
+              },
+            };
+          })
+        );
       }
 
       return res.send({
