@@ -239,7 +239,9 @@ async function saveAddressMapping(
   // todo: since deploy transaction's inputData has no function signature
   // we just check if ethTxInputData include substring of address for simplicity
   // later we can rewrite serialization to decode the exact data using abiItem and bytecode length
-  if (abiItem.type === "constructor") {
+  const creatorIdHexNumber =
+    "0x" + BigInt(envConfig.creatorAccountId).toString(16);
+  if (abiItem.type === "constructor" && rawTx.to_id === creatorIdHexNumber) {
     if (!containsAddressType(abiItem)) {
       console.log(
         `constructor abiItem ${JSON.stringify(
