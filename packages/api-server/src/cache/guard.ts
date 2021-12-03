@@ -2,7 +2,7 @@ import { Store } from "./store";
 import { HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
 
-const RedisPrefixName = "AccessGuardMap";
+const RedisPrefixName = "access";
 export const CACHE_EXPIRED_TIME_MILSECS = 1 * 60 * 1000; // milsec, default 1 minutes
 
 export interface MaxRpmMap {
@@ -75,10 +75,10 @@ export class AccessGuard {
     const id = getId(rpcRouter, reqId);
     const data = await this.store.get(id);
     if (data == null) return false;
-    if (this.maxRpmMap[id] == null) return false;
+    if (this.maxRpmMap[rpcRouter] == null) return false;
 
     const count = +data;
-    const maxNumber = this.maxRpmMap[id];
+    const maxNumber = this.maxRpmMap[rpcRouter];
     if (count > maxNumber) {
       return true;
     }

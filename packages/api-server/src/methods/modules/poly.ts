@@ -32,7 +32,7 @@ export class Poly {
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.accessGuard = new AccessGuard();
     this.accessGuard.connect();
-    this.accessGuard.setMaxRpm("poly_executeRawL2Transaction", 300); // max: 5 req/s = 300 req/m
+    this.accessGuard.setMaxRpm("poly_executeRawL2Transaction", 60); // max: 1 req/s = 60 req/m
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
