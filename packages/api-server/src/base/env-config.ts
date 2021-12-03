@@ -19,6 +19,7 @@ export const envConfig = {
   tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   redisUrl: getOptional("REDIS_URL"),
+  pgPoolMax: getOptional("PG_POOL_MAX"),
 };
 
 function getRequired(name: string): string {

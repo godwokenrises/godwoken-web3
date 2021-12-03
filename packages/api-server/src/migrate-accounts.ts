@@ -2,7 +2,6 @@ import levelup from "levelup";
 import leveldown from "leveldown";
 import path from "path";
 import { Query } from "./db";
-import { envConfig } from "./base/env-config";
 
 async function main() {
   const argvArgs = process.argv.slice(2);
@@ -18,7 +17,7 @@ async function main() {
 
   const db = levelup(leveldown(storePath));
 
-  const query = new Query(envConfig.databaseUrl);
+  const query = new Query();
 
   const arr: { shortAddress: string; ethAddress: string }[] = [];
   db.createReadStream()
