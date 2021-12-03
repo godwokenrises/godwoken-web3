@@ -11,6 +11,20 @@ export type HexU128 = HexNumber;
 // null means `pending`
 export type BlockParameter = U64 | null;
 
+/**
+ * HashMap<fee_sudt_id, fee_rate>
+ * fee_rate is known as gasPrice in Ethereum.
+ */
+interface FeeRates {
+  readonly [sudtId: string]: HexU64;
+}
+/**
+ * e.g. {"fee_rates":{"0x1":"0x1f4"},...}
+ */
+export interface FeeConfig {
+  fee_rates: FeeRates;
+}
+
 export interface LogItem {
   account_id: HexU32;
   // The actual type is `u8`
