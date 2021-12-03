@@ -339,9 +339,25 @@ export class Gw {
    */
   async get_script_hash_by_short_address(args: any[]) {
     try {
+      const shortAddress = args[0];
+      const key = `${GW_RPC_KEY}_addr_${shortAddress}`;
+      const value = await this.gwCache.get(key);
+      if (value != null) {
+        console.debug(
+          `using cache : shortAddress(${shortAddress}) -> scriptHash(${value})`
+        );
+        return value;
+      }
+
       const result = await this.rpc.gw_get_script_hash_by_short_address(
         ...args
       );
+      if (result != null) {
+        console.debug(
+          `update cache: shortAddress(${shortAddress}) -> scriptHash(${result})`
+        );
+        this.gwCache.insert(key, result);
+      }
       return result;
     } catch (error) {
       parseGwRpcError(error);
