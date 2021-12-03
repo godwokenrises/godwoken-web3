@@ -1,11 +1,6 @@
 import { RPC } from "ckb-js-toolkit";
-import { RpcError } from "../error";
-import { GW_RPC_REQUEST_ERROR } from "../error-code";
+import { parseGwRpcError } from "../gw-error";
 import { middleware } from "../validator";
-import abiCoder, { AbiCoder } from "web3-eth-abi";
-import { LogItem } from "../types";
-import { evmcCodeTypeMapping, parsePolyjuiceSystemLog } from "../gw-error";
-import { FailedReason } from "../../base/types/api";
 import { HexNumber } from "@ckb-lumos/base";
 
 export class Gw {
@@ -59,7 +54,7 @@ export class Gw {
       const result = await this.rpc.gw_ping(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -68,7 +63,7 @@ export class Gw {
       const result = await this.rpc.gw_get_tip_block_hash(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -84,7 +79,7 @@ export class Gw {
       const result = await this.rpc.gw_get_block_hash(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -98,7 +93,7 @@ export class Gw {
       const result = await this.rpc.gw_get_block(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -114,7 +109,7 @@ export class Gw {
       const result = await this.rpc.gw_get_block_by_number(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -131,7 +126,7 @@ export class Gw {
       const result = await this.rpc.gw_get_balance(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -148,7 +143,7 @@ export class Gw {
       const result = await this.rpc.gw_get_storage_at(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -162,7 +157,7 @@ export class Gw {
       const result = await this.rpc.gw_get_account_id_by_script_hash(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -179,7 +174,7 @@ export class Gw {
       const result = await this.rpc.gw_get_nonce(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -193,7 +188,7 @@ export class Gw {
       const result = await this.rpc.gw_get_script(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -209,7 +204,7 @@ export class Gw {
       const result = await this.rpc.gw_get_script_hash(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -225,7 +220,7 @@ export class Gw {
       const result = await this.rpc.gw_get_data(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -239,7 +234,7 @@ export class Gw {
       const result = await this.rpc.gw_get_transaction_receipt(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -253,7 +248,7 @@ export class Gw {
       const result = await this.rpc.gw_get_transaction(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -267,7 +262,7 @@ export class Gw {
       const result = await this.rpc.gw_execute_l2transaction(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -283,7 +278,7 @@ export class Gw {
       const result = await this.rpc.gw_execute_raw_l2transaction(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -297,7 +292,7 @@ export class Gw {
       const result = await this.rpc.gw_submit_l2transaction(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -311,7 +306,7 @@ export class Gw {
       const result = await this.rpc.gw_submit_withdrawal_request(...args);
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
 
@@ -327,54 +322,9 @@ export class Gw {
       );
       return result;
     } catch (error) {
-      parseError(error);
+      parseGwRpcError(error);
     }
   }
-}
-
-function parseError(error: any): void {
-  const prefix = "JSONRPCError: server error ";
-  let message: string = error.message;
-  if (message.startsWith(prefix)) {
-    const jsonErr = message.slice(prefix.length);
-    const err = JSON.parse(jsonErr);
-
-    const last_log: LogItem | undefined = err.data?.last_log;
-    if (last_log != null) {
-      const polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
-      const return_data = err.data.return_data;
-
-      let statusReason = "";
-      if (return_data !== "0x") {
-        const abi = abiCoder as unknown as AbiCoder;
-        statusReason = abi.decodeParameter(
-          "string",
-          return_data.substring(10)
-        ) as unknown as string;
-      }
-
-      const failedReason: FailedReason = {
-        status_code: "0x" + polyjuiceSystemLog.statusCode.toString(16),
-        status_type:
-          evmcCodeTypeMapping[polyjuiceSystemLog.statusCode.toString()],
-        message: statusReason,
-      };
-      const data = { failed_reason: failedReason };
-      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
-        failedReason.message
-      }`;
-      throw new RpcError(err.code, newMessage, data);
-    }
-
-    throw new RpcError(err.code, err.message);
-  }
-
-  // connection error
-  if (message.startsWith("request to")) {
-    throw new Error(message);
-  }
-
-  throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
 }
 
 function formatHexNumber(
