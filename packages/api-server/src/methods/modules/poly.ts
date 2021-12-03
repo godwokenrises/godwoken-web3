@@ -239,6 +239,7 @@ async function saveAddressMapping(
           abiItem
         )} doesn't contains address type, abort saving.`
       );
+      return;
     }
 
     return await saveConstructorArgsAddressMapping(
