@@ -23,7 +23,7 @@ export async function rateLimit(
   rpcMethod: string,
   reqId: string | undefined
 ) {
-  if (hasMethod(req.body, rpcMethod) && reqId != undefined) {
+  if (hasMethod(req.body, rpcMethod) && reqId != null) {
     const isExist = await accessGuard.isExist(rpcMethod, reqId);
     if (!isExist) {
       await accessGuard.add(rpcMethod, reqId);
