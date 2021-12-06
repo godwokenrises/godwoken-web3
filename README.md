@@ -53,6 +53,20 @@ $ cat > ./packages/api-server/allowed-addresses.json <<EOF
 EOF
 ```
 
+rate limit config
+
+```bash
+$ cat > ./packages/api-server/rate-limit-config.json <<EOF
+{
+  "expired_time_milsec": 60000,
+  "methods": {
+    "poly_executeRawL2Transaction": 30,
+    "<rpc method name>": <max requests number in expired_time>
+  }
+}
+EOF
+```
+
 ### Start API server
 
 ```bash

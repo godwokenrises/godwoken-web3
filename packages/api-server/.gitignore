@@ -1,2 +1,3 @@
 allowed-addresses.json
 newrelic_agent.log
+rate-limit-config.json
