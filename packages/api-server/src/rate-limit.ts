@@ -1,18 +1,29 @@
-const { AccessGuard } = require("./lib/cache/guard");
-const { LIMIT_EXCEEDED } = require("./lib/methods/error-code");
+import { AccessGuard } from "./cache/guard";
+import { LIMIT_EXCEEDED } from "./methods/error-code";
+import { Request, Response, NextFunction } from "express";
 
-const accessGuard = new AccessGuard();
+export const accessGuard = new AccessGuard();
 accessGuard.connect();
 
-async function applyRateLimitByIp(req, res, next) {
+export async function applyRateLimitByIp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   for (const method of Object.keys(accessGuard.rpcMethods)) {
     const ip = getIp(req);
     await rateLimit(req, res, next, method, ip);
   }
 }
 
-async function rateLimit(req, res, next, rpcMethod, reqId) {
-  if (hasMethod(req.body, rpcMethod) && reqId != null) {
+export async function rateLimit(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  rpcMethod: string,
+  reqId: string | undefined
+) {
+  if (hasMethod(req.body, rpcMethod) && reqId != undefined) {
     const isExist = await accessGuard.isExist(rpcMethod, reqId);
     if (!isExist) {
       await accessGuard.add(rpcMethod, reqId);
@@ -54,7 +65,7 @@ async function rateLimit(req, res, next, rpcMethod, reqId) {
   next();
 }
 
-function hasMethod(body, name) {
+export function hasMethod(body: any, name: string) {
   if (Array.isArray(body)) {
     return body.map((b) => b.method).includes(name);
   }
@@ -62,18 +73,11 @@ function hasMethod(body, name) {
   return body.method === name;
 }
 
-function getIp(req) {
+export function getIp(req: Request) {
   let ip;
   if (req.headers["x-forwarded-for"] != null) {
-    ip = req.headers["x-forwarded-for"].split(",").map((i) => i.trim())[0];
+    ip = (req.headers["x-forwarded-for"] as string).split(",")[0].trim();
   }
 
   return ip || req.socket.remoteAddress;
 }
-
-module.exports = {
-  applyRateLimitByIp,
-  rateLimit,
-  hasMethod,
-  getIp,
-};

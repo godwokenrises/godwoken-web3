@@ -6,7 +6,7 @@ var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
-const { applyRateLimitByIp } = require("./rateLimit");
+const { applyRateLimitByIp } = require("./lib/rate-limit");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 

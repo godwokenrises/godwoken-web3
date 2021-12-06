@@ -11,7 +11,7 @@ export const EXPIRED_TIME_MILSECS = 1 * 60 * 1000; // milsec, default 1 minutes
 export const MAX_REQUEST_COUNT = 30;
 
 export interface RateLimitConfig {
-  expired_time: number;
+  expired_time_milsec: number;
   methods: RpcMethodLimit;
 }
 
@@ -28,7 +28,7 @@ export function getRateLimitConfig() {
 
   // default config, no rpc method apply rate limit
   return {
-    expired_time: EXPIRED_TIME_MILSECS,
+    expired_time_milsec: EXPIRED_TIME_MILSECS,
     methods: {},
   } as RateLimitConfig;
 }
@@ -44,7 +44,7 @@ export class AccessGuard {
   ) {
     const config = getRateLimitConfig();
     console.debug("rate-limit-config:", config);
-    expiredTimeMilsecs = expiredTimeMilsecs || config.expired_time;
+    expiredTimeMilsecs = expiredTimeMilsecs || config.expired_time_milsec;
     this.store =
       store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
     this.rpcMethods = config.methods;
