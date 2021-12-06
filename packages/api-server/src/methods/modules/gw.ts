@@ -172,10 +172,7 @@ export class Gw {
         return result;
       }
 
-      result = (await this.rpc.call(
-        "gw_get_account_id_by_script_hash",
-        args
-      )) as any;
+      result = await this.rpc.gw_get_account_id_by_script_hash(...args);
       if (result != null) {
         console.debug(`update cache: ${scriptHash} -> ${result}`);
         this.gwCache.insert(`${GW_RPC_KEY}_${scriptHash}`, result);
@@ -352,10 +349,9 @@ export class Gw {
         return value;
       }
 
-      const result = (await this.rpc.call(
-        "gw_get_script_hash_by_short_address",
-        args
-      )) as any;
+      const result = await this.rpc.gw_get_script_hash_by_short_address(
+        ...args
+      );
       if (result != null) {
         console.debug(
           `update cache: shortAddress(${shortAddress}) -> scriptHash(${result})`
