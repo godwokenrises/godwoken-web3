@@ -6,8 +6,7 @@ var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
-const { AccessGuard } = require("../api-server/lib/cache/guard");
-const { LIMIT_EXCEEDED } = require("../api-server/lib/methods/error-code");
+const { applyRateLimitByIp } = require("./rateLimit");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 
@@ -79,76 +78,9 @@ app.use(function (req, _res, next) {
   next();
 });
 
-function hasMethod(body, name) {
-  if (Array.isArray(body)) {
-    return body.map((b) => b.method).includes(name);
-  }
-
-  return body.method === name;
-}
-
-function getIp(req) {
-  let ip;
-  if (req.headers["x-forwarded-for"] != null) {
-    ip = req.headers["x-forwarded-for"].split(",").map((i) => i.trim())[0];
-  }
-
-  return ip || req.socket.remoteAddress;
-}
-
-const MAX_RPM = {
-  poly_executeRawL2Transaction: 30, // max: 0.5 req/s = 30 req/m
-};
-
-const accessGuard = new AccessGuard();
-accessGuard.connect();
-accessGuard.setMaxRpm(
-  "poly_executeRawL2Transaction",
-  MAX_RPM.poly_executeRawL2Transaction
-);
-
 app.use(async function (req, res, next) {
-  const ip = getIp(req);
-  // restrict access rate limit
-  if (hasMethod(req.body, "poly_executeRawL2Transaction") && ip != null) {
-    const rpcRouter = "poly_executeRawL2Transaction";
-    const reqId = ip;
-    const isExist = await accessGuard.isExist(rpcRouter, reqId);
-    if (!isExist) {
-      await accessGuard.add(rpcRouter, reqId);
-    }
-    const isOverRate = await accessGuard.isOverRate(rpcRouter, reqId);
-    if (isOverRate) {
-      if (Array.isArray(req.body)) {
-        return res.send(
-          req.body.map((b) => {
-            return {
-              jsonrpc: "2.0",
-              id: b.id,
-              error: {
-                code: LIMIT_EXCEEDED,
-                message:
-                  "you are temporally restrict to the service, please wait.",
-              },
-            };
-          })
-        );
-      }
-
-      return res.send({
-        jsonrpc: "2.0",
-        id: req.body.id,
-        error: {
-          code: LIMIT_EXCEEDED,
-          message: "you are temporally restrict to the service, please wait.",
-        },
-      });
-    }
-
-    await accessGuard.updateCount(rpcRouter, reqId);
-  }
-
-  next();
+  // restrict access rate limit via ip
+  await applyRateLimitByIp(req, res, next);
 });
 
 app.ws("/ws", wrapper);
