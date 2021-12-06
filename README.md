@@ -58,7 +58,7 @@ rate limit config
 ```bash
 $ cat > ./packages/api-server/rate-limit-config.json <<EOF
 {
-  "expired_time": 60000,
+  "expired_time_milsec": 60000,
   "methods": {
     "poly_executeRawL2Transaction": 30,
     "<rpc method name>": <max requests number in expired_time>
