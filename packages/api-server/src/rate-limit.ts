@@ -10,7 +10,12 @@ export async function applyRateLimitByIp(
   res: Response,
   next: NextFunction
 ) {
-  for (const method of Object.keys(accessGuard.rpcMethods)) {
+  const methods = Object.keys(accessGuard.rpcMethods);
+  if (methods.length === 0) {
+    return next();
+  }
+
+  for (const method of methods) {
     const ip = getIp(req);
     await rateLimit(req, res, next, method, ip);
   }
