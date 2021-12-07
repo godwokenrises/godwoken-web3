@@ -10,16 +10,14 @@ const httpsAgent = new https.Agent({
 });
 
 export class RPC extends Rpc {
-  constructor(url: string, options?: any) {
+  constructor(url: string, options?: object) {
     let agent: http.Agent | https.Agent = httpsAgent;
     if (url.startsWith("http:")) {
       agent = httpAgent;
     }
 
     options = options || {};
-    if (options.agent == undefined) {
-      options = { ...options, ...{ agent } };
-    }
+    options.agent ||= agent;
     super(url, options);
   }
 }
