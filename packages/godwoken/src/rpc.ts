@@ -17,7 +17,7 @@ export class RPC extends Rpc {
     }
 
     options = options || {};
-    options.agent ||= agent;
+    (options as any).agent ||= agent;
     super(url, options);
   }
 }
