@@ -5,6 +5,7 @@ import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
 import { AccountsQuery } from "./accounts";
 import { envConfig } from "../base/env-config";
+import { formatDecimal } from "./helpers";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -512,16 +513,6 @@ export function filterLogsByAddress(
     }
   }
   return result;
-}
-
-export function formatDecimal(dec: string) {
-  const nums = dec.split(".");
-  const wholeNum = BigInt(nums[0]);
-  const smallNum = nums[1] == null ? 0 : +nums[1];
-  if (smallNum > 0) {
-    return wholeNum + 1n;
-  }
-  return wholeNum;
 }
 
 // test

@@ -1,5 +1,5 @@
 import test from "ava";
-import { formatDecimal } from "../../src/db";
+import { formatDecimal } from "../../src/db/helpers";
 
 const testCase: { [key:string]: bigint } = {
   "1000": 1000n,
