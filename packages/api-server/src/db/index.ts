@@ -351,6 +351,19 @@ export class Query {
 
     throw new Error("invalid params!");
   }
+
+  // Latest 500 transactions median gas_price
+  async getMedianGasPrice(): Promise<bigint> {
+    const sql = `SELECT (PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY gas_price)) AS median FROM (SELECT gas_price FROM transactions ORDER BY id DESC LIMIT ?) AS gas_price;`;
+    const result = await this.knex.raw(sql, [500]);
+
+    const median = result.rows[0]?.median;
+    if (median == null) {
+      return BigInt(0);
+    }
+
+    return formatDecimal(median.toString());
+  }
 }
 
 function formatBlock(block: Block): Block {
@@ -499,6 +512,16 @@ export function filterLogsByAddress(
     }
   }
   return result;
+}
+
+export function formatDecimal(dec: string) {
+  const nums = dec.split(".");
+  const wholeNum = BigInt(nums[0]);
+  const smallNum = nums[1] == null ? 0 : +nums[1];
+  if (smallNum > 0) {
+    return wholeNum + 1n;
+  }
+  return wholeNum;
 }
 
 // test

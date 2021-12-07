@@ -254,8 +254,15 @@ export class Eth {
     return "0x0";
   }
 
-  async gasPrice(args: []): Promise<HexNumber> {
-    return "0x1";
+  /**
+   * Return median gas_price of latest 500 transactions
+   *
+   * @param _args empty
+   * @returns
+   */
+  async gasPrice(_args: []): Promise<HexNumber> {
+    const medianGasPrice = await this.query.getMedianGasPrice();
+    return "0x" + medianGasPrice.toString(16);
   }
 
   /**
