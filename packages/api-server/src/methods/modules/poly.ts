@@ -226,6 +226,32 @@ async function saveAddressMapping(
   const ethTxData = decodeArgs(rawTx.args).data;
   const abiItemStr = txWithAddressMapping.extra;
   const abiItem: AbiItem = deserializeAbiItem(abiItemStr);
+
+  // special case: contract deployment
+  // todo: since deploy transaction's inputData has no function signature
+  // we just check if ethTxInputData include substring of address for simplicity
+  // later we can rewrite serialization to decode the exact data using abiItem and bytecode length
+  const creatorIdHexNumber =
+    "0x" + BigInt(envConfig.creatorAccountId).toString(16);
+  if (abiItem.type === "constructor" && rawTx.to_id === creatorIdHexNumber) {
+    if (!containsAddressType(abiItem)) {
+      console.log(
+        `constructor abiItem ${JSON.stringify(
+          abiItem
+        )} doesn't contains address type, abort saving.`
+      );
+      return;
+    }
+
+    return await saveConstructorArgsAddressMapping(
+      query,
+      rpc,
+      ethTxData,
+      txWithAddressMapping
+    );
+  }
+
+  // normal contract call, strict check if abiItem matched.
   const addressesFromEthTxData = getAddressesFromInputDataByAbi(
     ethTxData,
     abiItem
@@ -293,4 +319,86 @@ async function saveAddressMapping(
       }
     })
   );
+}
+
+async function saveConstructorArgsAddressMapping(
+  query: Query,
+  rpc: GodwokenClient,
+  ethTxData: string,
+  txWithAddressMapping:
+    | L2TransactionWithAddressMapping
+    | RawL2TransactionWithAddressMapping
+) {
+  await Promise.all(
+    txWithAddressMapping.addresses.data.map(async (item) => {
+      const ethAddress: HexString = item.eth_address;
+      const godwokenShortAddress: HexString = item.gw_short_address;
+
+      if (!ethTxData.includes(godwokenShortAddress.slice(2))) {
+        console.log(
+          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
+            ethTxData,
+            null,
+            2
+          )}`
+        );
+        return;
+      }
+
+      try {
+        const exists = await query.accounts.exists(
+          ethAddress,
+          godwokenShortAddress
+        );
+        if (exists) {
+          console.log(
+            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
+          );
+          return;
+        }
+        if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+          throw new Error(
+            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
+          );
+        }
+        const isExistOnChain = await isShortAddressOnChain(
+          rpc,
+          godwokenShortAddress
+        );
+        if (isExistOnChain) {
+          console.log(
+            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+          );
+          return;
+        }
+
+        await query.accounts.save(ethAddress, godwokenShortAddress);
+        console.log(
+          `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+        );
+        return;
+      } catch (error) {
+        console.log(
+          `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
+          error
+        );
+      }
+    })
+  );
+}
+
+function containsAddressType(abiItem: AbiItem) {
+  if (!abiItem.inputs) {
+    return false;
+  }
+
+  const interestedInputs = abiItem.inputs.filter(
+    (input) => input.type === "address" || input.type === "address[]"
+  );
+
+  if (interestedInputs.length === 0) {
+    return false;
+  }
+
+  return true;
 }
