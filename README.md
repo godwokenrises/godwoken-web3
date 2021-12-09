@@ -26,6 +26,7 @@ CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
 PG_POOL_MAX=<pg pool max count, optional, default to 20>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
+EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
 EOF
 
 $ yarn

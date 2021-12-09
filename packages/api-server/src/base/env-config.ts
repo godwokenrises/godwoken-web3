@@ -21,6 +21,7 @@ export const envConfig = {
   redisUrl: getOptional("REDIS_URL"),
   pgPoolMax: getOptional("PG_POOL_MAX"),
   gasPriceCacheSeconds: getOptional("GAS_PRICE_CACHE_SECONDS"),
+  extraEstimateGas: getOptional("EXTRA_ESTIMATE_GAS"),
 };
 
 function getRequired(name: string): string {
