@@ -447,6 +447,8 @@ export class Eth {
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
+      const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
+
       const txCallObj = args[0];
       let runResult;
       try {
@@ -460,7 +462,7 @@ export class Eth {
         const gwErr = parseGwError(err);
         const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
         if (gasUsed != null) {
-          const gasUsedHex = "0x" + gasUsed.toString(16);
+          const gasUsedHex = "0x" + (gasUsed + extraGas).toString(16);
           return gasUsedHex;
         }
         throw err;
@@ -478,7 +480,9 @@ export class Eth {
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
       );
 
-      return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
+      const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+
+      return "0x" + gasUsed.toString(16);
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
