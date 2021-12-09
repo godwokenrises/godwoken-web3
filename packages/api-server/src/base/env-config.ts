@@ -20,6 +20,7 @@ export const envConfig = {
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   redisUrl: getOptional("REDIS_URL"),
   pgPoolMax: getOptional("PG_POOL_MAX"),
+  extraEstimateGas: getOptional("EXTRA_ESTIMATE_GAS"),
 };
 
 function getRequired(name: string): string {
