@@ -5,6 +5,7 @@ import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
 import { AccountsQuery } from "./accounts";
 import { envConfig } from "../base/env-config";
+import { formatDecimal } from "./helpers";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -350,6 +351,19 @@ export class Query {
     }
 
     throw new Error("invalid params!");
+  }
+
+  // Latest 500 transactions median gas_price
+  async getMedianGasPrice(): Promise<bigint> {
+    const sql = `SELECT (PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY gas_price)) AS median FROM (SELECT gas_price FROM transactions ORDER BY id DESC LIMIT ?) AS gas_price;`;
+    const result = await this.knex.raw(sql, [500]);
+
+    const median = result.rows[0]?.median;
+    if (median == null) {
+      return BigInt(0);
+    }
+
+    return formatDecimal(median.toString());
   }
 }
 
