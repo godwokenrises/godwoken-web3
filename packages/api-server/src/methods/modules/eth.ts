@@ -55,6 +55,7 @@ import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
+import { Store } from "../../cache/store";
 
 const Config = require("../../../config/eth.json");
 
@@ -70,6 +71,7 @@ export class Eth {
   private rpc: GodwokenClient;
   private ethWallet: boolean;
   private filterManager: FilterManager;
+  private gasPriceCache?: Store;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
@@ -77,6 +79,16 @@ export class Eth {
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
+
+    const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
+    if (cacheSeconds !== 0) {
+      this.gasPriceCache = new Store(
+        envConfig.redisUrl,
+        true,
+        cacheSeconds * 1000
+      );
+      this.gasPriceCache.init();
+    }
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -261,12 +273,27 @@ export class Eth {
    * @returns
    */
   async gasPrice(_args: []): Promise<HexNumber> {
-    const medianGasPrice = await this.query.getMedianGasPrice();
-    // set min to 1
-    if (medianGasPrice < BigInt(1)) {
-      return "0x1";
+    const key = `eth.eth_gasPrice`;
+    if (this.gasPriceCache != null) {
+      const cachedGasPrice = await this.gasPriceCache.get(key);
+      if (cachedGasPrice != null) {
+        return cachedGasPrice;
+      }
     }
-    return "0x" + medianGasPrice.toString(16);
+
+    let medianGasPrice = await this.query.getMedianGasPrice();
+    // set min to 1
+    const minGasPrice = BigInt(1);
+    if (medianGasPrice < minGasPrice) {
+      medianGasPrice = minGasPrice;
+    }
+    const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+
+    if (this.gasPriceCache != null) {
+      this.gasPriceCache.insert(key, medianGasPriceHex);
+    }
+
+    return medianGasPriceHex;
   }
 
   /**
