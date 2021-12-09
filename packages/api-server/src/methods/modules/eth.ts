@@ -262,6 +262,10 @@ export class Eth {
    */
   async gasPrice(_args: []): Promise<HexNumber> {
     const medianGasPrice = await this.query.getMedianGasPrice();
+    // set min to 1
+    if (medianGasPrice < BigInt(1)) {
+      return "0x1";
+    }
     return "0x" + medianGasPrice.toString(16);
   }
 
