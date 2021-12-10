@@ -551,7 +551,9 @@ export async function limitQuery(
 
     // check if exceed max query number
     if (results.length > MAX_QUERY_NUMBER) {
-      throw new LimitExceedError(`query returned more than 10000 results`);
+      throw new LimitExceedError(
+        `query returned more than ${MAX_QUERY_NUMBER} results`
+      );
     }
 
     // check if exceed query timeout
