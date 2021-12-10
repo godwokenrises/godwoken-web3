@@ -547,6 +547,7 @@ export async function limitQuery(
   for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
     const offset = index * MAX_QUERY_NUMBER;
     let executeResult = await executeOneQuery(offset);
+    // console.log(`${index}th round =>`, executeResult.data.length, executeResult.status);
     results.push(...executeResult.data);
 
     // check if exceed max query number

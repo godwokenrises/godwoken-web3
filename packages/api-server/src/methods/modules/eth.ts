@@ -898,7 +898,7 @@ export class Eth {
         // remember to update the last poll cache
         // logsData[0] is now the highest log id(meaning it is the newest cache log id)
         await this.filterManager.updateLastPoll(filter_id, logs[0].id);
-        return logs.map((log) => toApiLog(log));
+        return logs;
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
@@ -916,15 +916,13 @@ export class Eth {
       );
       if (logs.length === 0) return [];
 
-      // remember to update the last poll cache
-      // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
-      return logs.map((log) => toApiLog(log));
+      return logs;
     };
 
     const executeOneQuery = async (offset: number) => {
       try {
         const data = await execOneQuery(offset);
+
         return {
           status: QueryRoundStatus.keepGoing,
           data: data,
@@ -942,7 +940,14 @@ export class Eth {
       }
     };
 
-    return await limitQuery(executeOneQuery.bind(this));
+    const logs = await limitQuery(executeOneQuery.bind(this));
+    // remember to update the last poll cache
+    // logsData[0] is now the highest log id(meaning it is the newest cache log id)
+    if (logs.length !== 0) {
+      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+    }
+
+    return logs.map((log) => toApiLog(log));
   }
 
   async getLogs(args: [FilterObject]): Promise<EthLog[]> {
