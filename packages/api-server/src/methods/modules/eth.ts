@@ -926,11 +926,13 @@ export class Eth {
       try {
         const data = await execOneQuery(offset);
         return {
-          status: QueryRoundStatus.keep,
+          status: QueryRoundStatus.keepGoing,
           data: data,
         } as ExecuteOneQueryResult;
       } catch (error) {
-        if ((error as unknown as Error).message === QUERY_OFFSET_REACHED_END) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
           return {
             status: QueryRoundStatus.stop,
             data: [], // return empty result
@@ -986,17 +988,19 @@ export class Eth {
       try {
         const data = await execOneQuery(offset);
         return {
-          status: QueryRoundStatus.keep,
+          status: QueryRoundStatus.keepGoing,
           data: data,
         } as ExecuteOneQueryResult;
       } catch (error) {
-        if ((error as unknown as Error).message === QUERY_OFFSET_REACHED_END) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
           return {
             status: QueryRoundStatus.stop,
             data: [], // return empty result
           } as ExecuteOneQueryResult;
         }
-        throw error;
+        throw new Web3Error(error.message, error.data);
       }
     };
 

@@ -303,9 +303,11 @@ export class Query {
         undefined,
         offset
       );
-      if (logs.length === 0) {
+
+      if (offset && offset != 0 && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
+
       return filterLogsByTopics(logs, topics);
     }
 
@@ -317,9 +319,11 @@ export class Query {
         undefined,
         offset
       );
-      if (logs.length === 0) {
+
+      if (offset && offset != 0 && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
+
       return filterLogsByTopics(logs, topics);
     }
 
@@ -344,7 +348,7 @@ export class Query {
         offset
       );
 
-      if (logs.length === 0) {
+      if (offset && offset != 0 && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
@@ -360,7 +364,7 @@ export class Query {
         offset
       );
 
-      if (logs.length === 0) {
+      if (offset && offset != 0 && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
@@ -520,7 +524,7 @@ export function filterLogsByAddress(
 }
 
 export enum QueryRoundStatus {
-  keep,
+  keepGoing,
   stop,
 }
 
