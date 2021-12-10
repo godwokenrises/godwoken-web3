@@ -304,7 +304,7 @@ export class Query {
         offset
       );
 
-      if (offset && offset != 0 && logs.length === 0) {
+      if (offset && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
@@ -320,7 +320,7 @@ export class Query {
         offset
       );
 
-      if (offset && offset != 0 && logs.length === 0) {
+      if (offset && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
@@ -348,7 +348,7 @@ export class Query {
         offset
       );
 
-      if (offset && offset != 0 && logs.length === 0) {
+      if (offset && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
@@ -364,7 +364,7 @@ export class Query {
         offset
       );
 
-      if (offset && offset != 0 && logs.length === 0) {
+      if (offset && logs.length === 0) {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
