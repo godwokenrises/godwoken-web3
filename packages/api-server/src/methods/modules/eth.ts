@@ -895,9 +895,7 @@ export class Eth {
           offset
         );
         if (logs.length === 0) return [];
-        // remember to update the last poll cache
-        // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-        await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+
         return logs;
       }
 
