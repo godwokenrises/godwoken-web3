@@ -1,4 +1,4 @@
-import { EthBlock } from "../base/types/api";
+import { EthNewHead } from "../base/types/api";
 import { BlockEmitter } from "../block-emitter";
 import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
@@ -50,7 +50,7 @@ export function wrapper(ws: any, _req: any) {
   const syncingIds: Set<HexNumber> = new Set();
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
-  const blockListener = (blocks: EthBlock[]) => {
+  const blockListener = (blocks: EthNewHead[]) => {
     blocks.forEach((block) => {
       newHeadsIds.forEach((id) => {
         const obj = {
@@ -66,7 +66,14 @@ export function wrapper(ws: any, _req: any) {
     });
   };
 
-  const logsListener = (logs: Log[]) => {
+  const logsListener = (_logs: string[]) => {
+    const logs: Log[] = _logs.map((_log) => {
+      let log = JSON.parse(_log);
+      log.id = BigInt(log.id);
+      log.block_number = BigInt(log.block_number);
+      log.transaction_id = BigInt(log.transaction_id);
+      return log;
+    });
     logsQueryMaps.forEach((query, id) => {
       const _result = filterLogsByAddress(logs, query.address);
       const result = filterLogsByTopics(_result, query.topics || []);
