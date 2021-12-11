@@ -182,6 +182,18 @@ export class Eth {
     this.newFilter = middleware(this.newFilter.bind(this), 1, [
       validators.newFilterParams,
     ]);
+    this.uninstallFilter = middleware(this.uninstallFilter.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getFilterLogs = middleware(this.getFilterLogs.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getFilterChanges = middleware(this.getFilterChanges.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getLogs = middleware(this.getLogs.bind(this), 1, [
+      validators.newFilterParams,
+    ]);
 
     this.sendRawTransaction = middleware(
       this.sendRawTransaction.bind(this),
