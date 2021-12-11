@@ -21,8 +21,14 @@ import {
   SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
+  QUERY_OFFSET_REACHED_END,
 } from "../constant";
-import { Query } from "../../db";
+import {
+  ExecuteOneQueryResult,
+  limitQuery,
+  Query,
+  QueryRoundStatus,
+} from "../../db";
 import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
@@ -920,37 +926,67 @@ export class Eth {
       topics,
     };
 
-    // if blockHash exits, fromBlock and toBlock is not allowed.
-    if (blockHash) {
+    const execOneQuery = async (offset: number) => {
+      // if blockHash exits, fromBlock and toBlock is not allowed.
+      if (blockHash) {
+        const logs = await this.query.getLogsAfterLastPoll(
+          lastPollLogId,
+          queryOption,
+          blockHash,
+          undefined,
+          offset
+        );
+        if (logs.length === 0) return [];
+
+        return logs;
+      }
+
+      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.fromBlock || "latest"
+      );
+      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.toBlock || "latest"
+      );
       const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId,
+        lastPollLogId!,
         queryOption,
-        blockHash
+        fromBlockNumber,
+        toBlockNumber,
+        offset
       );
       if (logs.length === 0) return [];
-      // remember to update the last poll cache
-      // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
-      return logs.map((log) => toApiLog(log));
-    }
 
-    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.fromBlock || "latest"
-    );
-    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.toBlock || "latest"
-    );
-    const logs = await this.query.getLogsAfterLastPoll(
-      lastPollLogId!,
-      queryOption,
-      fromBlockNumber,
-      toBlockNumber
-    );
-    if (logs.length === 0) return [];
+      return logs;
+    };
 
+    const executeOneQuery = async (offset: number) => {
+      try {
+        const data = await execOneQuery(offset);
+
+        return {
+          status: QueryRoundStatus.keepGoing,
+          data: data,
+        } as ExecuteOneQueryResult;
+      } catch (error) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
+          return {
+            status: QueryRoundStatus.stop,
+            data: [], // return empty result
+          } as ExecuteOneQueryResult;
+        }
+        throw error;
+      }
+    };
+
+    const logs = await limitQuery(executeOneQuery.bind(this));
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-    await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+    if (logs.length !== 0) {
+      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+    }
+
     return logs.map((log) => toApiLog(log));
   }
 
@@ -966,24 +1002,54 @@ export class Eth {
       address,
     };
 
-    // if blockHash exits, fromBlock and toBlock is not allowed.
-    if (blockHash) {
-      const logs = await this.query.getLogs(queryOption, blockHash);
-      return logs.map((log) => toApiLog(log));
-    }
+    const execOneQuery = async (offset: number) => {
+      // if blockHash exits, fromBlock and toBlock is not allowed.
+      if (blockHash) {
+        const logs = await this.query.getLogs(
+          queryOption,
+          blockHash,
+          undefined,
+          offset
+        );
+        return logs.map((log) => toApiLog(log));
+      }
 
-    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.fromBlock || "latest"
-    );
-    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.toBlock || "latest"
-    );
-    const logs = await this.query.getLogs(
-      queryOption,
-      fromBlockNumber,
-      toBlockNumber
-    );
-    return logs.map((log) => toApiLog(log));
+      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.fromBlock || "latest"
+      );
+      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.toBlock || "latest"
+      );
+      const logs = await this.query.getLogs(
+        queryOption,
+        fromBlockNumber,
+        toBlockNumber,
+        offset
+      );
+      return logs.map((log) => toApiLog(log));
+    };
+
+    const executeOneQuery = async (offset: number) => {
+      try {
+        const data = await execOneQuery(offset);
+        return {
+          status: QueryRoundStatus.keepGoing,
+          data: data,
+        } as ExecuteOneQueryResult;
+      } catch (error) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
+          return {
+            status: QueryRoundStatus.stop,
+            data: [], // return empty result
+          } as ExecuteOneQueryResult;
+        }
+        throw new Web3Error(error.message, error.data);
+      }
+    };
+
+    return await limitQuery(executeOneQuery.bind(this));
   }
   /* #endregion */
 

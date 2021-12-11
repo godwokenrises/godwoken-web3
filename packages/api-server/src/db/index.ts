@@ -5,6 +5,13 @@ import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
 import { AccountsQuery } from "./accounts";
 import { envConfig } from "../base/env-config";
+import {
+  MAX_QUERY_NUMBER,
+  MAX_QUERY_TIME_MILSECS,
+  MAX_QUERY_ROUNDS,
+} from "./constant";
+import { LimitExceedError } from "../methods/error";
+import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import { formatDecimal } from "./helpers";
 
 const poolMax = envConfig.pgPoolMax || 20;
@@ -242,15 +249,19 @@ export class Query {
   private async queryLogsByBlockHash(
     blockHash: HexString,
     address?: HexString,
-    lastPollId?: bigint
+    lastPollId?: bigint,
+    offset?: number
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
+    const queryOffset = offset || 0;
     let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_hash", blockHash)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "desc");
+      .orderBy("id", "desc")
+      .offset(queryOffset)
+      .limit(MAX_QUERY_NUMBER);
     logs = logs.map((log) => formatLog(log));
     return logs;
   }
@@ -259,32 +270,29 @@ export class Query {
     fromBlock: HexNumber,
     toBlock: HexNumber,
     address?: HexString,
-    lastPollId?: bigint
+    lastPollId?: bigint,
+    offset?: number
   ): Promise<Log[]> {
     const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
+    const queryOffset = offset || 0;
     let logs = await this.knex<Log>("logs")
       .where(queryAddress)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "desc");
+      .orderBy("id", "desc")
+      .offset(queryOffset)
+      .limit(MAX_QUERY_NUMBER);
     logs = logs.map((log) => formatLog(log));
     return logs;
   }
 
-  getLogs(
-    option: LogQueryOption,
-    fromBlock: bigint,
-    toBlock: bigint
-  ): Promise<Log[]>;
-
-  getLogs(option: LogQueryOption, blockHash: HexString): Promise<Log[]>;
-
   async getLogs(
     option: LogQueryOption,
     blockHashOrFromBlock: HexString | bigint,
-    toBlock?: bigint
+    toBlock?: bigint,
+    offset?: number
   ): Promise<Log[]> {
     const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
@@ -292,8 +300,15 @@ export class Query {
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
-        address
+        address,
+        undefined,
+        offset
       );
+
+      if (offset && logs.length === 0) {
+        throw new Error(QUERY_OFFSET_REACHED_END);
+      }
+
       return filterLogsByTopics(logs, topics);
     }
 
@@ -301,32 +316,27 @@ export class Query {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
-        address
+        address,
+        undefined,
+        offset
       );
+
+      if (offset && logs.length === 0) {
+        throw new Error(QUERY_OFFSET_REACHED_END);
+      }
+
       return filterLogsByTopics(logs, topics);
     }
 
     throw new Error("invalid params!");
   }
 
-  getLogsAfterLastPoll(
-    lastPollId: bigint,
-    option: LogQueryOption,
-    blockHash: HexString
-  ): Promise<Log[]>;
-
-  getLogsAfterLastPoll(
-    lastPollId: bigint,
-    option: LogQueryOption,
-    fromBlock: bigint,
-    toBlock: bigint
-  ): Promise<Log[]>;
-
   async getLogsAfterLastPoll(
     lastPollId: bigint,
     option: LogQueryOption,
     blockHashOrFromBlock: HexString | bigint,
-    toBlock?: bigint
+    toBlock?: bigint,
+    offset?: number
   ): Promise<Log[]> {
     const address = normalizeQueryAddress(option.address);
     const topics = option.topics || [];
@@ -335,8 +345,14 @@ export class Query {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
         address,
-        lastPollId
+        lastPollId,
+        offset
       );
+
+      if (offset && logs.length === 0) {
+        throw new Error(QUERY_OFFSET_REACHED_END);
+      }
+
       return filterLogsByTopics(logs, topics);
     }
 
@@ -345,8 +361,14 @@ export class Query {
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
         address,
-        lastPollId
+        lastPollId,
+        offset
       );
+
+      if (offset && logs.length === 0) {
+        throw new Error(QUERY_OFFSET_REACHED_END);
+      }
+
       return filterLogsByTopics(logs, topics);
     }
 
@@ -513,6 +535,55 @@ export function filterLogsByAddress(
     }
   }
   return result;
+}
+
+export enum QueryRoundStatus {
+  keepGoing,
+  stop,
+}
+
+export interface ExecuteOneQueryResult {
+  status: QueryRoundStatus;
+  data: any[];
+}
+
+/**
+ * limit the query in two constraints:  query number and query time
+ * with N rounds of query, calculate the number and time
+ * @param executeOneQuery query in one round
+ * @returns
+ */
+export async function limitQuery(
+  executeOneQuery: (offset: number) => Promise<ExecuteOneQueryResult>
+) {
+  const results = [];
+  const t1 = new Date();
+  for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
+    const offset = index * MAX_QUERY_NUMBER;
+    let executeResult = await executeOneQuery(offset);
+    // console.log(`${index}th round =>`, executeResult.data.length, executeResult.status);
+    results.push(...executeResult.data);
+
+    // check if exceed max query number
+    if (results.length > MAX_QUERY_NUMBER) {
+      throw new LimitExceedError(
+        `query returned more than ${MAX_QUERY_NUMBER} results`
+      );
+    }
+
+    // check if exceed query timeout
+    const t2 = new Date();
+    const diffTimeMs = t2.getTime() - t1.getTime();
+    if (diffTimeMs > MAX_QUERY_TIME_MILSECS) {
+      throw new LimitExceedError(`query timeout exceeded`);
+    }
+
+    if (executeResult.status === QueryRoundStatus.stop) {
+      // offset query reach end, break the loop
+      break;
+    }
+  }
+  return results;
 }
 
 // test
