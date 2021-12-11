@@ -16,6 +16,14 @@
     "migrate-accounts": "ts-node ./src/migrate-accounts.ts",
     "build": "tsc"
   },
+  "ava": {
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
   "dependencies": {
     "@ckb-lumos/base": "^0.18.0-rc1",
     "@godwoken-web3/godwoken": "0.8.1-rc2",

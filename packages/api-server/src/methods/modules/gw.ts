@@ -363,6 +363,20 @@ export class Gw {
       parseGwRpcError(error);
     }
   }
+
+  /**
+   *
+   * @param args []
+   * @returns
+   */
+  async gw_get_fee_config(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_fee_config(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
 }
 
 function formatHexNumber(

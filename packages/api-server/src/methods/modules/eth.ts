@@ -61,6 +61,7 @@ import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
+import { Store } from "../../cache/store";
 
 const Config = require("../../../config/eth.json");
 
@@ -76,6 +77,7 @@ export class Eth {
   private rpc: GodwokenClient;
   private ethWallet: boolean;
   private filterManager: FilterManager;
+  private gasPriceCache?: Store;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
@@ -83,6 +85,16 @@ export class Eth {
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
+
+    const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
+    if (cacheSeconds !== 0) {
+      this.gasPriceCache = new Store(
+        envConfig.redisUrl,
+        true,
+        cacheSeconds * 1000
+      );
+      this.gasPriceCache.init();
+    }
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -260,8 +272,34 @@ export class Eth {
     return "0x0";
   }
 
-  async gasPrice(args: []): Promise<HexNumber> {
-    return "0x1";
+  /**
+   * Return median gas_price of latest 500 transactions
+   *
+   * @param _args empty
+   * @returns
+   */
+  async gasPrice(_args: []): Promise<HexNumber> {
+    const key = `eth.eth_gasPrice`;
+    if (this.gasPriceCache != null) {
+      const cachedGasPrice = await this.gasPriceCache.get(key);
+      if (cachedGasPrice != null) {
+        return cachedGasPrice;
+      }
+    }
+
+    let medianGasPrice = await this.query.getMedianGasPrice();
+    // set min to 1
+    const minGasPrice = BigInt(1);
+    if (medianGasPrice < minGasPrice) {
+      medianGasPrice = minGasPrice;
+    }
+    const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+
+    if (this.gasPriceCache != null) {
+      this.gasPriceCache.insert(key, medianGasPriceHex);
+    }
+
+    return medianGasPriceHex;
   }
 
   /**
@@ -453,6 +491,8 @@ export class Eth {
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
+      const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
+
       const txCallObj = args[0];
       let runResult;
       try {
@@ -466,7 +506,7 @@ export class Eth {
         const gwErr = parseGwError(err);
         const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
         if (gasUsed != null) {
-          const gasUsedHex = "0x" + gasUsed.toString(16);
+          const gasUsedHex = "0x" + (gasUsed + extraGas).toString(16);
           return gasUsedHex;
         }
         throw err;
@@ -484,7 +524,9 @@ export class Eth {
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
       );
 
-      return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
+      const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+
+      return "0x" + gasUsed.toString(16);
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
