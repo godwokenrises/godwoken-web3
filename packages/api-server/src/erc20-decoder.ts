@@ -1,8 +1,8 @@
 import { decodeArgs } from "@polyjuice-provider/base";
 import InputDataDecoder from "ethereum-input-data-decoder";
+import { SUDT_ERC20_PROXY_ABI } from "./erc20";
 
-const abiItems = require("../SudtERC20Proxy.abi.json");
-const deocder = new InputDataDecoder(abiItems);
+const deocder = new InputDataDecoder(SUDT_ERC20_PROXY_ABI as any);
 
 type HexString = string;
 
