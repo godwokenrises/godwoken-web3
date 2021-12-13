@@ -18,7 +18,9 @@
     "migrate:make": "yarn workspace @godwoken-web3/api-server run migrate:make",
     "migrate:latest": "yarn workspace @godwoken-web3/api-server run migrate:latest",
     "migrate-accounts": "yarn workspace @godwoken-web3/api-server run migrate-accounts",
-    "start": "yarn workspace @godwoken-web3/api-server run start"
+    "start": "yarn workspace @godwoken-web3/api-server run start",
+    "start:prod": "yarn workspace @godwoken-web3/api-server run start:prod",
+    "start:pm2": "yarn workspace @godwoken-web3/api-server run start:pm2"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.28.2",
@@ -26,6 +28,6 @@
     "eslint": "^7.16.0",
     "prettier": "^2.2.1"
   },
-  "version": "0.8.0-rc1",
+  "version": "0.8.1-rc2",
   "author": "hupeng <bitrocks.hu@gmail.com>"
 }

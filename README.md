@@ -24,6 +24,7 @@ SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
 CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
+PG_POOL_MAX=<pg pool max count, optional, default to 20>
 EOF
 
 $ yarn
@@ -52,6 +53,20 @@ $ cat > ./packages/api-server/allowed-addresses.json <<EOF
 EOF
 ```
 
+rate limit config
+
+```bash
+$ cat > ./packages/api-server/rate-limit-config.json <<EOF
+{
+  "expired_time_milsec": 60000,
+  "methods": {
+    "poly_executeRawL2Transaction": 30,
+    "<rpc method name>": <max requests number in expired_time>
+  }
+}
+EOF
+```
+
 ### Start API server
 
 ```bash
@@ -59,6 +74,32 @@ yarn run build:godwoken
 yarn run start
 ```
 
+#### Start in production mode
+
+```bash
+yarn run build && yarn run start:prod
+```
+
+#### Start via pm2
+
+```bash
+yarn run build && yarn run start:pm2
+```
+
+#### Start using docker image
+
+```bash
+docker run -d -it -v <YOUR .env FILE PATH>:/godwoken-web3/packages/api-server/.env  -w /godwoken-web3  --name godwoken-web3 nervos/godwoken-web3-prebuilds:<TAG> bash -c "yarn workspace @godwoken-web3/api-server start:pm2"
+```
+
+then you can monit web3 via pm2 inside docker container:
+
+```bash
+docker exec -it <CONTAINER NAME> /bin/bash
+```
+```
+$ root@ec562fe2172b:/godwoken-web3# pm2 monit
+```
 Normal mode: http://your-url/
 
 Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)

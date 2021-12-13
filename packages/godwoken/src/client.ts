@@ -1,5 +1,6 @@
 import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
-import { Reader, RPC } from "ckb-js-toolkit";
+import { Reader } from "ckb-js-toolkit";
+import { RPC } from "./rpc";
 import {
   BlockParameter,
   L2Transaction,

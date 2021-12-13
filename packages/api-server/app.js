@@ -6,6 +6,7 @@ var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
+const { applyRateLimitByIp } = require("./lib/rate-limit");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 
@@ -75,6 +76,11 @@ app.use(function (req, _res, next) {
     console.log("request.method:", name);
   }
   next();
+});
+
+app.use(async function (req, res, next) {
+  // restrict access rate limit via ip
+  await applyRateLimitByIp(req, res, next);
 });
 
 app.ws("/ws", wrapper);

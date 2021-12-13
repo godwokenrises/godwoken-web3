@@ -1,6 +1,6 @@
 {
   "name": "@godwoken-web3/godwoken",
-  "version": "0.8.0-rc1",
+  "version": "0.8.1-rc2",
   "private": true,
   "main": "lib/index.js",
   "scripts": {
@@ -10,6 +10,6 @@
   },
   "dependencies": {
     "@ckb-lumos/base": "^0.18.0-rc1",
-    "ckb-js-toolkit": "^0.9.3"
+    "ckb-js-toolkit": "^0.10.2"
   }
 }
