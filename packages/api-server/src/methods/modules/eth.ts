@@ -21,8 +21,14 @@ import {
   SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
+  QUERY_OFFSET_REACHED_END,
 } from "../constant";
-import { Query } from "../../db";
+import {
+  ExecuteOneQueryResult,
+  limitQuery,
+  Query,
+  QueryRoundStatus,
+} from "../../db";
 import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
@@ -55,6 +61,9 @@ import { FilterManager } from "../../cache";
 import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
+import { Store } from "../../cache/store";
+import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
+import { isErc20Transfer } from "../../erc20-decoder";
 
 const Config = require("../../../config/eth.json");
 
@@ -70,6 +79,8 @@ export class Eth {
   private rpc: GodwokenClient;
   private ethWallet: boolean;
   private filterManager: FilterManager;
+  private cacheStore: Store;
+  private gasPriceCacheMilSec: number;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
@@ -77,6 +88,16 @@ export class Eth {
     this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
+
+    this.cacheStore = new Store(
+      envConfig.redisUrl,
+      true,
+      CACHE_EXPIRED_TIME_MILSECS
+    );
+    this.cacheStore.init();
+
+    const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
+    this.gasPriceCacheMilSec = cacheSeconds * 1000;
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -162,6 +183,18 @@ export class Eth {
       validators.ethCallParams,
     ]);
     this.newFilter = middleware(this.newFilter.bind(this), 1, [
+      validators.newFilterParams,
+    ]);
+    this.uninstallFilter = middleware(this.uninstallFilter.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getFilterLogs = middleware(this.getFilterLogs.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getFilterChanges = middleware(this.getFilterChanges.bind(this), 1, [
+      validators.hexString,
+    ]);
+    this.getLogs = middleware(this.getLogs.bind(this), 1, [
       validators.newFilterParams,
     ]);
 
@@ -254,8 +287,34 @@ export class Eth {
     return "0x0";
   }
 
-  async gasPrice(args: []): Promise<HexNumber> {
-    return "0x1";
+  /**
+   * Return median gas_price of latest 500 transactions
+   *
+   * @param _args empty
+   * @returns
+   */
+  async gasPrice(_args: []): Promise<HexNumber> {
+    const key = `eth.eth_gasPrice`;
+    if (this.gasPriceCacheMilSec > 0) {
+      const cachedGasPrice = await this.cacheStore.get(key);
+      if (cachedGasPrice != null) {
+        return cachedGasPrice;
+      }
+    }
+
+    let medianGasPrice = await this.query.getMedianGasPrice();
+    // set min to 1
+    const minGasPrice = BigInt(1);
+    if (medianGasPrice < minGasPrice) {
+      medianGasPrice = minGasPrice;
+    }
+    const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+
+    if (this.gasPriceCacheMilSec > 0) {
+      this.cacheStore.insert(key, medianGasPriceHex, this.gasPriceCacheMilSec);
+    }
+
+    return medianGasPriceHex;
   }
 
   /**
@@ -448,6 +507,22 @@ export class Eth {
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
       const txCallObj = args[0];
+
+      const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
+
+      // cache erc20 transfer result
+      const cacheKey = `eth.eth_estimateGas.erc20_transfer`;
+      let isTransfer = false;
+      if (txCallObj.data != null && txCallObj.data !== "0x") {
+        isTransfer = isErc20Transfer(txCallObj.data);
+        if (isTransfer) {
+          const cachedResult = await this.cacheStore.get(cacheKey);
+          if (cachedResult != null) {
+            return cachedResult;
+          }
+        }
+      }
+
       let runResult;
       try {
         runResult = await ethCallTx(
@@ -460,7 +535,7 @@ export class Eth {
         const gwErr = parseGwError(err);
         const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
         if (gasUsed != null) {
-          const gasUsedHex = "0x" + gasUsed.toString(16);
+          const gasUsedHex = "0x" + (gasUsed + extraGas).toString(16);
           return gasUsedHex;
         }
         throw err;
@@ -478,7 +553,15 @@ export class Eth {
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
       );
 
-      return "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16);
+      const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+      const result = "0x" + gasUsed.toString(16);
+
+      if (isTransfer) {
+        // no await
+        this.cacheStore.insert(cacheKey, result);
+      }
+
+      return result;
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
@@ -878,37 +961,67 @@ export class Eth {
       topics,
     };
 
-    // if blockHash exits, fromBlock and toBlock is not allowed.
-    if (blockHash) {
+    const execOneQuery = async (offset: number) => {
+      // if blockHash exits, fromBlock and toBlock is not allowed.
+      if (blockHash) {
+        const logs = await this.query.getLogsAfterLastPoll(
+          lastPollLogId,
+          queryOption,
+          blockHash,
+          undefined,
+          offset
+        );
+        if (logs.length === 0) return [];
+
+        return logs;
+      }
+
+      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.fromBlock || "latest"
+      );
+      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.toBlock || "latest"
+      );
       const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId,
+        lastPollLogId!,
         queryOption,
-        blockHash
+        fromBlockNumber,
+        toBlockNumber,
+        offset
       );
       if (logs.length === 0) return [];
-      // remember to update the last poll cache
-      // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
-      return logs.map((log) => toApiLog(log));
-    }
 
-    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.fromBlock || "latest"
-    );
-    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.toBlock || "latest"
-    );
-    const logs = await this.query.getLogsAfterLastPoll(
-      lastPollLogId!,
-      queryOption,
-      fromBlockNumber,
-      toBlockNumber
-    );
-    if (logs.length === 0) return [];
+      return logs;
+    };
 
+    const executeOneQuery = async (offset: number) => {
+      try {
+        const data = await execOneQuery(offset);
+
+        return {
+          status: QueryRoundStatus.keepGoing,
+          data: data,
+        } as ExecuteOneQueryResult;
+      } catch (error) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
+          return {
+            status: QueryRoundStatus.stop,
+            data: [], // return empty result
+          } as ExecuteOneQueryResult;
+        }
+        throw error;
+      }
+    };
+
+    const logs = await limitQuery(executeOneQuery.bind(this));
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-    await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+    if (logs.length !== 0) {
+      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+    }
+
     return logs.map((log) => toApiLog(log));
   }
 
@@ -924,24 +1037,54 @@ export class Eth {
       address,
     };
 
-    // if blockHash exits, fromBlock and toBlock is not allowed.
-    if (blockHash) {
-      const logs = await this.query.getLogs(queryOption, blockHash);
-      return logs.map((log) => toApiLog(log));
-    }
+    const execOneQuery = async (offset: number) => {
+      // if blockHash exits, fromBlock and toBlock is not allowed.
+      if (blockHash) {
+        const logs = await this.query.getLogs(
+          queryOption,
+          blockHash,
+          undefined,
+          offset
+        );
+        return logs.map((log) => toApiLog(log));
+      }
 
-    const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.fromBlock || "latest"
-    );
-    const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-      filter.toBlock || "latest"
-    );
-    const logs = await this.query.getLogs(
-      queryOption,
-      fromBlockNumber,
-      toBlockNumber
-    );
-    return logs.map((log) => toApiLog(log));
+      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.fromBlock || "latest"
+      );
+      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
+        filter.toBlock || "latest"
+      );
+      const logs = await this.query.getLogs(
+        queryOption,
+        fromBlockNumber,
+        toBlockNumber,
+        offset
+      );
+      return logs.map((log) => toApiLog(log));
+    };
+
+    const executeOneQuery = async (offset: number) => {
+      try {
+        const data = await execOneQuery(offset);
+        return {
+          status: QueryRoundStatus.keepGoing,
+          data: data,
+        } as ExecuteOneQueryResult;
+      } catch (error) {
+        if (
+          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
+        ) {
+          return {
+            status: QueryRoundStatus.stop,
+            data: [], // return empty result
+          } as ExecuteOneQueryResult;
+        }
+        throw new Web3Error(error.message, error.data);
+      }
+    };
+
+    return await limitQuery(executeOneQuery.bind(this));
   }
   /* #endregion */
 

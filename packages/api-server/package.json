@@ -16,6 +16,14 @@
     "migrate-accounts": "ts-node ./src/migrate-accounts.ts",
     "build": "tsc"
   },
+  "ava": {
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
   "dependencies": {
     "@ckb-lumos/base": "^0.18.0-rc1",
     "@godwoken-web3/godwoken": "0.8.1-rc2",
@@ -27,6 +35,7 @@
     "cors": "^2.8.5",
     "debug": "~2.6.9",
     "dotenv": "^8.2.0",
+    "ethereum-input-data-decoder": "^0.3.5",
     "ethereumjs-util": "^7.0.9",
     "express": "^4.17.1",
     "express-ws": "^5.0.2",

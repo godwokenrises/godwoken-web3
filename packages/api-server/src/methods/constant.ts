@@ -19,3 +19,5 @@ export const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
 export const POLYJUICE_USER_LOG_FLAG = "0x3";
 
 export const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
+
+export const QUERY_OFFSET_REACHED_END = "query offset reached end";

@@ -4,6 +4,7 @@ import {
   HEADER_NOT_FOUND_ERROR,
   INTERNAL_ERROR,
   INVALID_PARAMS,
+  LIMIT_EXCEEDED,
   METHOD_NOT_SUPPORT,
   WEB3_ERROR,
 } from "./error-code";
@@ -48,5 +49,11 @@ export class MethodNotSupportError extends RpcError {
 export class HeaderNotFoundError extends RpcError {
   constructor(message: string = HEADER_NOT_FOUND_ERR_MESSAGE) {
     super(HEADER_NOT_FOUND_ERROR, message);
+  }
+}
+
+export class LimitExceedError extends RpcError {
+  constructor(message: string) {
+    super(LIMIT_EXCEEDED, message);
   }
 }

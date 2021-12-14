@@ -52,8 +52,17 @@ export class Store {
     if (!this.client.isOpen) await this.client.connect();
   }
 
-  async insert(key: string, value: string | number) {
-    return await this.client.set(key, value.toString(), this.setOptions);
+  async insert(
+    key: string,
+    value: string | number,
+    expiredTimeMilSecs?: number
+  ) {
+    const setOptions = {
+      ...this.setOptions,
+      PX: expiredTimeMilSecs || this.setOptions.PX,
+    };
+
+    return await this.client.set(key, value.toString(), setOptions);
   }
 
   async delete(key: string) {

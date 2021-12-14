@@ -363,6 +363,34 @@ export class Gw {
       parseGwRpcError(error);
     }
   }
+
+  /**
+   *
+   * @param args []
+   * @returns
+   */
+  async get_fee_config(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_fee_config(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  /**
+   *
+   * @param args [withdraw_tx_hash]
+   * @returns
+   */
+  async get_withdrawal(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_withdrawal(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
 }
 
 function formatHexNumber(
