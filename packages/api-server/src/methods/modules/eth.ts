@@ -62,6 +62,8 @@ import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
+import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
+import { isErc20Transfer } from "../../erc20-decoder";
 
 const Config = require("../../../config/eth.json");
 
@@ -77,7 +79,8 @@ export class Eth {
   private rpc: GodwokenClient;
   private ethWallet: boolean;
   private filterManager: FilterManager;
-  private gasPriceCache?: Store;
+  private cacheStore: Store;
+  private gasPriceCacheMilSec: number;
 
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
@@ -86,15 +89,15 @@ export class Eth {
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
 
+    this.cacheStore = new Store(
+      envConfig.redisUrl,
+      true,
+      CACHE_EXPIRED_TIME_MILSECS
+    );
+    this.cacheStore.init();
+
     const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
-    if (cacheSeconds !== 0) {
-      this.gasPriceCache = new Store(
-        envConfig.redisUrl,
-        true,
-        cacheSeconds * 1000
-      );
-      this.gasPriceCache.init();
-    }
+    this.gasPriceCacheMilSec = cacheSeconds * 1000;
 
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
@@ -280,8 +283,8 @@ export class Eth {
    */
   async gasPrice(_args: []): Promise<HexNumber> {
     const key = `eth.eth_gasPrice`;
-    if (this.gasPriceCache != null) {
-      const cachedGasPrice = await this.gasPriceCache.get(key);
+    if (this.gasPriceCacheMilSec > 0) {
+      const cachedGasPrice = await this.cacheStore.get(key);
       if (cachedGasPrice != null) {
         return cachedGasPrice;
       }
@@ -295,8 +298,8 @@ export class Eth {
     }
     const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
 
-    if (this.gasPriceCache != null) {
-      this.gasPriceCache.insert(key, medianGasPriceHex);
+    if (this.gasPriceCacheMilSec > 0) {
+      this.cacheStore.insert(key, medianGasPriceHex, this.gasPriceCacheMilSec);
     }
 
     return medianGasPriceHex;
@@ -491,9 +494,23 @@ export class Eth {
 
   async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
     try {
+      const txCallObj = args[0];
+
       const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
 
-      const txCallObj = args[0];
+      // cache erc20 transfer result
+      const cacheKey = `eth.eth_estimateGas.erc20_transfer`;
+      let isTransfer = false;
+      if (txCallObj.data != null && txCallObj.data !== "0x") {
+        isTransfer = isErc20Transfer(txCallObj.data);
+        if (isTransfer) {
+          const cachedResult = await this.cacheStore.get(cacheKey);
+          if (cachedResult != null) {
+            return cachedResult;
+          }
+        }
+      }
+
       let runResult;
       try {
         runResult = await ethCallTx(
@@ -525,8 +542,14 @@ export class Eth {
       );
 
       const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+      const result = "0x" + gasUsed.toString(16);
 
-      return "0x" + gasUsed.toString(16);
+      if (isTransfer) {
+        // no await
+        this.cacheStore.insert(cacheKey, result);
+      }
+
+      return result;
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
