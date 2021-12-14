@@ -17,14 +17,14 @@ export async function applyRateLimitByIp(
 
   for (const method of methods) {
     const ip = getIp(req);
-    await rateLimit(req, res, next, method, ip);
+    await rateLimit(req, res, method, ip);
   }
+  next();
 }
 
 export async function rateLimit(
   req: Request,
   res: Response,
-  next: NextFunction,
   rpcMethod: string,
   reqId: string | undefined
 ) {
@@ -66,8 +66,6 @@ export async function rateLimit(
 
     await accessGuard.updateCount(rpcMethod, reqId);
   }
-
-  next();
 }
 
 export function hasMethod(body: any, name: string) {
