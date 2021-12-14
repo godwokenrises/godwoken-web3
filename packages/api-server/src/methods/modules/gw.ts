@@ -377,6 +377,20 @@ export class Gw {
       parseGwRpcError(error);
     }
   }
+
+  /**
+   *
+   * @param args [withdraw_tx_hash]
+   * @returns
+   */
+  async gw_get_withdrawal(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_withdrawal(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
 }
 
 function formatHexNumber(
