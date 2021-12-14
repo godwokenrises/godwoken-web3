@@ -369,7 +369,7 @@ export class Gw {
    * @param args []
    * @returns
    */
-  async gw_get_fee_config(args: any[]) {
+  async get_fee_config(args: any[]) {
     try {
       const result = await this.rpc.gw_get_fee_config(...args);
       return result;
@@ -383,7 +383,7 @@ export class Gw {
    * @param args [withdraw_tx_hash]
    * @returns
    */
-  async gw_get_withdrawal(args: any[]) {
+  async get_withdrawal(args: any[]) {
     try {
       const result = await this.rpc.gw_get_withdrawal(...args);
       return result;
