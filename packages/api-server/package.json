@@ -1,6 +1,6 @@
 {
   "name": "@godwoken-web3/api-server",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "scripts": {
     "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/cluster\"",
@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@ckb-lumos/base": "^0.18.0-rc1",
-    "@godwoken-web3/godwoken": "0.9.0",
+    "@godwoken-web3/godwoken": "0.9.1",
     "@newrelic/native-metrics": "^7.0.1",
     "@polyjuice-provider/base": "^0.0.1-rc12",
     "@sentry/node": "^6.11.0",
