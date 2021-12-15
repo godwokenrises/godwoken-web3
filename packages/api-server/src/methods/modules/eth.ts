@@ -58,7 +58,6 @@ import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { Abi, ShortAddress, ShortAddressType } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
-import { toHex } from "../../util";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
@@ -867,17 +866,17 @@ export class Eth {
   /* #region filter-related api methods */
   async newFilter(args: [FilterObject]): Promise<HexString> {
     const filter_id = await this.filterManager.install(args[0]);
-    return toHex(filter_id);
+    return filter_id;
   }
 
   async newBlockFilter(args: []): Promise<HexString> {
     const filter_id = await this.filterManager.install(1); // 1 for block filter
-    return toHex(filter_id);
+    return filter_id;
   }
 
   async newPendingTransactionFilter(args: []): Promise<HexString> {
     const filter_id = await this.filterManager.install(2); // 2 for pending tx filter
-    return toHex(filter_id);
+    return filter_id;
   }
 
   async uninstallFilter(args: [HexString]): Promise<boolean> {
