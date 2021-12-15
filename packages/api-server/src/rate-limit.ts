@@ -71,9 +71,9 @@ export async function rateLimit(
             id: req.body.id,
             error: error,
           });
+    } else {
+      await accessGuard.updateCount(rpcMethod, reqId);
     }
-
-    await accessGuard.updateCount(rpcMethod, reqId);
   }
   return isBan;
 }
