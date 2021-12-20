@@ -58,6 +58,10 @@ export class Gw {
       this.submit_withdrawal_request.bind(this),
       0
     );
+    this.get_last_submitted_info = middleware(
+      this.get_last_submitted_info.bind(this),
+      0
+    );
   }
 
   async ping(args: any[]) {
@@ -386,6 +390,15 @@ export class Gw {
   async get_withdrawal(args: any[]) {
     try {
       const result = await this.rpc.gw_get_withdrawal(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  async get_last_submitted_info(args: any[]) {
+    try {
+      const result = await this.rpc.gw_get_last_submitted_info(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
