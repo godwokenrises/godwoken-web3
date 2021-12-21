@@ -136,7 +136,7 @@ export class BlockEmitter {
       );
     }
 
-    return executePoll();
+    return await executePoll();
   }
 
   getEmitter(): EventEmitter {
