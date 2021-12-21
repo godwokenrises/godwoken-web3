@@ -12,7 +12,7 @@ exports.config = {
   /**
    * Array of application names.
    */
-  app_name: ['Godwoken Web3'],
+  app_name: [ process.env.NEW_RELIC_APP_NAME || 'Godwoken Web3' ],
   /**
    * Your New Relic license key.
    */

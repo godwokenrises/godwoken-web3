@@ -22,6 +22,7 @@ TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
+NEW_RELIC_APP_NAME=<new relic app name, optional, default to 'godwoken web3'>
 CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
 PG_POOL_MAX=<pg pool max count, optional, default to 20>
