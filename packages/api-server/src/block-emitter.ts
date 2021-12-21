@@ -16,15 +16,27 @@ export class BlockEmitter {
   private isRunning: boolean;
   private currentTip: bigint;
   private emitter: EventEmitter;
+  private livenessCheckIntervalSeconds: number;
 
-  constructor() {
+  constructor({ livenessCheckIntervalSeconds = 5 } = {}) {
     this.query = new Query();
     this.isRunning = false;
     this.currentTip = -1n;
     this.emitter = new EventEmitter();
+    this.livenessCheckIntervalSeconds = livenessCheckIntervalSeconds;
   }
 
   // Main worker
+  async startForever() {
+    await this.start();
+    setInterval(async () => {
+      if (!this.running()) {
+        logger.error("BlockEmitter has stopped, maybe check the log?");
+        await this.start();
+      }
+    }, this.livenessCheckIntervalSeconds * 1000);
+  }
+
   async start() {
     this.isRunning = true;
     const currentTip: bigint | undefined = await this.query.getTipBlockNumber();
