@@ -96,30 +96,30 @@ export class BlockEmitter {
     }
 
     // add new relic background transaction
-    if (envConfig.newRelicLicenseKey) {
-      return newrelic.startBackgroundTransaction(
-        `BlockEmitter#pool`,
-        async () => {
-          newrelic.getTransaction();
-          try {
-            const min = this.currentTip;
-            const max = tip;
-            const blocks = await this.query.getBlocksByNumbers(min, max);
-            const newHeads = blocks.map((b) => toApiNewHead(b));
-            this.emitter.emit("newHeads", newHeads);
-            const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
-            this.emitter.emit("logs", logs);
-            this.currentTip = tip;
+    // if (envConfig.newRelicLicenseKey) {
+    //   return newrelic.startBackgroundTransaction(
+    //     `BlockEmitter#pool`,
+    //     async () => {
+    //       newrelic.getTransaction();
+    //       try {
+    //         const min = this.currentTip;
+    //         const max = tip;
+    //         const blocks = await this.query.getBlocksByNumbers(min, max);
+    //         const newHeads = blocks.map((b) => toApiNewHead(b));
+    //         this.emitter.emit("newHeads", newHeads);
+    //         const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+    //         this.emitter.emit("logs", logs);
+    //         this.currentTip = tip;
 
-            return timeout;
-          } catch (error) {
-            throw error;
-          } finally {
-            newrelic.endTransaction();
-          }
-        }
-      );
-    }
+    //         return timeout;
+    //       } catch (error) {
+    //         throw error;
+    //       } finally {
+    //         newrelic.endTransaction();
+    //       }
+    //     }
+    //   );
+    // }
 
     const min = this.currentTip;
     const max = tip;
@@ -146,6 +146,7 @@ export class BlockEmitter {
   }
 
   private notify(type: string, content: any) {
+    console.debug("blockEmitter notify =>", type, content);
     const workers = cluster.workers!;
     for (const workerId in workers) {
       const worker = workers[workerId];
