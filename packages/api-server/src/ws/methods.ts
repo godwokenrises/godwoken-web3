@@ -51,6 +51,7 @@ export function wrapper(ws: any, _req: any) {
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
   const blockListener = (blocks: EthNewHead[]) => {
+    console.debug("blockListener =>", blocks);
     blocks.forEach((block) => {
       newHeadsIds.forEach((id) => {
         const obj = {
