@@ -19,7 +19,7 @@ if (cluster.isMaster) {
   }
 
   const blockEmitter = new BlockEmitter();
-  blockEmitter.start();
+  blockEmitter.startForever();
 
   cluster.on('exit', (worker, _code, _signal) => {
     console.log(`worker ${worker.process.pid} died`);
