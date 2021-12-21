@@ -126,7 +126,7 @@ export class BlockEmitter {
         async () => {
           newrelic.getTransaction();
           try {
-            await executePoll();
+            return await executePoll();
           } catch (error) {
             throw error;
           } finally {
