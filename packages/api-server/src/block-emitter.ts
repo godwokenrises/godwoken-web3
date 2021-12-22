@@ -95,6 +95,30 @@ export class BlockEmitter {
       return timeout;
     }
 
+    const executePoll = async () => {
+      const min = this.currentTip;
+      const max = tip;
+
+      const blocks = await this.query.getBlocksByNumbers(min, max);
+      const newHeads = blocks.map((b) => toApiNewHead(b));
+      this.notify("newHeads", newHeads);
+
+      const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+      const newLogs = logs.map((log) =>
+        JSON.stringify(
+          log,
+          (_key, value) =>
+            typeof value === "bigint" ? value.toString() : value // return everything else unchanged
+        )
+      );
+      if (logs.length > 0) {
+        this.notify("logs", newLogs);
+      }
+
+      this.currentTip = tip;
+      return timeout;
+    };
+
     // add new relic background transaction
     if (envConfig.newRelicLicenseKey) {
       return newrelic.startBackgroundTransaction(
@@ -102,16 +126,7 @@ export class BlockEmitter {
         async () => {
           newrelic.getTransaction();
           try {
-            const min = this.currentTip;
-            const max = tip;
-            const blocks = await this.query.getBlocksByNumbers(min, max);
-            const newHeads = blocks.map((b) => toApiNewHead(b));
-            this.emitter.emit("newHeads", newHeads);
-            const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
-            this.emitter.emit("logs", logs);
-            this.currentTip = tip;
-
-            return timeout;
+            return await executePoll();
           } catch (error) {
             throw error;
           } finally {
@@ -121,24 +136,7 @@ export class BlockEmitter {
       );
     }
 
-    const min = this.currentTip;
-    const max = tip;
-    const blocks = await this.query.getBlocksByNumbers(min, max);
-    const newHeads = blocks.map((b) => toApiNewHead(b));
-    this.notify("newHeads", newHeads);
-    const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
-    const newLogs = logs.map((log) =>
-      JSON.stringify(
-        log,
-        (key, value) => (typeof value === "bigint" ? value.toString() : value) // return everything else unchanged
-      )
-    );
-    if (logs.length > 0) {
-      this.notify("logs", newLogs);
-    }
-    this.currentTip = tip;
-
-    return timeout;
+    return await executePoll();
   }
 
   getEmitter(): EventEmitter {
