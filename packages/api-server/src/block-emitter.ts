@@ -4,6 +4,7 @@ import { Query } from "./db";
 import { EventEmitter } from "events";
 import { toApiNewHead } from "./db/types";
 import cluster from "cluster";
+import * as Sentry from "@sentry/node";
 
 let newrelic: any = undefined;
 if (envConfig.newRelicLicenseKey) {
@@ -84,6 +85,9 @@ export class BlockEmitter {
       })
       .catch((e) => {
         logger.error(`Error occurs: ${e} ${e.stack}, stopping emit newHeads!`);
+        if (envConfig.sentryDns) {
+          Sentry.captureException(e);
+        }
         this.stop();
       });
   }

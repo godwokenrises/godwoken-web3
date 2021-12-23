@@ -5,6 +5,7 @@ require("dotenv").config({path: "./.env"})
 const cluster = require("cluster");
 const { cpus } = require("os");
 const { BlockEmitter } = require("../lib/block-emitter");
+const { initSentry } = require("../lib/sentry")
 
 const numCPUs = cpus().length;
 const clusterCount = +process.env.CLUSTER_COUNT;
@@ -12,6 +13,8 @@ const numOfCluster = clusterCount || numCPUs;
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
+
+  initSentry();
 
   // Fork workers.
   for (let i = 0; i < numOfCluster; i++) {

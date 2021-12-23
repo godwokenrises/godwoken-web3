@@ -7,6 +7,7 @@ const { wrapper } = require("./lib/ws/methods");
 const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
 const { applyRateLimitByIp } = require("./lib/rate-limit");
+const { initSentry } = require("./lib/sentry");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 
@@ -31,12 +32,7 @@ const sentryOptionRequest = [
 ];
 const SENTRY_DNS = process.env.SENTRY_DNS;
 if (SENTRY_DNS) {
-  console.log("Sentry init !!!");
-
-  Sentry.init({
-    dsn: SENTRY_DNS,
-    environment: process.env.SENTRY_ENVIRONMENT || "development",
-  });
+  initSentry();
 
   // The request handler must be the first middleware on the app
   app.use(
