@@ -22,6 +22,8 @@ export const envConfig = {
   pgPoolMax: getOptional("PG_POOL_MAX"),
   gasPriceCacheSeconds: getOptional("GAS_PRICE_CACHE_SECONDS"),
   extraEstimateGas: getOptional("EXTRA_ESTIMATE_GAS"),
+  sentryDns: getOptional("SENTRY_DNS"),
+  sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
 };
 
 function getRequired(name: string): string {
