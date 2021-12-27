@@ -24,6 +24,7 @@ export const envConfig = {
   extraEstimateGas: getOptional("EXTRA_ESTIMATE_GAS"),
   sentryDns: getOptional("SENTRY_DNS"),
   sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
+  godwokenReadonlyJsonRpc: getOptional("GODWOKEN_READONLY_JSON_RPC"),
 };
 
 function getRequired(name: string): string {
