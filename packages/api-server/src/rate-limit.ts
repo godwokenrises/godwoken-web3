@@ -50,7 +50,7 @@ export async function rateLimit(
       isBan = true;
       console.debug(`Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}`);
 
-      const message = `Rate limit exceeded for your ip, please wait 1min and retry. Rpc method: ${rpcMethod}.`;
+      const message = `Rate limit exceeded for your ip, please wait 1min and retry. RPC method: ${rpcMethod}.`;
       const error = {
         code: LIMIT_EXCEEDED,
         message: message,
