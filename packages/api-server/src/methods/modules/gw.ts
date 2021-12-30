@@ -8,10 +8,15 @@ import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 
 export class Gw {
   private rpc: RPC;
+  private readonlyRpc: RPC;
   private gwCache: Store;
 
   constructor() {
-    this.rpc = new RPC(process.env.GODWOKEN_JSON_RPC as string);
+    this.rpc = new RPC(envConfig.godwokenJsonRpc);
+    this.readonlyRpc = !!envConfig.godwokenReadonlyJsonRpc
+      ? new RPC(envConfig.godwokenReadonlyJsonRpc)
+      : this.rpc;
+
     this.gwCache = new Store(
       envConfig.redisUrl,
       true,
@@ -66,7 +71,7 @@ export class Gw {
 
   async ping(args: any[]) {
     try {
-      const result = await this.rpc.gw_ping(...args);
+      const result = await this.readonlyRpc.gw_ping(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -75,7 +80,7 @@ export class Gw {
 
   async get_tip_block_hash(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_tip_block_hash(...args);
+      const result = await this.readonlyRpc.gw_get_tip_block_hash(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -91,7 +96,7 @@ export class Gw {
     try {
       args[0] = formatHexNumber(args[0]);
 
-      const result = await this.rpc.gw_get_block_hash(...args);
+      const result = await this.readonlyRpc.gw_get_block_hash(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -105,7 +110,7 @@ export class Gw {
    */
   async get_block(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_block(...args);
+      const result = await this.readonlyRpc.gw_get_block(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -121,7 +126,7 @@ export class Gw {
     try {
       args[0] = formatHexNumber(args[0]);
 
-      const result = await this.rpc.gw_get_block_by_number(...args);
+      const result = await this.readonlyRpc.gw_get_block_by_number(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -138,7 +143,7 @@ export class Gw {
       args[1] = formatHexNumber(args[1]);
       args[2] = formatHexNumber(args[2]);
 
-      const result = await this.rpc.gw_get_balance(...args);
+      const result = await this.readonlyRpc.gw_get_balance(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -155,7 +160,7 @@ export class Gw {
       args[0] = formatHexNumber(args[0]);
       args[2] = formatHexNumber(args[2]);
 
-      const result = await this.rpc.gw_get_storage_at(...args);
+      const result = await this.readonlyRpc.gw_get_storage_at(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -176,7 +181,7 @@ export class Gw {
         return result;
       }
 
-      result = await this.rpc.gw_get_account_id_by_script_hash(...args);
+      result = await this.readonlyRpc.gw_get_account_id_by_script_hash(...args);
       if (result != null) {
         console.debug(`update cache: ${scriptHash} -> ${result}`);
         this.gwCache.insert(`${GW_RPC_KEY}_${scriptHash}`, result);
@@ -197,7 +202,7 @@ export class Gw {
       args[0] = formatHexNumber(args[0]);
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.rpc.gw_get_nonce(...args);
+      const result = await this.readonlyRpc.gw_get_nonce(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -211,7 +216,7 @@ export class Gw {
    */
   async get_script(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_script(...args);
+      const result = await this.readonlyRpc.gw_get_script(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -227,7 +232,7 @@ export class Gw {
     try {
       args[0] = formatHexNumber(args[0]);
 
-      const result = await this.rpc.gw_get_script_hash(...args);
+      const result = await this.readonlyRpc.gw_get_script_hash(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -243,7 +248,7 @@ export class Gw {
     try {
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.rpc.gw_get_data(...args);
+      const result = await this.readonlyRpc.gw_get_data(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -257,7 +262,7 @@ export class Gw {
    */
   async get_transaction_receipt(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_transaction_receipt(...args);
+      const result = await this.readonlyRpc.gw_get_transaction_receipt(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -271,7 +276,7 @@ export class Gw {
    */
   async get_transaction(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_transaction(...args);
+      const result = await this.readonlyRpc.gw_get_transaction(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -285,7 +290,7 @@ export class Gw {
    */
   async execute_l2transaction(args: any[]) {
     try {
-      const result = await this.rpc.gw_execute_l2transaction(...args);
+      const result = await this.readonlyRpc.gw_execute_l2transaction(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -301,7 +306,9 @@ export class Gw {
     try {
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.rpc.gw_execute_raw_l2transaction(...args);
+      const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
+        ...args
+      );
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -353,7 +360,7 @@ export class Gw {
         return value;
       }
 
-      const result = await this.rpc.gw_get_script_hash_by_short_address(
+      const result = await this.readonlyRpc.gw_get_script_hash_by_short_address(
         ...args
       );
       if (result != null) {
@@ -375,7 +382,7 @@ export class Gw {
    */
   async get_fee_config(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_fee_config(...args);
+      const result = await this.readonlyRpc.gw_get_fee_config(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -389,7 +396,7 @@ export class Gw {
    */
   async get_withdrawal(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_withdrawal(...args);
+      const result = await this.readonlyRpc.gw_get_withdrawal(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
@@ -398,7 +405,7 @@ export class Gw {
 
   async get_last_submitted_info(args: any[]) {
     try {
-      const result = await this.rpc.gw_get_last_submitted_info(...args);
+      const result = await this.readonlyRpc.gw_get_last_submitted_info(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);

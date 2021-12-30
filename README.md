@@ -10,6 +10,7 @@ A Web3 RPC compatible layer build upon Godwoken/Polyjuice.
 $ cat > ./packages/api-server/.env <<EOF
 DATABASE_URL=postgres://username:password@localhost:5432/your_db
 GODWOKEN_JSON_RPC=<godwoken rpc>
+GODWOKEN_READONLY_JSON_RPC=<optional, default equals to GODWOKEN_JSON_RPC>
 ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>

@@ -27,7 +27,10 @@ export class Poly {
 
   constructor() {
     this.query = new Query();
-    this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
+    this.rpc = new GodwokenClient(
+      envConfig.godwokenJsonRpc,
+      envConfig.godwokenReadonlyJsonRpc
+    );
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),

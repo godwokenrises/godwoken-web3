@@ -19,9 +19,11 @@ import {
 
 export class GodwokenClient {
   private rpc: RPC;
+  private readonlyRpc: RPC;
 
-  constructor(url: string) {
+  constructor(url: string, readonlyUrl?: string) {
     this.rpc = new RPC(url);
+    this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
   public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
@@ -124,7 +126,7 @@ export class GodwokenClient {
     const data: HexString = new Reader(
       SerializeL2Transaction(NormalizeL2Transaction(l2tx))
     ).serializeJson();
-    return await this.rpcCall("submit_l2transaction", data);
+    return await this.writeRpcCall("submit_l2transaction", data);
   }
 
   public async getTransaction(
@@ -142,9 +144,20 @@ export class GodwokenClient {
   private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
     const name = "gw_" + methodName;
     try {
+      const result = await this.readonlyRpc[name](...args);
+      return result;
+    } catch (err: any) {
+      console.log(`Call gw rpc "${name}" error:`, err.message);
+      throw err;
+    }
+  }
+
+  private async writeRpcCall(methodName: string, ...args: any[]): Promise<any> {
+    const name = "gw_" + methodName;
+    try {
       const result = await this.rpc[name](...args);
       return result;
-    } catch (err) {
+    } catch (err: any) {
       console.log(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }

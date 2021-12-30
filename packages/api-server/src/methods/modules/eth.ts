@@ -84,7 +84,10 @@ export class Eth {
   constructor(ethWallet: boolean = false) {
     this.ethWallet = ethWallet;
     this.query = new Query();
-    this.rpc = new GodwokenClient(envConfig.godwokenJsonRpc);
+    this.rpc = new GodwokenClient(
+      envConfig.godwokenJsonRpc,
+      envConfig.godwokenReadonlyJsonRpc
+    );
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
 
