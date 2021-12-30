@@ -110,6 +110,12 @@ export class AccessGuard {
     }
     return false;
   }
+
+  async getKeyTTL(rpcMethod: string, reqId: string) {
+    const id = getId(rpcMethod, reqId);
+    const remainSecs = await this.store.client.ttl(id);
+    return remainSecs;
+  }
 }
 
 export function getId(rpcMethod: string, reqUniqueId: string): HexString {
