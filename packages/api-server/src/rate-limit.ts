@@ -48,29 +48,38 @@ export async function rateLimit(
     const isOverRate = await accessGuard.isOverRate(rpcMethod, reqId);
     if (isOverRate) {
       isBan = true;
-      console.debug(`Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}`);
 
-      const remainSeconds = await accessGuard.getKeyTTL(rpcMethod, reqId);
-      const message = `Rate limit exceeded for ip ${reqId}, please wait ${remainSeconds} seconds and retry. RPC method: ${rpcMethod}.`;
+      const remainSecs = await accessGuard.getKeyTTL(rpcMethod, reqId);
+      const remainMilsecs = remainSecs * 1000;
+      const httpRateLimitCode = 429;
+      const httpRateLimitHeader = {
+        "Retry-After": remainMilsecs.toString(),
+      };
+
+      const message = `Too Many Requests, IP: ${reqId}, please wait ${remainSecs}s and retry. RPC method: ${rpcMethod}.`;
       const error = {
         code: LIMIT_EXCEEDED,
         message: message,
       };
-      Array.isArray(req.body)
-        ? res.send(
-            req.body.map((b) => {
-              return {
-                jsonrpc: "2.0",
-                id: b.id,
-                error: error,
-              };
-            })
-          )
-        : res.send({
+
+      console.debug(
+        `Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
+      );
+
+      const content = Array.isArray(req.body)
+        ? req.body.map((b) => {
+            return {
+              jsonrpc: "2.0",
+              id: b.id,
+              error: error,
+            };
+          })
+        : {
             jsonrpc: "2.0",
             id: req.body.id,
             error: error,
-          });
+          };
+      res.status(httpRateLimitCode).header(httpRateLimitHeader).send(content);
     } else {
       await accessGuard.updateCount(rpcMethod, reqId);
     }
