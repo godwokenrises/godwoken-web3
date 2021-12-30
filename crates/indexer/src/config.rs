@@ -12,6 +12,7 @@ pub struct IndexerConfig {
     pub eth_account_lock_hash: H256,
     pub tron_account_lock_hash: Option<H256>,
     pub godwoken_rpc_url: String,
+    pub ws_rpc_url: String,
     pub pg_url: String,
 }
 
@@ -40,6 +41,7 @@ impl Display for IndexerConfig {
             write!(f, "tron_account_lock_hash: null, ")?;
         }
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
+        write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;
         write!(f, " }}")
     }

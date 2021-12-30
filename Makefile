@@ -22,3 +22,5 @@ test-web3:
 	docker run --rm -v `pwd`:/app ${IMAGE_NAME}:latest-test /bin/bash -c "cp -r godwoken-web3/node_modules app/node_modules"
 	yarn check --verify-tree
 	
+migrate:
+	cd crates/indexer && sqlx migrate run && cd - && yarn run migrate:latest
