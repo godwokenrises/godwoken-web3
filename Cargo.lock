@@ -1992,6 +1992,7 @@ dependencies = [
  "gw-mem-pool",
  "gw-types",
  "gw-web3-rpc-client",
+ "hex",
  "jsonrpc-core 18.0.0",
  "log 0.4.14",
  "num-bigint 0.4.3",

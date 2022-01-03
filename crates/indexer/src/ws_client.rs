@@ -1,14 +1,7 @@
-use std::time::Duration;
-
-use anyhow::Result;
 use gw_jsonrpc_types::godwoken::ErrorTxReceipt;
-use gw_mem_pool::traits::MemPoolErrorTxHandler;
 use serde::de::DeserializeOwned;
 use serde_json::from_value;
-use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    ConnectOptions,
-};
+use sqlx::PgPool;
 use websocket::{ClientBuilder, OwnedMessage};
 
 use crate::{
@@ -17,7 +10,7 @@ use crate::{
     ErrorReceiptIndexer,
 };
 
-pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> Result<()> {
+pub fn start_listen_error_tx_receipt(config: &IndexerConfig, pg_pool: PgPool) -> smol::Task<()> {
     let client = ClientBuilder::new(&config.ws_rpc_url)
         .unwrap()
         .add_protocol("rust-websocket")
@@ -40,20 +33,9 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> Result<()> {
         }
     }
 
-    let pg_pool = smol::block_on(async {
-        let mut opts: PgConnectOptions = config.pg_url.parse()?;
-        opts.log_statements(log::LevelFilter::Debug)
-            .log_slow_statements(log::LevelFilter::Warn, Duration::from_secs(5));
-        PgPoolOptions::new()
-            .max_connections(5)
-            .connect_with(opts)
-            .await
-    })?;
+    let mut error_tx_handler = ErrorReceiptIndexer::new(pg_pool);
 
-    let mut error_tx_handler =
-        Box::new(ErrorReceiptIndexer::new(pg_pool)) as Box<dyn MemPoolErrorTxHandler + Send>;
-
-    let _receive_loop = smol::spawn(async move {
+    smol::spawn(async move {
         // Receive loop
         for message in receiver.incoming_messages() {
             let message = match message {
@@ -75,8 +57,12 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> Result<()> {
                     };
 
                     if let Some(receipt) = error_tx_receipt {
+                        log::info!(
+                            "receive error tx receipt: 0x{}",
+                            hex::encode(receipt.tx_hash.as_bytes())
+                        );
                         let receipt2 = convert_error_tx_receipt(receipt);
-                        error_tx_handler.handle_error_receipt(receipt2).detach();
+                        error_tx_handler.handle_error_receipt(receipt2).await;
                     }
                 }
                 // Say what we received
@@ -84,8 +70,6 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> Result<()> {
             }
         }
     })
-    .detach();
-    Ok(())
 }
 
 fn to_result<T: DeserializeOwned>(output: Output) -> anyhow::Result<T> {

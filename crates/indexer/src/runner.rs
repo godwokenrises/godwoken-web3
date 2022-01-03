@@ -1,11 +1,6 @@
-use std::time::Duration;
-
 use gw_web3_rpc_client::{convertion::to_l2_block, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    ConnectOptions, PgPool,
-};
+use sqlx::PgPool;
 
 use crate::{config::IndexerConfig, Web3Indexer};
 use anyhow::{anyhow, Result};
@@ -18,21 +13,7 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(config: IndexerConfig) -> Result<Runner> {
-        let pg_pool = {
-            let init_pool = {
-                smol::block_on(async {
-                    let mut opts: PgConnectOptions = config.pg_url.parse()?;
-                    opts.log_statements(log::LevelFilter::Debug)
-                        .log_slow_statements(log::LevelFilter::Warn, Duration::from_secs(5));
-                    PgPoolOptions::new()
-                        .max_connections(5)
-                        .connect_with(opts)
-                        .await
-                })
-            };
-            init_pool?
-        };
+    pub fn new(config: IndexerConfig, pg_pool: PgPool) -> Result<Runner> {
         let indexer = Web3Indexer::new(
             pg_pool.clone(),
             config.l2_sudt_type_script_hash,

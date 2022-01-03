@@ -1,9 +1,7 @@
 use anyhow::Result;
 use gw_common::H256;
-use gw_mem_pool::traits::MemPoolErrorTxHandler;
 use gw_types::offchain::ErrorTxReceipt;
 use rust_decimal::Decimal;
-use smol::Task;
 use sqlx::PgPool;
 
 use crate::helper::{hex, parse_log, GwLog};
@@ -57,8 +55,8 @@ impl ErrorReceiptIndexer {
     }
 }
 
-impl MemPoolErrorTxHandler for ErrorReceiptIndexer {
-    fn handle_error_receipt(&mut self, receipt: ErrorTxReceipt) -> Task<Result<()>> {
+impl ErrorReceiptIndexer {
+    pub async fn handle_error_receipt(&mut self, receipt: ErrorTxReceipt) {
         if self.latest_block < receipt.block_number {
             self.latest_block = receipt.block_number;
 
@@ -80,8 +78,8 @@ impl MemPoolErrorTxHandler for ErrorReceiptIndexer {
             if let Err(err) = Self::insert_error_tx_receipt(pool, receipt).await {
                 log::error!("insert error tx receipt {}", err);
             }
-            Ok(())
         })
+        .await;
     }
 }
 
