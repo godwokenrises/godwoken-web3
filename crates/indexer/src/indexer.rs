@@ -16,10 +16,7 @@ use ckb_types::H256;
 use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
 use gw_types::{
     bytes::Bytes,
-    packed::{
-        L2Block, RollupAction, RollupActionReader, RollupActionUnion, SUDTArgs, SUDTArgsUnion,
-        Script, Transaction, WitnessArgs,
-    },
+    packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
     prelude::Unpack as GwUnpack,
     prelude::*,
 };
@@ -63,50 +60,6 @@ impl Web3Indexer {
             allowed_eoa_hashes,
             godwoken_rpc_client,
         }
-    }
-
-    // TODO: no need now
-    pub async fn store_genesis(&mut self) -> Result<()> {
-        let row: Option<(Decimal,)> =
-            sqlx::query_as("SELECT number FROM blocks WHERE number=0 LIMIT 1")
-                .fetch_optional(&self.pool)
-                .await?;
-        if row.is_none() {
-            // find genesis
-            // let db = store.begin_transaction();
-            // let block_hash = db
-            //     .get_block_hash_by_number(0)?
-            //     .ok_or_else(|| anyhow!("no genesis block in the db"))?;
-            // let genesis = db
-            //     .get_block(&block_hash)?
-            //     .ok_or_else(|| anyhow!("can't find genesis by hash"))?;
-            let genesis_block = self
-                .godwoken_rpc_client
-                .get_block_by_number(0)?
-                .ok_or_else(|| anyhow!("no genesis block found"))?;
-
-            let genesis = convertion::to_l2_block(genesis_block);
-
-            // insert
-            self.insert_l2block(genesis).await?;
-            log::debug!("web3 indexer: sync genesis block #0");
-        }
-        Ok(())
-    }
-
-    // TODO: no need now
-    pub async fn store(&self, l1_transaction: &Transaction) -> Result<()> {
-        let l2_block = match self.extract_l2_block(l1_transaction)? {
-            Some(block) => block,
-            None => return Err(anyhow!("can't find l2 block from l1 transaction")),
-        };
-        let number: u64 = l2_block.raw().number().unpack();
-        let local_tip_number = self.tip_number().await?.unwrap_or(0);
-        if number > local_tip_number || self.query_number(number).await?.is_none() {
-            self.insert_l2block(l2_block).await?;
-            log::debug!("web3 indexer: sync new block #{}", number);
-        }
-        Ok(())
     }
 
     pub async fn store_l2_block(&self, l2_block: L2Block) -> Result<()> {
@@ -220,26 +173,6 @@ impl Web3Indexer {
         Ok(())
     }
 
-    fn extract_l2_block(&self, l1_transaction: &Transaction) -> Result<Option<L2Block>> {
-        let witness = l1_transaction
-            .witnesses()
-            .get(0)
-            .ok_or_else(|| anyhow!("Witness missing for L2 block!"))?;
-        let witness_args = WitnessArgs::from_slice(&witness.raw_data())?;
-        let rollup_action_bytes: Bytes = witness_args
-            .output_type()
-            .to_opt()
-            .ok_or_else(|| anyhow!("Missing L2 block!"))?
-            .unpack();
-        match RollupActionReader::verify(&rollup_action_bytes, false) {
-            Ok(_) => match RollupAction::new_unchecked(rollup_action_bytes).to_enum() {
-                RollupActionUnion::RollupSubmitBlock(args) => Ok(Some(args.block())),
-                _ => Ok(None),
-            },
-            Err(_) => Err(anyhow!("invalid rollup action")),
-        }
-    }
-
     async fn filter_web3_transactions(
         &self,
         l2_block: L2Block,
@@ -328,18 +261,10 @@ impl Web3Indexer {
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
                 // read logs
-                // let db = store.begin_transaction();
-                // let tx_receipt = {
-                //     db.get_transaction_receipt(&gw_tx_hash)?.ok_or_else(|| {
-                //         anyhow!("can't find receipt for transaction: {:?}", gw_tx_hash)
-                //     })?
-                // };
-                // let log_item_vec = tx_receipt.logs();
-
-                let ttt = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+                let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
                 let tx_receipt: gw_types::packed::TxReceipt = self
                     .godwoken_rpc_client
-                    .get_transaction_receipt(&ttt)?
+                    .get_transaction_receipt(&tx_hash)?
                     .ok_or_else(|| anyhow!("tx receipt not found"))?
                     .into();
                 let log_item_vec = tx_receipt.logs();
@@ -546,17 +471,6 @@ async fn get_script_hash(
     godwoken_rpc_client: &GodwokenRpcClient,
     account_id: u32,
 ) -> Result<gw_common::H256> {
-    // let db = store.begin_transaction();
-    // let tip_hash = db.get_tip_block_hash()?;
-    // let state_db = StateDBTransaction::from_checkpoint(
-    //     &db,
-    //     CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
-    //     StateDBMode::ReadOnly,
-    // )?;
-    // let tree = state_db.state_tree()?;
-
-    // let script_hash = tree.get_script_hash(account_id)?;
-
     let script_hash = godwoken_rpc_client.get_script_hash(account_id)?;
 
     let hash: gw_common::H256 = {
@@ -571,17 +485,6 @@ async fn get_script(
     godwoken_rpc_client: &GodwokenRpcClient,
     script_hash: gw_common::H256,
 ) -> Result<Option<Script>> {
-    // let db = store.begin_transaction();
-    // let tip_hash = db.get_tip_block_hash()?;
-    // let state_db = StateDBTransaction::from_checkpoint(
-    //     &db,
-    //     CheckPoint::from_block_hash(&db, tip_hash, SubState::Block)?,
-    //     StateDBMode::ReadOnly,
-    // )?;
-    // let tree = state_db.state_tree()?;
-
-    // let script_opt = tree.get_script(&script_hash);
-
     let hash = ckb_types::H256::from_slice(script_hash.as_slice())?;
 
     let script_opt = godwoken_rpc_client

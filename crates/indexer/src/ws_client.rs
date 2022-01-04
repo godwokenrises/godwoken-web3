@@ -6,6 +6,7 @@ use websocket::{ClientBuilder, OwnedMessage};
 
 use crate::{
     config::IndexerConfig,
+    helper,
     ws_output::{Output, Success},
     ErrorReceiptIndexer,
 };
@@ -57,10 +58,12 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig, pg_pool: PgPool) ->
                     };
 
                     if let Some(receipt) = error_tx_receipt {
-                        log::info!(
-                            "receive error tx receipt: 0x{}",
-                            hex::encode(receipt.tx_hash.as_bytes())
-                        );
+                        if let Ok(tx_hash_hex) = helper::hex(receipt.tx_hash.as_bytes()) {
+                            log::info!("receive error tx receipt: 0x{}", tx_hash_hex,);
+                        } else {
+                            log::error!("receiver tx hash error: {:?}", receipt);
+                        }
+
                         let receipt2 = convert_error_tx_receipt(receipt);
                         error_tx_handler.handle_error_receipt(receipt2).await;
                     }
