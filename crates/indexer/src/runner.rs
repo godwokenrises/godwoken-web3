@@ -37,28 +37,19 @@ impl Runner {
     pub async fn tip(&self) -> Result<Option<u64>> {
         let tip = match self.local_tip {
             Some(t) => Some(t),
-            None => {
-                let row: Option<(Decimal,)> =
-                    sqlx::query_as("select number from blocks order by number desc limit 1;")
-                        .fetch_optional(&self.pg_pool)
-                        .await?;
-
-                row.and_then(|(n,)| n.to_u64())
-            }
+            None => self.get_db_tip_number().await?,
         };
         Ok(tip)
     }
 
-    pub async fn update_tip(&mut self, tip_number: u64) -> Result<()> {
-        self.local_tip = Some(tip_number);
-
-        Ok(())
-    }
-
-    pub fn bump_tip(&mut self) -> Result<()> {
+    pub async fn bump_tip(&mut self) -> Result<()> {
         match self.local_tip {
             None => {
-                self.local_tip = Some(0);
+                self.local_tip = if let Some(n) = self.get_db_tip_number().await? {
+                    Some(n)
+                } else {
+                    Some(0)
+                }
             }
             Some(t) => {
                 self.local_tip = Some(t + 1);
@@ -66,6 +57,15 @@ impl Runner {
         }
 
         Ok(())
+    }
+
+    async fn get_db_tip_number(&self) -> Result<Option<u64>> {
+        let row: Option<(Decimal,)> =
+            sqlx::query_as("select number from blocks order by number desc limit 1;")
+                .fetch_optional(&self.pg_pool)
+                .await?;
+        let num = row.and_then(|(n,)| n.to_u64());
+        Ok(num)
     }
 
     pub async fn insert(&mut self) -> Result<bool> {
@@ -83,7 +83,7 @@ impl Runner {
             let l2_block = to_l2_block(b);
             self.indexer.store_l2_block(l2_block).await?;
             log::info!("Sync block {}", current_block_number);
-            self.bump_tip()?;
+            self.bump_tip().await?;
             return Ok(true);
         }
 
