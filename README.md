@@ -67,6 +67,29 @@ $ cat > ./packages/api-server/rate-limit-config.json <<EOF
 EOF
 ```
 
+### Indexer
+
+Sync block from godwoken.
+
+```bash
+$ cat > ./indexer-config.toml <<EOF
+l2_sudt_type_script_hash=<l2 sudt validator script type hash>
+polyjuice_type_script_hash=<godwoken polyjuice validator type hash>
+rollup_type_hash=<godwoken rollup type hash>
+eth_account_lock_hash=<eth account lock script hash>
+tron_account_lock_hash=<tron account lock script hash, optional>
+godwoken_rpc_url=<godwoken rpc>
+ws_rpc_url=<godwoken websocket rpc>
+pg_url="postgres://username:password@localhost:5432/your_db"
+EOF
+```
+
+Or just run script, copy configs from `packages/api-server/.env` file.
+
+```bash
+node scripts/generate-indexer-config.js <websocket rpc url>
+``` 
+
 ### Start API server
 
 ```bash
