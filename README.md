@@ -29,7 +29,8 @@ EOF
 
 $ yarn
 
-$ yarn run migrate:latest
+# For api-server & indexer
+$ DATABASE_URL=<your database url> make migrate
 
 # Migrate accounts data from hashmap db to sql if need
 # relative hashmap db path is relative to packages/api-server
@@ -67,7 +68,7 @@ $ cat > ./packages/api-server/rate-limit-config.json <<EOF
 EOF
 ```
 
-### Indexer
+### Config Indexer
 
 Sync block from godwoken.
 
@@ -89,6 +90,13 @@ Or just run script, copy configs from `packages/api-server/.env` file.
 ```bash
 node scripts/generate-indexer-config.js <websocket rpc url>
 ``` 
+
+### Start Indexer
+
+```bash
+cargo build --release
+./target/release/gw-web3-indexer
+```
 
 ### Start API server
 
