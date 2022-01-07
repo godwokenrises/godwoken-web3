@@ -116,14 +116,14 @@ impl From<ErrorTxReceipt> for ErrorReceiptRecord {
                 created_address: _,
                 status_code,
             } => {
-                let isnt_string = |t: &ethabi::token::Token| -> bool {
-                    !matches!(t, ethabi::token::Token::String(_))
+                let is_string = |t: &ethabi::token::Token| -> bool {
+                    matches!(t, ethabi::token::Token::String(_))
                 };
 
                 // First 4 bytes are func signature
                 let status_reason =
                     match ethabi::decode(&[ethabi::ParamType::String], &receipt.return_data[4..]) {
-                        Ok(tokens) if !tokens.iter().any(isnt_string) => {
+                        Ok(tokens) if !tokens.iter().all(is_string) => {
                             let mut reason = tokens
                                 .into_iter()
                                 .flat_map(ethabi::token::Token::into_string)
