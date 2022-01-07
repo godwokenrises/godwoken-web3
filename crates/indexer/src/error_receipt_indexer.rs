@@ -26,7 +26,6 @@ impl ErrorReceiptIndexer {
         let record = ErrorReceiptRecord::from(receipt);
         log::debug!("error tx receipt record {:?}", record);
 
-        let mut db = pool.begin().await?;
         sqlx::query("INSERT INTO error_transactions (hash, block_number, cumulative_gas_used, gas_used, status_code, status_reason) VALUES ($1, $2, $3, $4, $5, $6)")
             .bind(hex(record.tx_hash.as_slice())?)
             .bind(Decimal::from(record.block_number))
@@ -34,21 +33,18 @@ impl ErrorReceiptIndexer {
             .bind(Decimal::from(record.gas_used))
             .bind(Decimal::from(record.status_code))
             .bind(record.status_reason)
-            .execute(&mut db)
+            .execute(&pool)
             .await?;
 
-        db.commit().await?;
         Ok(())
     }
 
     async fn clear_expired_block_error_receipt(pool: PgPool, block_number: u64) -> Result<()> {
-        let mut db = pool.begin().await?;
         let result = sqlx::query("DELETE FROM error_transactions WHERE block_number <= $1")
             .bind(Decimal::from(block_number))
-            .execute(&mut db)
+            .execute(&pool)
             .await?;
 
-        db.commit().await?;
         log::info!("delete error tx receipt {}", result.rows_affected());
 
         Ok(())
