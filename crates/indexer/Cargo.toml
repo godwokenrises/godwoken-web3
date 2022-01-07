@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-mem-pool = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 gw-jsonrpc-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
 ckb-hash = "0.100.0"
 ckb-types = "0.100.0"
