@@ -4,6 +4,11 @@ use gw_types::packed::LogItem;
 use gw_types::prelude::*;
 use std::{convert::TryInto, usize};
 
+// 128KB
+pub const GW_L2TX_ARGS_MAX_SIZE: u32 = 128 * 1024;
+// 4KB
+pub const GW_USER_LOG_DATA_MAX_SIZE: u32 = 4 * 1024;
+
 pub const GW_LOG_SUDT_TRANSFER: u8 = 0x0;
 pub const GW_LOG_SUDT_PAY_FEE: u8 = 0x1;
 pub const GW_LOG_POLYJUICE_SYSTEM: u8 = 0x2;
@@ -20,11 +25,26 @@ pub struct PolyjuiceArgs {
 impl PolyjuiceArgs {
     // https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.6.0-rc1/polyjuice-tests/src/helper.rs#L322
     pub fn decode(args: &[u8]) -> anyhow::Result<Self> {
+        if args.len() < 52 {
+            return Err(anyhow!("polyjuice args too short: 0x{}", hex(args)?));
+        }
         let is_create = args[7] == 3u8;
         let gas_limit = u64::from_le_bytes(args[8..16].try_into()?);
         let gas_price = u128::from_le_bytes(args[16..32].try_into()?);
         let value = u128::from_le_bytes(args[32..48].try_into()?);
         let input_size = u32::from_le_bytes(args[48..52].try_into()?);
+        if input_size > GW_L2TX_ARGS_MAX_SIZE {
+            return Err(anyhow!(
+                "Polyjuice args input size too long: {}",
+                input_size
+            ));
+        }
+        if args.len() < 52 + input_size as usize {
+            return Err(anyhow!(
+                "polyjuice args input data too short: 0x{}",
+                hex(args)?
+            ));
+        }
         let input: Vec<u8> = args[52..(52 + input_size as usize)].to_vec();
         Ok(PolyjuiceArgs {
             is_create,
@@ -144,6 +164,9 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
             })
         }
         GW_LOG_POLYJUICE_USER => {
+            if data.len() < 24 {
+                return Err(anyhow!("invalid user log data length: {}", data.len()));
+            }
             let mut offset: usize = 0;
             let mut address = [0u8; 20];
             address.copy_from_slice(&data[offset..offset + 20]);
@@ -152,6 +175,12 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
             data_size_bytes.copy_from_slice(&data[offset..offset + 4]);
             offset += 4;
             let data_size: u32 = u32::from_le_bytes(data_size_bytes);
+            if data_size > GW_USER_LOG_DATA_MAX_SIZE {
+                return Err(anyhow!("user log data size too large: {}", data_size));
+            }
+            if data.len() < offset + data_size as usize {
+                return Err(anyhow!("invalid user log data size: {}", data_size));
+            }
             let mut log_data = vec![0u8; data_size as usize];
             log_data.copy_from_slice(&data[offset..offset + (data_size as usize)]);
             offset += data_size as usize;
@@ -164,6 +193,9 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
             let mut topics = Vec::new();
             log::debug!("topics_count: {}", topics_count);
             for _ in 0..topics_count {
+                if data.len() < offset + 32 {
+                    return Err(anyhow!("invalid user log data"));
+                }
                 let mut topic = [0u8; 32];
                 topic.copy_from_slice(&data[offset..offset + 32]);
                 offset += 32;
