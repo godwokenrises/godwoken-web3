@@ -30,3 +30,4 @@ env_logger = "0.8.3"
 websocket = "0.26.2"
 jsonrpc-core = "18.0"
 gw-web3-rpc-client = { path = "../rpc-client" }
+lazy_static = "1.4"

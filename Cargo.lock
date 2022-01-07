@@ -1171,6 +1171,7 @@ dependencies = [
  "gw-types",
  "gw-web3-rpc-client",
  "jsonrpc-core 18.0.0",
+ "lazy_static",
  "log 0.4.14",
  "num-bigint 0.4.3",
  "rlp",

@@ -2,7 +2,7 @@ use gw_web3_rpc_client::{convertion::to_l2_block, godwoken_rpc_client::GodwokenR
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sqlx::PgPool;
 
-use crate::{config::IndexerConfig, Web3Indexer};
+use crate::{config::IndexerConfig, pool::POOL, Web3Indexer};
 use anyhow::{anyhow, Result};
 
 pub struct Runner {
@@ -13,9 +13,9 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(config: IndexerConfig, pg_pool: PgPool) -> Result<Runner> {
+    pub fn new(config: IndexerConfig) -> Result<Runner> {
         let indexer = Web3Indexer::new(
-            pg_pool.clone(),
+            (*POOL).clone(),
             config.l2_sudt_type_script_hash,
             config.polyjuice_type_script_hash,
             config.rollup_type_hash,
@@ -27,7 +27,7 @@ impl Runner {
         let runner = Runner {
             indexer,
             local_tip: None,
-            pg_pool,
+            pg_pool: (*POOL).clone(),
             godwoken_rpc_client,
         };
         Ok(runner)

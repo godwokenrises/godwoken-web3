@@ -1,7 +1,6 @@
 use gw_jsonrpc_types::godwoken::ErrorTxReceipt;
 use serde::de::DeserializeOwned;
 use serde_json::from_value;
-use sqlx::PgPool;
 use websocket::{ClientBuilder, OwnedMessage};
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
     ErrorReceiptIndexer,
 };
 
-pub fn start_listen_error_tx_receipt(config: &IndexerConfig, pg_pool: PgPool) -> smol::Task<()> {
+pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> smol::Task<()> {
     let client = ClientBuilder::new(&config.ws_rpc_url)
         .unwrap()
         .add_protocol("rust-websocket")
@@ -34,7 +33,7 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig, pg_pool: PgPool) ->
         }
     }
 
-    let mut error_tx_handler = ErrorReceiptIndexer::new(pg_pool);
+    let mut error_tx_handler = ErrorReceiptIndexer::new();
 
     smol::spawn(async move {
         // Receive loop

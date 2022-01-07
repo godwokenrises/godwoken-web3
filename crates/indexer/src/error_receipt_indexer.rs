@@ -2,27 +2,31 @@ use anyhow::Result;
 use gw_common::H256;
 use gw_types::offchain::ErrorTxReceipt;
 use rust_decimal::Decimal;
-use sqlx::PgPool;
 
-use crate::helper::{hex, parse_log, GwLog};
+use crate::{
+    helper::{hex, parse_log, GwLog},
+    pool::POOL,
+};
 
 pub const MAX_RETURN_DATA: usize = 32;
 pub const MAX_ERROR_TX_RECEIPT_BLOCKS: u64 = 3;
 
 pub struct ErrorReceiptIndexer {
-    pool: PgPool,
     latest_block: u64,
 }
 
+impl Default for ErrorReceiptIndexer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorReceiptIndexer {
-    pub fn new(pool: PgPool) -> Self {
-        ErrorReceiptIndexer {
-            pool,
-            latest_block: 0,
-        }
+    pub fn new() -> Self {
+        ErrorReceiptIndexer { latest_block: 0 }
     }
 
-    async fn insert_error_tx_receipt(pool: PgPool, receipt: ErrorTxReceipt) -> Result<()> {
+    async fn insert_error_tx_receipt(receipt: ErrorTxReceipt) -> Result<()> {
         let record = ErrorReceiptRecord::from(receipt);
         log::debug!("error tx receipt record {:?}", record);
 
@@ -33,16 +37,16 @@ impl ErrorReceiptIndexer {
             .bind(Decimal::from(record.gas_used))
             .bind(Decimal::from(record.status_code))
             .bind(record.status_reason)
-            .execute(&pool)
+            .execute(&*POOL)
             .await?;
 
         Ok(())
     }
 
-    async fn clear_expired_block_error_receipt(pool: PgPool, block_number: u64) -> Result<()> {
+    async fn clear_expired_block_error_receipt(block_number: u64) -> Result<()> {
         let result = sqlx::query("DELETE FROM error_transactions WHERE block_number <= $1")
             .bind(Decimal::from(block_number))
-            .execute(&pool)
+            .execute(&*POOL)
             .await?;
 
         log::info!("delete error tx receipt {}", result.rows_affected());
@@ -56,22 +60,19 @@ impl ErrorReceiptIndexer {
         if self.latest_block < receipt.block_number {
             self.latest_block = receipt.block_number;
 
-            let pool = self.pool.clone();
             let expired_block = self
                 .latest_block
                 .saturating_sub(MAX_ERROR_TX_RECEIPT_BLOCKS);
             smol::spawn(async move {
-                if let Err(err) = Self::clear_expired_block_error_receipt(pool, expired_block).await
-                {
+                if let Err(err) = Self::clear_expired_block_error_receipt(expired_block).await {
                     log::error!("clear expired block error receipt {}", err);
                 }
             })
             .detach();
         }
 
-        let pool = self.pool.clone();
         smol::spawn(async move {
-            if let Err(err) = Self::insert_error_tx_receipt(pool, receipt).await {
+            if let Err(err) = Self::insert_error_tx_receipt(receipt).await {
                 log::error!("insert error tx receipt {}", err);
             }
         })
