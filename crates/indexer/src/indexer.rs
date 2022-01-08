@@ -5,6 +5,7 @@ use crate::{
         account_script_hash_to_eth_address, hex, parse_log, GwLog, PolyjuiceArgs,
         GW_LOG_POLYJUICE_SYSTEM,
     },
+    pool::POOL,
     types::{
         Block as Web3Block, Log as Web3Log, Transaction as Web3Transaction,
         TransactionWithLogs as Web3TransactionWithLogs,
@@ -23,11 +24,9 @@ use gw_types::{
 use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
-use sqlx::PgPool;
 
 const MILLIS_PER_SEC: u64 = 1_000;
 pub struct Web3Indexer {
-    pool: PgPool,
     l2_sudt_type_script_hash: H256,
     polyjuice_type_script_hash: H256,
     rollup_type_hash: H256,
@@ -37,7 +36,6 @@ pub struct Web3Indexer {
 
 impl Web3Indexer {
     pub fn new(
-        pool: PgPool,
         l2_sudt_type_script_hash: H256,
         polyjuice_type_script_hash: H256,
         rollup_type_hash: H256,
@@ -53,7 +51,6 @@ impl Web3Indexer {
         let godwoken_rpc_client = GodwokenRpcClient::new(gw_rpc_url);
 
         Web3Indexer {
-            pool,
             l2_sudt_type_script_hash,
             polyjuice_type_script_hash,
             rollup_type_hash,
@@ -77,7 +74,7 @@ impl Web3Indexer {
             "SELECT number FROM blocks WHERE number={} LIMIT 1",
             number
         ))
-        .fetch_optional(&self.pool)
+        .fetch_optional(&*POOL)
         .await?;
         Ok(row.and_then(|(n,)| n.to_u64()))
     }
@@ -85,7 +82,7 @@ impl Web3Indexer {
     async fn tip_number(&self) -> Result<Option<u64>> {
         let row: Option<(Decimal,)> =
             sqlx::query_as("SELECT number FROM blocks ORDER BY number DESC LIMIT 1")
-                .fetch_optional(&self.pool)
+                .fetch_optional(&*POOL)
                 .await?;
         Ok(row.and_then(|(n,)| n.to_u64()))
     }
@@ -95,7 +92,9 @@ impl Web3Indexer {
         let web3_block = self
             .build_web3_block(&l2_block, &web3_tx_with_logs_vec)
             .await?;
-        let mut tx = self.pool.begin().await?;
+
+        let pool = &*POOL;
+        let mut tx = pool.begin().await?;
         sqlx::query("INSERT INTO blocks (number, hash, parent_hash, logs_bloom, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
             .bind(Decimal::from(web3_block.number))
             .bind(hex(web3_block.hash.as_slice())?)
