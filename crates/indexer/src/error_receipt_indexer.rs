@@ -71,12 +71,9 @@ impl ErrorReceiptIndexer {
             .detach();
         }
 
-        smol::spawn(async move {
-            if let Err(err) = Self::insert_error_tx_receipt(receipt).await {
-                log::error!("insert error tx receipt {}", err);
-            }
-        })
-        .await;
+        if let Err(err) = Self::insert_error_tx_receipt(receipt).await {
+            log::error!("insert error tx receipt {}", err);
+        }
     }
 }
 
