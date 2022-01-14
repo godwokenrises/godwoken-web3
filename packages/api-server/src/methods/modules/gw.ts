@@ -202,7 +202,7 @@ export class Gw {
       args[0] = formatHexNumber(args[0]);
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.readonlyRpc.gw_get_nonce(...args);
+      const result = await this.rpc.gw_get_nonce(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
