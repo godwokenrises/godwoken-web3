@@ -92,7 +92,7 @@ impl Runner {
 
             if !result {
                 let sleep_time = std::time::Duration::from_secs(3);
-                std::thread::sleep(sleep_time);
+                smol::Timer::after(sleep_time).await;
             }
         }
     }
