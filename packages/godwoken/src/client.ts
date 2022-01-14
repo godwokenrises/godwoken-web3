@@ -86,7 +86,7 @@ export class GodwokenClient {
     accountId: U32,
     blockParameter?: BlockParameter
   ): Promise<U32> {
-    const nonce: HexNumber = await this.rpcCall(
+    const nonce: HexNumber = await this.writeRpcCall(
       "get_nonce",
       toHex(accountId),
       toHex(blockParameter)
