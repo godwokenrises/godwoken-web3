@@ -14,6 +14,7 @@ pub struct IndexerConfig {
     pub godwoken_rpc_url: String,
     pub ws_rpc_url: String,
     pub pg_url: String,
+    pub sentry_dsn: Option<String>,
 }
 
 impl Display for IndexerConfig {
@@ -43,6 +44,11 @@ impl Display for IndexerConfig {
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
         write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;
+        if let Some(t) = &self.sentry_dsn {
+            write!(f, "sentry_dsn: {}, ", t)?;
+        } else {
+            write!(f, "sentry_dsn: null, ")?;
+        }
         write!(f, " }}")
     }
 }
