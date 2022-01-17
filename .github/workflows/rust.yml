@@ -1,0 +1,39 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust components
+      run: |
+        cargo fmt --version || rustup component add rustfmt
+        cargo clippy --version || rustup component add clippy
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+    - name: Build
+      run: cargo build --verbose
+    - name: Check format
+      run: cargo fmt -- --check
+    - name: Cargo clippy check
+      env:
+        RUSTFLAGS: -D warnings
+      run: cargo clippy
+    - name: Diff
+      run: git diff --exit-code
