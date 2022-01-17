@@ -2,3 +2,6 @@ node_modules/
 lib/
 .env
 packages/api-server/allowed-addresses.json
+crates/**/target
+target
+indexer-config.toml
