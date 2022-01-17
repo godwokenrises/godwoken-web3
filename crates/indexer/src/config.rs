@@ -15,6 +15,7 @@ pub struct IndexerConfig {
     pub ws_rpc_url: String,
     pub pg_url: String,
     pub sentry_dsn: Option<String>,
+    pub sentry_environment: Option<String>,
 }
 
 impl Display for IndexerConfig {
@@ -48,6 +49,11 @@ impl Display for IndexerConfig {
             write!(f, "sentry_dsn: {}, ", t)?;
         } else {
             write!(f, "sentry_dsn: null, ")?;
+        }
+        if let Some(t) = &self.sentry_environment {
+            write!(f, "sentry_environment: {}, ", t)?;
+        } else {
+            write!(f, "sentry_environment: null, ")?;
         }
         write!(f, " }}")
     }

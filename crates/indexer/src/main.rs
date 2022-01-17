@@ -9,11 +9,13 @@ fn main() -> Result<()> {
     init_log();
     let indexer_config = read_indexer_config("./indexer-config.toml")?;
 
+    let sentry_environment = indexer_config.sentry_environment.clone().map(|e| e.into());
     let _guard = match &indexer_config.sentry_dsn {
         Some(sentry_dsn) => sentry::init((
             sentry_dsn.as_str(),
             sentry::ClientOptions {
                 release: sentry::release_name!(),
+                environment: sentry_environment,
                 ..Default::default()
             },
         )),
