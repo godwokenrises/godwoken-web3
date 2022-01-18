@@ -58,7 +58,7 @@ impl Runner {
         Ok(())
     }
 
-    pub async fn down_tip(&mut self) -> Result<()> {
+    pub fn revert_tip(&mut self) -> Result<()> {
         if let Some(t) = self.local_tip {
             if t == 0 {
                 self.local_tip = None;
@@ -143,7 +143,7 @@ impl Runner {
                     } else {
                         self.delete_block(prev_block_number).await?;
                         log::info!("Rollback block {}", prev_block_number);
-                        self.down_tip().await?;
+                        self.revert_tip()?;
                     }
                 }
             } else {
