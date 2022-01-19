@@ -226,9 +226,18 @@ export const validators = {
 
     // validate `address`
     if (address !== undefined && address !== null) {
-      const addressErr = verifyAddress(address, index);
-      if (addressErr !== undefined) {
-        return addressErr;
+      if (Array.isArray(address)) {
+        for (const addr of address) {
+          const addressErr = verifyAddress(addr, index);
+          if (addressErr !== undefined) {
+            return addressErr;
+          }
+        }
+      } else {
+        const addressErr = verifyAddress(address, index);
+        if (addressErr !== undefined) {
+          return addressErr;
+        }
       }
     }
 

@@ -248,15 +248,14 @@ export class Query {
 
   private async queryLogsByBlockHash(
     blockHash: HexString,
-    address?: HexString,
+    address?: HexString | HexString[],
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
-    let logs = await this.knex<Log>("logs")
-      .where(queryAddress)
+    let logs: Log[] = await this.knex<Log>("logs")
+      .modify(buildQueryLogAddress, address)
       .where("block_hash", blockHash)
       .where("id", ">", queryLastPollId.toString(10))
       .orderBy("id", "desc")
@@ -269,15 +268,14 @@ export class Query {
   private async queryLogsByBlockRange(
     fromBlock: HexNumber,
     toBlock: HexNumber,
-    address?: HexString,
+    address?: HexString | HexString[],
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const queryAddress = address ? { address } : {};
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
-    let logs = await this.knex<Log>("logs")
-      .where(queryAddress)
+    let logs: Log[] = await this.knex<Log>("logs")
+      .modify(buildQueryLogAddress, address)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
@@ -294,7 +292,7 @@ export class Query {
     toBlock?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const address = normalizeQueryAddress(option.address);
+    const address = normalizeLogQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -338,7 +336,7 @@ export class Query {
     toBlock?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const address = normalizeQueryAddress(option.address);
+    const address = normalizeLogQueryAddress(option.address);
     const topics = option.topics || [];
 
     if (typeof blockHashOrFromBlock === "string" && !toBlock) {
@@ -448,6 +446,16 @@ function normalizeQueryAddress(address: HexString | undefined) {
   return address;
 }
 
+function normalizeLogQueryAddress(
+  address: HexString | HexString[] | undefined
+) {
+  if (address && Array.isArray(address)) {
+    return address.map((a) => normalizeQueryAddress(a));
+  }
+
+  return normalizeQueryAddress(address);
+}
+
 function toBigIntOpt(num: bigint | HexNumber | undefined): bigint | undefined {
   if (num == null) {
     return num as undefined;
@@ -522,7 +530,7 @@ export function filterLogsByAddress(
   logs: Log[],
   _address: HexString | undefined
 ): Log[] {
-  const address = normalizeQueryAddress(_address);
+  const address = normalizeLogQueryAddress(_address);
   // match anything
   if (!address) {
     return logs;
@@ -584,6 +592,16 @@ export async function limitQuery(
     }
   }
   return results;
+}
+
+export function buildQueryLogAddress(
+  queryBuilder: KnexType.QueryBuilder,
+  address: HexString | HexString[] | undefined
+) {
+  if (address && address.length !== 0) {
+    const queryAddress = Array.isArray(address) ? [...address] : [address];
+    queryBuilder.whereIn("address", queryAddress);
+  }
 }
 
 // test
