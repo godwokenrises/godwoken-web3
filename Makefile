@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 IMAGE_NAME := nervos/godwoken-web3-prebuilds
+INDEXER_IMAGE_NAME := nervos/godwoken-web3-indexer-prebuilds
 
 build-push:
 	@read -p "Please Enter New Image Tag: " VERSION ; \
@@ -9,6 +10,10 @@ build-push:
 
 build-test-image:
 	docker build . -t ${IMAGE_NAME}:latest-test
+
+build-indexer-image:
+	@read -p "Please Enter New Indexer Image Tag: " VERSION ; \
+	docker build -f ./docker/indexer/Dockerfile . -t ${INDEXER_IMAGE_NAME}:$$VERSION ; \
 
 test:
 	make build-test-image
