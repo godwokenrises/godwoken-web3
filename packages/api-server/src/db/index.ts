@@ -438,7 +438,7 @@ function formatErrorTransactionReceipt(
   };
 }
 
-function normalizeQueryAddress(address: HexString | undefined) {
+function normalizeQueryAddress(address: HexString) {
   if (address && typeof address === "string") {
     return address.toLowerCase();
   }
@@ -449,6 +449,10 @@ function normalizeQueryAddress(address: HexString | undefined) {
 function normalizeLogQueryAddress(
   address: HexString | HexString[] | undefined
 ) {
+  if (!address) {
+    return address;
+  }
+
   if (address && Array.isArray(address)) {
     return address.map((a) => normalizeQueryAddress(a));
   }
