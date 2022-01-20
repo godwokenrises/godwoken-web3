@@ -3,6 +3,7 @@ import { HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
 import fs from "fs";
 import path from "path";
+import { CACHE_EXPIRED_TIME_MILSECS } from "./constant";
 
 const RedisPrefixName = "access";
 const configPath = path.resolve(__dirname, "../../rate-limit-config.json");
@@ -36,6 +37,7 @@ export function getRateLimitConfig() {
 export class AccessGuard {
   public store: Store;
   public rpcMethods: RpcMethodLimit;
+  public expiredTimeMilsecs: number;
 
   constructor(
     enableExpired = true,
@@ -48,6 +50,7 @@ export class AccessGuard {
     this.store =
       store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
     this.rpcMethods = config.methods;
+    this.expiredTimeMilsecs = expiredTimeMilsecs || CACHE_EXPIRED_TIME_MILSECS;
   }
 
   isConnected() {
@@ -114,6 +117,14 @@ export class AccessGuard {
   async getKeyTTL(rpcMethod: string, reqId: string) {
     const id = getId(rpcMethod, reqId);
     const remainSecs = await this.store.client.ttl(id);
+    if (remainSecs === -1) {
+      const value = (await this.store.client.get(id)) || "0";
+      console.log(
+        `key ${id} with no ttl, reset: ${this.expiredTimeMilsecs}ms, ${value}`
+      );
+      await this.store.client.setEx(id, this.expiredTimeMilsecs / 1000, value);
+      return await this.store.client.ttl(id);
+    }
     return remainSecs;
   }
 }
