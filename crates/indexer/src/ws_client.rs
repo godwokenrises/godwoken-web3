@@ -11,15 +11,28 @@ use crate::{
 };
 
 pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> smol::Task<()> {
-    let client = ClientBuilder::new(&config.ws_rpc_url)
-        .unwrap()
+    let config = config.clone();
+    smol::spawn(async move {
+        loop {
+            if let Err(err) = start(&config).await {
+                log::error!("websocket disconnected, will retry after 3s: {}", err);
+            } else {
+                log::info!("websocket exit, will retry after 3s.")
+            }
+            let sleep_time = std::time::Duration::from_secs(3);
+            smol::Timer::after(sleep_time).await;
+        }
+    })
+}
+
+async fn start(config: &IndexerConfig) -> anyhow::Result<()> {
+    let client = ClientBuilder::new(&config.ws_rpc_url)?
         .add_protocol("rust-websocket")
-        .connect_insecure()
-        .unwrap();
+        .connect_insecure()?;
 
     log::info!("Successfully connected");
 
-    let (mut receiver, mut sender) = client.split().unwrap();
+    let (mut receiver, mut sender) = client.split()?;
 
     // Subscribe new_error_tx_receipt
     let msg = "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"subscribe\", \"params\": [\"new_error_tx_receipt\"]}";
@@ -35,43 +48,42 @@ pub fn start_listen_error_tx_receipt(config: &IndexerConfig) -> smol::Task<()> {
 
     let mut error_tx_handler = ErrorReceiptIndexer::new();
 
-    smol::spawn(async move {
-        // Receive loop
-        for message in receiver.incoming_messages() {
-            let message = match message {
-                Ok(m) => m,
-                Err(e) => {
-                    log::info!("Websocket message error: {:?}", e);
-                    return;
-                }
-            };
-            match message {
-                OwnedMessage::Text(msg) => {
-                    let output: Output = serde_json::from_str(&msg).expect("parse error");
-                    let error_tx_receipt: Option<ErrorTxReceipt> = match to_result(output) {
-                        Ok(s) => Some(s),
-                        Err(e) => {
-                            log::info!("ErrorTxReceipt type mismatch: {:?}", e);
-                            None
-                        }
-                    };
-
-                    if let Some(receipt) = error_tx_receipt {
-                        if let Ok(tx_hash_hex) = helper::hex(receipt.tx_hash.as_bytes()) {
-                            log::info!("receive error tx receipt: 0x{}", tx_hash_hex,);
-                        } else {
-                            log::error!("receiver tx hash error: {:?}", receipt);
-                        }
-
-                        let receipt2 = convert_error_tx_receipt(receipt);
-                        error_tx_handler.handle_error_receipt(receipt2).await;
-                    }
-                }
-                // Say what we received
-                _ => log::info!("Receive Loop: {:?}", message),
+    // Receive loop
+    for message in receiver.incoming_messages() {
+        let message = match message {
+            Ok(m) => m,
+            Err(e) => {
+                log::info!("Websocket message error: {:?}", e);
+                return Err(e.into());
             }
+        };
+        match message {
+            OwnedMessage::Text(msg) => {
+                let output: Output = serde_json::from_str(&msg).expect("parse error");
+                let error_tx_receipt: Option<ErrorTxReceipt> = match to_result(output) {
+                    Ok(s) => Some(s),
+                    Err(e) => {
+                        log::info!("ErrorTxReceipt type mismatch: {:?}", e);
+                        None
+                    }
+                };
+
+                if let Some(receipt) = error_tx_receipt {
+                    if let Ok(tx_hash_hex) = helper::hex(receipt.tx_hash.as_bytes()) {
+                        log::info!("receive error tx receipt: 0x{}", tx_hash_hex,);
+                    } else {
+                        log::error!("receiver tx hash error: {:?}", receipt);
+                    }
+
+                    let receipt2 = convert_error_tx_receipt(receipt);
+                    error_tx_handler.handle_error_receipt(receipt2).await;
+                }
+            }
+            // Say what we received
+            _ => log::info!("Receive Loop: {:?}", message),
         }
-    })
+    }
+    Ok(())
 }
 
 fn to_result<T: DeserializeOwned>(output: Output) -> anyhow::Result<T> {
