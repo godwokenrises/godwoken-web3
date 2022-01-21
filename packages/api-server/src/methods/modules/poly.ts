@@ -39,11 +39,10 @@ export class Poly {
       envConfig.godwokenReadonlyJsonRpc
     );
 
-    this.polyCache = new Store(
-      envConfig.redisUrl,
-      true,
-      POLY_EXECUTE_RAW_L2TX_CACHE_TIME_MILSECS
-    );
+    const cacheTime = envConfig.polyExecRawL2TxCacheMilSec
+      ? +envConfig.polyExecRawL2TxCacheMilSec
+      : POLY_EXECUTE_RAW_L2TX_CACHE_TIME_MILSECS;
+    this.polyCache = new Store(envConfig.redisUrl, true, cacheTime);
     this.polyCache.init();
 
     this.getEthAddressByGodwokenShortAddress = middleware(
@@ -119,7 +118,7 @@ export class Poly {
       stringResult = JSON.stringify(jsonResult);
       if (stringResult != null) {
         console.debug(`update cache: ${key} -> ${stringResult}`);
-        this.polyCache.insert(key, stringResult);
+        await this.polyCache.insert(key, stringResult);
       }
 
       return jsonResult;
@@ -443,9 +442,7 @@ function containsAddressType(abiItem: AbiItem) {
 }
 
 function getPolyExecRawL2TxCacheKey(serializeRawL2Transaction: string) {
-  const hash = keccakFromHexString(serializeRawL2Transaction, 20).toString(
-    "hex"
-  );
+  const hash = keccakFromHexString(serializeRawL2Transaction).toString("hex");
   const key = `${POLY_RPC_KEY}_executeRawL2Transaction_${hash}`;
   return key;
 }
