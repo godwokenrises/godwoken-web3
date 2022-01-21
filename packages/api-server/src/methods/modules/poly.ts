@@ -115,6 +115,10 @@ export class Poly {
         deserializeRawL2TransactionWithAddressMapping(data);
       const rawL2Tx = txWithAddressMapping.raw_tx;
       const jsonResult = await this.rpc.executeRawL2Transaction(rawL2Tx);
+      // if result is fine, then tx is legal, we can start thinking to store the address mapping
+      await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
+
+      // store the cache result
       stringResult = JSON.stringify(jsonResult);
       if (stringResult != null) {
         console.debug(`update cache: ${key} -> ${stringResult}`);
