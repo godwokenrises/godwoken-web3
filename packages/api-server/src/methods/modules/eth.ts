@@ -115,7 +115,7 @@ export class Eth {
     ]);
     this.getStorageAt = middleware(this.getStorageAt.bind(this), 3, [
       validators.address,
-      validators.hexNumber,
+      validators.storageKey,
       validators.blockParameter,
     ]);
     this.getTransactionCount = middleware(
@@ -1278,6 +1278,10 @@ function buildRawL2Transaction(
 
 function buildStorageKey(storagePosition: string) {
   let key = storagePosition.slice(2);
+  // If b is larger than len(h), b will be cropped from the left.
+  if (key.length > 64) {
+    key = key.slice(0, 64);
+  }
   if (key.length < 64) {
     key = "0".repeat(64 - key.length) + key;
   }

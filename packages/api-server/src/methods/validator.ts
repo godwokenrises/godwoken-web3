@@ -63,6 +63,10 @@ export const validators = {
     return verifyHexNumber(params[index], index);
   },
 
+  storageKey(params: any[], index: number): any {
+    return verifyStorageKey(params[index], index);
+  },
+
   /**
    * Hex number | "latest" | "earliest" | "pending"
    * @param params
@@ -285,6 +289,22 @@ function verifyHexNumber(hexNumber: string, index: number) {
 
   if (!validateHexNumber(hexNumber)) {
     return invalidParamsError(index, `invalid hex number`);
+  }
+
+  return undefined;
+}
+
+function verifyStorageKey(key: string, index: number) {
+  if (typeof key !== "string") {
+    return invalidParamsError(index, `argument must be a hex string`);
+  }
+
+  if (!key.startsWith("0x")) {
+    return invalidParamsError(index, `hex string without 0x prefix`);
+  }
+
+  if (!/^0x([0-9a-fA-F]*)$/.test(key)) {
+    return invalidParamsError(index, `invalid hex`);
   }
 
   return undefined;
