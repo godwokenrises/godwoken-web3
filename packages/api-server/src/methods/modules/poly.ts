@@ -269,7 +269,7 @@ async function saveAddressMapping(
   await Promise.all(
     txWithAddressMapping.addresses.data.map(async (item) => {
       const ethAddress: HexString = item.eth_address;
-      const godwokenShortScriptHash: HexString = item.gw_short_script_hash;
+      const godwokenShortScriptHash: HexString = item.gw_short_address;
 
       if (!addressesFromEthTxData.includes(godwokenShortScriptHash)) {
         console.log(
@@ -335,7 +335,7 @@ async function saveConstructorArgsAddressMapping(
   await Promise.all(
     txWithAddressMapping.addresses.data.map(async (item) => {
       const ethAddress: HexString = item.eth_address;
-      const godwokenShortScriptHash: HexString = item.gw_short_script_hash;
+      const godwokenShortScriptHash: HexString = item.gw_short_address;
 
       if (!ethTxData.includes(godwokenShortScriptHash.slice(2))) {
         console.log(
