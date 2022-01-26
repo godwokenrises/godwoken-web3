@@ -39,8 +39,8 @@ export class AccountMerkleState {
   getCount(): Uint32;
 }
 
-export function SerializeGlobalState(value: object): ArrayBuffer;
-export class GlobalState {
+export function SerializeGlobalStateV0(value: object): ArrayBuffer;
+export class GlobalStateV0 {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   static size(): Number;
@@ -51,6 +51,22 @@ export class GlobalState {
   getTipBlockHash(): Byte32;
   getLastFinalizedBlockNumber(): Uint64;
   getStatus(): number;
+}
+
+export function SerializeGlobalState(value: object): ArrayBuffer;
+export class GlobalState {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getRollupConfigHash(): Byte32;
+  getAccount(): AccountMerkleState;
+  getBlock(): BlockMerkleState;
+  getRevertedBlockRoot(): Byte32;
+  getTipBlockHash(): Byte32;
+  getTipBlockTimestamp(): Uint64;
+  getLastFinalizedBlockNumber(): Uint64;
+  getStatus(): number;
+  getVersion(): number;
 }
 
 export function SerializeRollupConfig(value: object): ArrayBuffer;
@@ -346,7 +362,7 @@ export function SerializeSUDTQuery(value: object): ArrayBuffer;
 export class SUDTQuery {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
-  getShortAddress(): Bytes;
+  getShortScriptHash(): Bytes;
 }
 
 export function SerializeSUDTTransfer(value: object): ArrayBuffer;
@@ -499,6 +515,7 @@ export class RollupRevert {
   getRevertedBlocks(): RawL2BlockVec;
   getBlockProof(): Bytes;
   getRevertedBlockProof(): Bytes;
+  getNewTipBlock(): RawL2Block;
 }
 
 export function SerializeRollupAction(value: UnionType): ArrayBuffer;

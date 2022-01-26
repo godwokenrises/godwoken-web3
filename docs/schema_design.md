@@ -75,11 +75,11 @@ CREATE INDEX ON logs (block_number);
 CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,
     eth_address bytea NOT NULL,
-    gw_short_address bytea NOT NULL
+    gw_short_script_hash bytea NOT NULL
 );
 
 CREATE UNIQUE INDEX accounts_eth_address_unique ON accounts (eth_address);
-CREATE INDEX accounts_gw_short_address_index ON accounts (gw_short_address);
+CREATE INDEX accounts_gw_short_script_hash_index ON accounts (gw_short_script_hash);
 
 CREATE TABLE error_transactions (
     id BIGSERIAL PRIMARY KEY,
@@ -155,7 +155,7 @@ CREATE INDEX ON error_transactions (hash);
 
 ### accounts
 - eth_address: eth address
-- gw_short_address: godwoken short address
+- gw_short_script_hash: godwoken short script hash
 
 ## error_transactions
 - id: id, primary key,

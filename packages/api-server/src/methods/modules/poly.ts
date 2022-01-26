@@ -4,7 +4,7 @@ import { toHexNumber } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
 import { InternalError, InvalidParamsError, Web3Error } from "../error";
 import { Query } from "../../db";
-import { isAddressMatch, isShortAddressOnChain } from "../../base/address";
+import { isAddressMatch, isShortScriptHashOnChain } from "../../base/address";
 import {
   decodeArgs,
   deserializeL2TransactionWithAddressMapping,
@@ -32,37 +32,37 @@ export class Poly {
       envConfig.godwokenReadonlyJsonRpc
     );
 
-    this.getEthAddressByGodwokenShortAddress = middleware(
-      this.getEthAddressByGodwokenShortAddress.bind(this),
+    this.getEthAddressByGodwokenShortScriptHash = middleware(
+      this.getEthAddressByGodwokenShortScriptHash.bind(this),
       1,
       [validators.address]
     );
 
-    this.saveEthAddressGodwokenShortAddressMapping = middleware(
-      this.saveEthAddressGodwokenShortAddressMapping.bind(this),
+    this.saveEthAddressGodwokenShortScriptHashMapping = middleware(
+      this.saveEthAddressGodwokenShortScriptHashMapping.bind(this),
       2,
       [validators.address, validators.address]
     );
   }
 
-  async getEthAddressByGodwokenShortAddress(
+  async getEthAddressByGodwokenShortScriptHash(
     args: [string]
   ): Promise<Address | undefined> {
     try {
-      const gwShortAddress = args[0];
-      const account = await this.query.accounts.getByShortAddress(
-        gwShortAddress
+      const gwShortScriptHash = args[0];
+      const account = await this.query.accounts.getByShortScriptHash(
+        gwShortScriptHash
       );
       let ethAddress = account?.eth_address;
       console.log(
-        `[from hash_map] eth address: ${ethAddress}, short_address: ${gwShortAddress}`
+        `[from hash_map] eth address: ${ethAddress}, short_script_hash: ${gwShortScriptHash}`
       );
       return ethAddress;
     } catch (error) {
       console.log(error);
       if (error.notFound) {
         throw new InvalidParamsError(
-          "gw_short_address as key is not found on database."
+          "gw_short_script_hash as key is not found on database."
         );
       }
 
@@ -101,7 +101,7 @@ export class Poly {
     }
   }
 
-  async saveEthAddressGodwokenShortAddressMapping(
+  async saveEthAddressGodwokenShortScriptHashMapping(
     args: [string, string]
   ): Promise<string> {
     // TODO: remove this function later
@@ -110,27 +110,27 @@ export class Poly {
     // );
     try {
       const ethAddress = args[0];
-      const godwokenShortAddress = args[1];
+      const godwokenShortScriptHash = args[1];
 
       // check if it exist
       const exists = await this.query.accounts.exists(
         ethAddress,
-        godwokenShortAddress
+        godwokenShortScriptHash
       );
       if (exists) {
         return "ok";
       }
 
-      if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+      if (!isAddressMatch(ethAddress, godwokenShortScriptHash)) {
         throw new Error(
-          "eth_address and godwoken_short_address unmatched! abort saving!"
+          "eth_address and godwoken_short_script_hash unmatched! abort saving!"
         );
       }
 
-      await this.query.accounts.save(ethAddress, godwokenShortAddress);
+      await this.query.accounts.save(ethAddress, godwokenShortScriptHash);
 
       console.log(
-        `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+        `poly_save: insert one record, [${godwokenShortScriptHash}]: ${ethAddress}`
       );
       return "ok";
     } catch (error) {
@@ -269,11 +269,11 @@ async function saveAddressMapping(
   await Promise.all(
     txWithAddressMapping.addresses.data.map(async (item) => {
       const ethAddress: HexString = item.eth_address;
-      const godwokenShortAddress: HexString = item.gw_short_address;
+      const godwokenShortScriptHash: HexString = item.gw_short_script_hash;
 
-      if (!addressesFromEthTxData.includes(godwokenShortAddress)) {
+      if (!addressesFromEthTxData.includes(godwokenShortScriptHash)) {
         console.log(
-          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
+          `illegal address mapping, since godwoken_short_script_hash ${godwokenShortScriptHash} is not in the ethTxData. expected addresses: ${JSON.stringify(
             addressesFromEthTxData,
             null,
             2
@@ -285,38 +285,38 @@ async function saveAddressMapping(
       try {
         const exists = await query.accounts.exists(
           ethAddress,
-          godwokenShortAddress
+          godwokenShortScriptHash
         );
         if (exists) {
           console.log(
-            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
+            `abort saving, since godwoken_short_script_hash ${godwokenShortScriptHash} is already saved on database.`
           );
           return;
         }
-        if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+        if (!isAddressMatch(ethAddress, godwokenShortScriptHash)) {
           throw new Error(
-            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
+            `eth_address ${ethAddress} and godwoken_short_script_hash ${godwokenShortScriptHash} unmatched! abort saving!`
           );
         }
-        const isExistOnChain = await isShortAddressOnChain(
+        const isExistOnChain = await isShortScriptHashOnChain(
           rpc,
-          godwokenShortAddress
+          godwokenShortScriptHash
         );
         if (isExistOnChain) {
           console.log(
-            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+            `abort saving, since godwoken_short_script_hash ${godwokenShortScriptHash} is already on chain.`
           );
           return;
         }
 
-        await query.accounts.save(ethAddress, godwokenShortAddress);
+        await query.accounts.save(ethAddress, godwokenShortScriptHash);
         console.log(
-          `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+          `poly_save: insert one record, [${godwokenShortScriptHash}]: ${ethAddress}`
         );
         return;
       } catch (error) {
         console.log(
-          `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
+          `abort saving addressMapping [${godwokenShortScriptHash}]: ${ethAddress} , will keep saving the rest. =>`,
           error
         );
       }
@@ -335,11 +335,11 @@ async function saveConstructorArgsAddressMapping(
   await Promise.all(
     txWithAddressMapping.addresses.data.map(async (item) => {
       const ethAddress: HexString = item.eth_address;
-      const godwokenShortAddress: HexString = item.gw_short_address;
+      const godwokenShortScriptHash: HexString = item.gw_short_script_hash;
 
-      if (!ethTxData.includes(godwokenShortAddress.slice(2))) {
+      if (!ethTxData.includes(godwokenShortScriptHash.slice(2))) {
         console.log(
-          `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
+          `illegal address mapping, since godwoken_short_script_hash ${godwokenShortScriptHash} is not in the ethTxData. expected addresses: ${JSON.stringify(
             ethTxData,
             null,
             2
@@ -351,38 +351,38 @@ async function saveConstructorArgsAddressMapping(
       try {
         const exists = await query.accounts.exists(
           ethAddress,
-          godwokenShortAddress
+          godwokenShortScriptHash
         );
         if (exists) {
           console.log(
-            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
+            `abort saving, since godwoken_short_script_hash ${godwokenShortScriptHash} is already saved on database.`
           );
           return;
         }
-        if (!isAddressMatch(ethAddress, godwokenShortAddress)) {
+        if (!isAddressMatch(ethAddress, godwokenShortScriptHash)) {
           throw new Error(
-            `eth_address ${ethAddress} and godwoken_short_address ${godwokenShortAddress} unmatched! abort saving!`
+            `eth_address ${ethAddress} and godwoken_short_script_hash ${godwokenShortScriptHash} unmatched! abort saving!`
           );
         }
-        const isExistOnChain = await isShortAddressOnChain(
+        const isExistOnChain = await isShortScriptHashOnChain(
           rpc,
-          godwokenShortAddress
+          godwokenShortScriptHash
         );
         if (isExistOnChain) {
           console.log(
-            `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
+            `abort saving, since godwoken_short_script_hash ${godwokenShortScriptHash} is already on chain.`
           );
           return;
         }
 
-        await query.accounts.save(ethAddress, godwokenShortAddress);
+        await query.accounts.save(ethAddress, godwokenShortScriptHash);
         console.log(
-          `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
+          `poly_save: insert one record, [${godwokenShortScriptHash}]: ${ethAddress}`
         );
         return;
       } catch (error) {
         console.log(
-          `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
+          `abort saving addressMapping [${godwokenShortScriptHash}]: ${ethAddress} , will keep saving the rest. =>`,
           error
         );
       }

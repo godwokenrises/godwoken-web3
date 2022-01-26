@@ -41,24 +41,24 @@ export class GodwokenClient {
     return +accountId;
   }
 
-  public async getScriptHashByShortAddress(
-    shortAddress: HexString
+  public async getScriptHashByShortScriptHash(
+    shortScriptHash: HexString
   ): Promise<Hash | undefined> {
     const scriptHash: Hash | undefined = await this.rpcCall(
-      "get_script_hash_by_short_address",
-      shortAddress
+      "get_script_hash_by_short_script_hash",
+      shortScriptHash
     );
     return scriptHash;
   }
 
   public async getBalance(
-    short_address: HexString,
+    shortScriptHash: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      short_address,
+      shortScriptHash,
       toHex(sudtId),
       toHex(blockParameter)
     );

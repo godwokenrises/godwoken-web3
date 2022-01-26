@@ -19,13 +19,13 @@ async function main() {
 
   const query = new Query();
 
-  const arr: { shortAddress: string; ethAddress: string }[] = [];
+  const arr: { shortScriptHash: string; ethAddress: string }[] = [];
   db.createReadStream()
     .on("data", function (data) {
-      const shortAddress = data.key.toString();
+      const shortScriptHash = data.key.toString();
       const ethAddress = data.value.toString();
       arr.push({
-        shortAddress,
+        shortScriptHash,
         ethAddress,
       });
     })
@@ -34,10 +34,10 @@ async function main() {
     })
     .on("close", async function () {
       for (let a of arr) {
-        const { shortAddress, ethAddress } = a;
-        await query.accounts.save(ethAddress, shortAddress);
+        const { shortScriptHash, ethAddress } = a;
+        await query.accounts.save(ethAddress, shortScriptHash);
         console.log(
-          `insert one record, short_address: ${shortAddress}, eth_address: ${ethAddress}`
+          `insert one record, short_script_hash: ${shortScriptHash}, eth_address: ${ethAddress}`
         );
       }
       console.log("Stream closed");

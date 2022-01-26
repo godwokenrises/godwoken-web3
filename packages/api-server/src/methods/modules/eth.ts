@@ -357,16 +357,18 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const shortAddress = await allTypeEthAddressToShortAddress(
+      const shortScriptHash = await allTypeEthAddressToShortScriptHash(
         this.rpc,
         address
       );
-      if (shortAddress == null) {
+      if (shortScriptHash == null) {
         return "0x0";
       }
-      console.log(`eth_address: ${address}, short_address: ${shortAddress}`);
+      console.log(
+        `eth_address: ${address}, short_script_hash: ${shortScriptHash}`
+      );
       const balance = await this.rpc.getBalance(
-        shortAddress,
+        shortScriptHash,
         +CKB_SUDT_ID,
         blockNumber
       );
@@ -1137,14 +1139,14 @@ export class Eth {
   }
 }
 
-async function allTypeEthAddressToShortAddress(
+async function allTypeEthAddressToShortScriptHash(
   rpc: GodwokenClient,
   address: string
 ): Promise<string | null> {
   const accountId = await ethContractAddressToAccountId(address, rpc);
   if (accountId == null) {
-    const short_address = ethAddressToScriptHash(address).slice(0, 42);
-    return short_address;
+    const shortScriptHash = ethAddressToScriptHash(address).slice(0, 42);
+    return shortScriptHash;
   }
   // TODO: another type ?
   return address;
@@ -1173,9 +1175,8 @@ async function ethContractAddressToAccountId(
   }
   // todo: support create2 contract address in which case it has not been created.
   try {
-    const scriptHash: Hash | undefined = await rpc.getScriptHashByShortAddress(
-      address
-    );
+    const scriptHash: Hash | undefined =
+      await rpc.getScriptHashByShortScriptHash(address);
     if (scriptHash == null) {
       return undefined;
     }
@@ -1314,7 +1315,7 @@ async function ethCallTx(
 
   // TODO: save addressMapping into db when encounter not-exist-eth-eoa-address
   const ethToGwAddr = async (addr: HexString): Promise<ShortAddress> => {
-    const result = await allTypeEthAddressToShortAddress(rpc, addr);
+    const result = await allTypeEthAddressToShortScriptHash(rpc, addr);
     return {
       value: result!,
       type: ShortAddressType.eoaAddress, // TODO: return correct address type
@@ -1323,7 +1324,7 @@ async function ethCallTx(
 
   // TODO: find by db.addresses when not found
   const gwToEthAddr = async (addr: HexString): Promise<HexString> => {
-    const scriptHash = await rpc.getScriptHashByShortAddress(addr);
+    const scriptHash = await rpc.getScriptHashByShortScriptHash(addr);
     if (scriptHash == null) {
       // return undefined;
       throw new Web3Error(`eth address by short address ${addr} not found!`);
@@ -1338,12 +1339,12 @@ async function ethCallTx(
 
   const data: HexString | undefined = txCallObj.data || "0x0";
   if (isEthWallet) {
-    const dataWithShortAddress = await abi.refactor_data_with_short_address(
+    const dataWithShortScriptHash = await abi.refactor_data_with_short_address(
       data,
       ethToGwAddr
     );
     // replace data
-    txCallObj.data = dataWithShortAddress;
+    txCallObj.data = dataWithShortScriptHash;
   }
 
   const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
@@ -1355,14 +1356,14 @@ async function ethCallTx(
   const abiItem = abi.get_interested_abi_item_by_encoded_data(data);
 
   if (abiItem && isEthWallet) {
-    const returnDataWithShortAddress =
+    const returnDataWithShortScriptHash =
       await abi.refactor_return_value_with_short_address(
         runResult.return_data,
         abiItem,
         gwToEthAddr
       );
     // replace return_data
-    runResult.return_data = returnDataWithShortAddress;
+    runResult.return_data = returnDataWithShortScriptHash;
   }
 
   return runResult;
