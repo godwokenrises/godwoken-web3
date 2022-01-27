@@ -141,6 +141,14 @@ export class GodwokenClient {
     return await this.rpcCall("get_transaction_receipt", hash);
   }
 
+  public async getTipBlockHash(): Promise<HexString> {
+    return await this.rpcCall("get_tip_block_hash");
+  }
+
+  public async getMemPoolStateRoot(): Promise<HexString> {
+    return await this.rpcCall("get_mem_pool_state_root");
+  }
+
   private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
     const name = "gw_" + methodName;
     try {

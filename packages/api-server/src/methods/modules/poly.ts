@@ -18,19 +18,19 @@ import {
   L2TransactionWithAddressMapping,
   RawL2TransactionWithAddressMapping,
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
+import { GodwokenClient, RunResult } from "@godwoken-web3/godwoken";
 import { parseGwRpcError } from "../gw-error";
-import {
-  POLY_EXECUTE_RAW_L2TX_CACHE_TIME_MILSECS,
-  POLY_RPC_KEY,
-} from "../../cache/constant";
-import { Store } from "../../cache/store";
+import { POLY_RPC_KEY } from "../../cache/constant";
 import { keccakFromHexString } from "ethereumjs-util";
+import {
+  DataCacheConstructor,
+  RedisDataCache,
+  RedisLock,
+} from "../../cache/data";
 
 export class Poly {
   private query: Query;
   private rpc: GodwokenClient;
-  private polyCache: Store;
 
   constructor() {
     this.query = new Query();
@@ -38,12 +38,6 @@ export class Poly {
       envConfig.godwokenJsonRpc,
       envConfig.godwokenReadonlyJsonRpc
     );
-
-    const cacheTime = envConfig.polyExecRawL2TxCacheMilSec
-      ? +envConfig.polyExecRawL2TxCacheMilSec
-      : POLY_EXECUTE_RAW_L2TX_CACHE_TIME_MILSECS;
-    this.polyCache = new Store(envConfig.redisUrl, true, cacheTime);
-    this.polyCache.init();
 
     this.getEthAddressByGodwokenShortAddress = middleware(
       this.getEthAddressByGodwokenShortAddress.bind(this),
@@ -100,41 +94,50 @@ export class Poly {
 
   async executeRawL2Transaction(args: any[]) {
     try {
-      const data = args[0];
+      const serializeRawL2Tx = args[0];
 
-      // check cache result
-      const key = getPolyExecRawL2TxCacheKey(data);
-      let stringResult = await this.polyCache.get(key);
-      if (stringResult != null) {
-        console.debug(`using cache: ${key} -> ${stringResult}`);
-        const jsonResult = JSON.parse(stringResult);
-        return jsonResult;
+      const executeCallResult = async () => {
+        const txWithAddressMapping: RawL2TransactionWithAddressMapping =
+          deserializeRawL2TransactionWithAddressMapping(serializeRawL2Tx);
+        const rawL2Tx = txWithAddressMapping.raw_tx;
+        const jsonResult = await this.rpc.executeRawL2Transaction(rawL2Tx);
+        // if result is fine, then tx is legal, we can start thinking to store the address mapping
+        await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
+        const stringResult = JSON.stringify(jsonResult);
+        return stringResult;
+      };
+
+      // using cache
+      if (envConfig.enableCachePolyExecuteRawL2Tx === "true") {
+        // calculate data cache key
+        const tipBlockHash = await this.rpc.getTipBlockHash();
+        const memPollStateRoot = await this.rpc.getMemPoolStateRoot();
+        const dataKey = getPolyExecRawL2TxCacheKey(
+          serializeRawL2Tx,
+          tipBlockHash,
+          memPollStateRoot
+        );
+
+        const lock: RedisLock = {
+          key: {
+            name: `${dataKey}_lock`,
+          },
+          subscribe: {
+            channel: `${dataKey}_channel`,
+          },
+        };
+        const constructArgs: DataCacheConstructor = {
+          executeCallResult,
+          lock,
+        };
+        const dataCache = new RedisDataCache(constructArgs);
+        const stringResult = await dataCache.get(dataKey);
+        return JSON.parse(stringResult) as RunResult;
       }
 
-      const txWithAddressMapping: RawL2TransactionWithAddressMapping =
-        deserializeRawL2TransactionWithAddressMapping(data);
-      const rawL2Tx = txWithAddressMapping.raw_tx;
-      const jsonResult = await this.rpc.executeRawL2Transaction(rawL2Tx);
-      // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
-
-      // store the cache result
-      stringResult = JSON.stringify(jsonResult);
-      if (stringResult != null) {
-        console.debug(`update cache: ${key} -> ${stringResult}`);
-        await this.polyCache.insert(key, stringResult);
-      }
-
-      return jsonResult;
-
-      // const txWithAddressMapping: RawL2TransactionWithAddressMapping =
-      //   deserializeRawL2TransactionWithAddressMapping(data);
-      // const rawL2Tx = txWithAddressMapping.raw_tx;
-
-      // const result = await this.rpc.executeRawL2Transaction(rawL2Tx);
-      // // if result is fine, then tx is legal, we can start thinking to store the address mapping
-      // await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
-      // return result;
+      // not using cache
+      const stringResult = await executeCallResult();
+      return JSON.parse(stringResult) as RunResult;
     } catch (error) {
       parseGwRpcError(error);
     }
@@ -445,8 +448,18 @@ function containsAddressType(abiItem: AbiItem) {
   return true;
 }
 
-function getPolyExecRawL2TxCacheKey(serializeRawL2Transaction: string) {
-  const hash = keccakFromHexString(serializeRawL2Transaction).toString("hex");
-  const key = `${POLY_RPC_KEY}_executeRawL2Transaction_${hash}`;
+// key: tipBlockHash first 8 bytes + memPollStateRoot first 8 bytes + dataHash first 8 bytes
+function getPolyExecRawL2TxCacheKey(
+  serializeRawL2Transaction: HexString,
+  tipBlockHash: HexString,
+  memPoolStateRoot: HexString
+) {
+  const hash =
+    "0x" + keccakFromHexString(serializeRawL2Transaction).toString("hex");
+  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+    2,
+    18
+  )}${hash.slice(2, 18)}`;
+  const key = `${POLY_RPC_KEY}_executeRawL2Transaction_${id}`;
   return key;
 }
