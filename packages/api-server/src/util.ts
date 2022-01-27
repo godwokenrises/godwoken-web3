@@ -73,3 +73,7 @@ export function validateHexString(hex: string): boolean {
 export function validateHexNumber(hex: string): boolean {
   return /^0x(0|[0-9a-fA-F]+)$/.test(hex);
 }
+
+export function asyncSleep(ms = 0) {
+  return new Promise((r) => setTimeout(() => r("ok"), ms));
+}

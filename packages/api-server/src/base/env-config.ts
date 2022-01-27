@@ -25,7 +25,9 @@ export const envConfig = {
   sentryDns: getOptional("SENTRY_DNS"),
   sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
   godwokenReadonlyJsonRpc: getOptional("GODWOKEN_READONLY_JSON_RPC"),
-  polyExecRawL2TxCacheMilSec: getOptional("POLY_EXEC_RAW_L2_CACHE_MILSEC"),
+  enableCachePolyExecuteRawL2Tx: getOptional(
+    "ENABLE_CACHE_POLY_EXECUTE_RAW_L2Tx"
+  ),
 };
 
 function getRequired(name: string): string {
