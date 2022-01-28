@@ -70,7 +70,7 @@ export class RedisDataCache {
     this.dataKeyExpiredTimeOut =
       args.dataKeyExpiredTimeOutMs || DATA_KEY_EXPIRED_TIME_OUT_MS;
 
-    const isLockEnable = args.isLockEnable || DEFAULT_IS_ENABLE_LOCK; // default is true;
+    const isLockEnable = args.isLockEnable ?? DEFAULT_IS_ENABLE_LOCK; // default is true;
     if (isLockEnable) {
       this.lock = {
         key: {
