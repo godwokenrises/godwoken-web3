@@ -110,8 +110,10 @@ export class Poly {
       // using cache
       if (envConfig.enableCachePolyExecuteRawL2Tx === "true") {
         // calculate data cache key
-        const tipBlockHash = await this.rpc.getTipBlockHash();
-        const memPollStateRoot = await this.rpc.getMemPoolStateRoot();
+        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+          this.rpc.getTipBlockHash(),
+          this.rpc.getMemPoolStateRoot(),
+        ]);
         const dataKey = getPolyExecRawL2TxCacheKey(
           serializeRawL2Tx,
           tipBlockHash,
