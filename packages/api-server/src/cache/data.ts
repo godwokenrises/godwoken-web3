@@ -23,10 +23,16 @@ export const DATA_KEY_EXPIRED_TIME_OUT_MS = 5 * 60 * 1000; // 5 minutes
 export const POLL_INTERVAL_MS = 50; // 50ms
 export const POLL_TIME_OUT_MS = 2 * 60 * 1000; // 2 minutes
 
+export const DEFAULT_PREFIX_NAME = "defaultDataCache";
+export const DEFAULT_IS_ENABLE_LOCK = true;
+
 export interface DataCacheConstructor {
-  lock?: RedisLock;
-  dataKeyExpiredTimeOutMs?: number;
+  rawDataKey: string;
   executeCallResult: ExecuteCallResult;
+  prefixName?: string;
+  isLockEnable?: boolean;
+  lock?: Partial<RedisLock>;
+  dataKeyExpiredTimeOutMs?: number;
 }
 
 export type ExecuteCallResult = () => Promise<string>;
@@ -34,42 +40,60 @@ export type ExecuteCallResult = () => Promise<string>;
 export interface RedisLock {
   key: LockKey;
   subscribe: RedSubscribe;
-  pollIntervalMs?: number;
-  pollTimeOutMs?: number;
+  pollIntervalMs: number;
+  pollTimeOutMs: number;
 }
 
 export interface LockKey {
   name: string;
-  expiredTimeMs?: number;
+  expiredTimeMs: number;
 }
 
 export interface RedSubscribe {
   channel: string;
-  timeOutMs?: number;
+  timeOutMs: number;
 }
 
 export class RedisDataCache {
+  public prefixName: string;
+  public rawDataKey: string; // unique part of dataKey
+  public dataKey: string; // real dataKey saved on redis combined from rawDataKey with prefix name and so on.
   public lock: RedisLock | undefined;
   public dataKeyExpiredTimeOut: number;
   public executeCallResult: ExecuteCallResult;
 
   constructor(args: DataCacheConstructor) {
-    this.lock = args.lock;
+    this.prefixName = args.prefixName || DEFAULT_PREFIX_NAME;
+    this.rawDataKey = args.rawDataKey;
+    this.dataKey = `${this.prefixName}:key:${this.rawDataKey}`;
     this.executeCallResult = args.executeCallResult;
     this.dataKeyExpiredTimeOut =
       args.dataKeyExpiredTimeOutMs || DATA_KEY_EXPIRED_TIME_OUT_MS;
 
-    if (this.lock) {
-      this.lock.key.expiredTimeMs =
-        this.lock.key.expiredTimeMs || LOCK_KEY_EXPIRED_TIME_OUT_MS;
-      this.lock.pollIntervalMs = this.lock.pollIntervalMs || POLL_INTERVAL_MS;
-      this.lock.pollTimeOutMs = this.lock.pollTimeOutMs || POLL_TIME_OUT_MS;
-      this.lock.subscribe.timeOutMs =
-        this.lock.subscribe.timeOutMs || SUB_TIME_OUT_MS;
+    const isLockEnable = args.isLockEnable || DEFAULT_IS_ENABLE_LOCK; // default is true;
+    if (isLockEnable) {
+      this.lock = {
+        key: {
+          name:
+            args.lock?.key?.name ||
+            `${this.prefixName}:lock:${this.rawDataKey}`,
+          expiredTimeMs:
+            args.lock?.key?.expiredTimeMs || LOCK_KEY_EXPIRED_TIME_OUT_MS,
+        },
+        subscribe: {
+          channel:
+            args.lock?.subscribe?.channel ||
+            `${this.prefixName}:channel:${this.rawDataKey}`,
+          timeOutMs: args.lock?.subscribe?.timeOutMs || SUB_TIME_OUT_MS,
+        },
+        pollIntervalMs: args.lock?.pollIntervalMs || POLL_INTERVAL_MS,
+        pollTimeOutMs: args.lock?.pollTimeOutMs || POLL_TIME_OUT_MS,
+      };
     }
   }
 
-  async get(dataKey: string) {
+  async get() {
+    const dataKey = this.dataKey;
     const value = await pubClient.get(dataKey);
     if (value !== null) {
       console.debug(
@@ -164,7 +188,7 @@ export class RedisDataCache {
       // check if poll time out
       const t2 = new Date();
       const diff = t1.getTime() - t2.getTime();
-      if (diff > this.lock.pollTimeOutMs!) {
+      if (diff > this.lock.pollTimeOutMs) {
         throw new Error(
           `poll data value from cache layer time out ${this.lock.pollTimeOutMs}`
         );
