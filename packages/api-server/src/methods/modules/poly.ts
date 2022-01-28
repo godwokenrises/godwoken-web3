@@ -20,13 +20,8 @@ import {
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
 import { GodwokenClient, RunResult } from "@godwoken-web3/godwoken";
 import { parseGwRpcError } from "../gw-error";
-import { POLY_RPC_KEY } from "../../cache/constant";
 import { keccakFromHexString } from "ethereumjs-util";
-import {
-  DataCacheConstructor,
-  RedisDataCache,
-  RedisLock,
-} from "../../cache/data";
+import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 
 export class Poly {
   private query: Query;
@@ -109,31 +104,25 @@ export class Poly {
 
       // using cache
       if (envConfig.enableCachePolyExecuteRawL2Tx === "true") {
-        // calculate data cache key
+        // calculate raw data cache key
         const [tipBlockHash, memPollStateRoot] = await Promise.all([
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
-        const dataKey = getPolyExecRawL2TxCacheKey(
+        const rawDataKey = getPolyExecRawL2TxCacheKey(
           serializeRawL2Tx,
           tipBlockHash,
           memPollStateRoot
         );
 
-        const lock: RedisLock = {
-          key: {
-            name: `${dataKey}_lock`,
-          },
-          subscribe: {
-            channel: `${dataKey}_channel`,
-          },
-        };
+        const prefixName = `${this.constructor.name}:${this.executeRawL2Transaction.name}`;
         const constructArgs: DataCacheConstructor = {
+          prefixName,
+          rawDataKey,
           executeCallResult,
-          lock,
         };
         const dataCache = new RedisDataCache(constructArgs);
-        const stringResult = await dataCache.get(dataKey);
+        const stringResult = await dataCache.get();
         return JSON.parse(stringResult) as RunResult;
       }
 
@@ -462,6 +451,7 @@ function getPolyExecRawL2TxCacheKey(
     2,
     18
   )}${hash.slice(2, 18)}`;
-  const key = `${POLY_RPC_KEY}_executeRawL2Transaction_${id}`;
-  return key;
+  return id;
+  // const key = `${POLY_RPC_KEY}:executeRawL2Transaction:${id}`;
+  // return key;
 }
