@@ -43,7 +43,7 @@
     },
     {
       "type": "struct",
-      "name": "GlobalState",
+      "name": "GlobalStateV0",
       "fields": [
         {
           "name": "rollup_config_hash",
@@ -71,6 +71,48 @@
         },
         {
           "name": "status",
+          "type": "byte"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "GlobalState",
+      "fields": [
+        {
+          "name": "rollup_config_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "account",
+          "type": "AccountMerkleState"
+        },
+        {
+          "name": "block",
+          "type": "BlockMerkleState"
+        },
+        {
+          "name": "reverted_block_root",
+          "type": "Byte32"
+        },
+        {
+          "name": "tip_block_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "tip_block_timestamp",
+          "type": "Uint64"
+        },
+        {
+          "name": "last_finalized_block_number",
+          "type": "Uint64"
+        },
+        {
+          "name": "status",
+          "type": "byte"
+        },
+        {
+          "name": "version",
           "type": "byte"
         }
       ]
@@ -600,7 +642,7 @@
       "name": "SUDTQuery",
       "fields": [
         {
-          "name": "short_address",
+          "name": "short_script_hash",
           "type": "Bytes"
         }
       ]
@@ -877,6 +919,10 @@
         {
           "name": "reverted_block_proof",
           "type": "Bytes"
+        },
+        {
+          "name": "new_tip_block",
+          "type": "RawL2Block"
         }
       ]
     },

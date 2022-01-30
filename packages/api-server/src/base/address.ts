@@ -16,17 +16,17 @@ export function ethAddressToScriptHash(ethAddress: HexString): Hash {
   return scriptHash;
 }
 
-export function ethAddressToShortAddress(ethAddress: HexString): HexString {
+export function ethAddressToShortScriptHash(ethAddress: HexString): HexString {
   const scriptHash = ethAddressToScriptHash(ethAddress);
   return scriptHash.slice(0, 42);
 }
 
-export async function shortAddressToEthAddress(
+export async function shortScriptHashToEthAddress(
   godwokenClient: GodwokenClient,
-  shortAddress: HexString
+  shortScriptHash: HexString
 ): Promise<HexString | undefined> {
-  const scriptHash = await godwokenClient.getScriptHashByShortAddress(
-    shortAddress
+  const scriptHash = await godwokenClient.getScriptHashByShortScriptHash(
+    shortScriptHash
   );
   if (scriptHash == null) {
     return undefined;
@@ -43,18 +43,18 @@ export async function shortAddressToEthAddress(
 
 export function isAddressMatch(
   ethAddress: HexString,
-  shortAddress: HexString
+  shortScriptHash: HexString
 ): boolean {
-  const computedShortAddress = ethAddressToShortAddress(ethAddress);
-  return shortAddress === computedShortAddress;
+  const computedShortScriptHash = ethAddressToShortScriptHash(ethAddress);
+  return shortScriptHash === computedShortScriptHash;
 }
 
-export async function isShortAddressOnChain(
+export async function isShortScriptHashOnChain(
   godwokenClient: GodwokenClient,
-  shortAddress: HexString
+  shortScriptHash: HexString
 ) {
-  const scriptHash = await godwokenClient.getScriptHashByShortAddress(
-    shortAddress
+  const scriptHash = await godwokenClient.getScriptHashByShortScriptHash(
+    shortScriptHash
   );
   if (scriptHash == null) {
     return false;

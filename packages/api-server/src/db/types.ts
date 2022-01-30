@@ -15,7 +15,7 @@ import {
 
 export interface Account {
   eth_address: HexString;
-  gw_short_address: HexString;
+  gw_short_script_hash: HexString;
 }
 
 export interface Block {

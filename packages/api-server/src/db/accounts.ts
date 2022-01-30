@@ -1,7 +1,7 @@
 import { Knex as KnexType } from "knex";
 import { HexString } from "@ckb-lumos/base";
 import { Account } from "./types";
-import { ethAddressToShortAddress } from "../base/address";
+import { ethAddressToShortScriptHash } from "../base/address";
 
 const ACCOUNTS_TABLE_NAME = "accounts";
 
@@ -13,15 +13,15 @@ export class AccountsQuery {
   }
 
   // One saved, content will not update except set account_id if null before.
-  async save(ethAddress: HexString, shortAddress?: HexString) {
-    if (shortAddress == null) {
-      shortAddress = ethAddressToShortAddress(ethAddress);
+  async save(ethAddress: HexString, shortScriptHash?: HexString) {
+    if (shortScriptHash == null) {
+      shortScriptHash = ethAddressToShortScriptHash(ethAddress);
     }
 
     await this.knex<DbAccount>(ACCOUNTS_TABLE_NAME)
       .insert({
         eth_address: toBuffer(ethAddress),
-        gw_short_address: toBuffer(shortAddress),
+        gw_short_script_hash: toBuffer(shortScriptHash),
       })
       .onConflict("eth_address")
       .ignore();
@@ -33,21 +33,21 @@ export class AccountsQuery {
     });
   }
 
-  async getByShortAddress(
-    shortAddress: HexString
+  async getByShortScriptHash(
+    shortScriptHash: HexString
   ): Promise<Account | undefined> {
     return await this.get({
-      gw_short_address: toBuffer(shortAddress),
+      gw_short_script_hash: toBuffer(shortScriptHash),
     });
   }
 
   async exists(
     ethAddress: HexString,
-    shortAddress: HexString
+    shortScriptHash: HexString
   ): Promise<boolean> {
     const result = await this.knex<DbAccount>(ACCOUNTS_TABLE_NAME)
       .where("eth_address", toBuffer(ethAddress))
-      .orWhere("gw_short_address", toBuffer(shortAddress))
+      .orWhere("gw_short_script_hash", toBuffer(shortScriptHash))
       .first();
     return result != null;
   }
@@ -69,13 +69,13 @@ export class AccountsQuery {
 interface DbAccount {
   id: number;
   eth_address: Buffer;
-  gw_short_address: Buffer;
+  gw_short_script_hash: Buffer;
 }
 
 function toAccount(db: DbAccount): Account {
   return {
     eth_address: toHex(db.eth_address),
-    gw_short_address: toHex(db.gw_short_address),
+    gw_short_script_hash: toHex(db.gw_short_script_hash),
   };
 }
 

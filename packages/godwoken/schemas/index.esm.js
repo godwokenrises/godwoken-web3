@@ -186,7 +186,7 @@ export function SerializeAccountMerkleState(value) {
   return array.buffer;
 }
 
-export class GlobalState {
+export class GlobalStateV0 {
   constructor(reader, { validate = true } = {}) {
     this.view = new DataView(assertArrayBuffer(reader));
     if (validate) {
@@ -223,7 +223,7 @@ export class GlobalState {
   }
 
   validate(compatible = false) {
-    assertDataLength(this.view.byteLength, GlobalState.size());
+    assertDataLength(this.view.byteLength, GlobalStateV0.size());
     this.getRollupConfigHash().validate(compatible);
     this.getAccount().validate(compatible);
     this.getBlock().validate(compatible);
@@ -236,7 +236,7 @@ export class GlobalState {
   }
 }
 
-export function SerializeGlobalState(value) {
+export function SerializeGlobalStateV0(value) {
   const array = new Uint8Array(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + 1);
   const view = new DataView(array.buffer);
   array.set(new Uint8Array(SerializeByte32(value.rollup_config_hash)), 0);
@@ -246,6 +246,80 @@ export function SerializeGlobalState(value) {
   array.set(new Uint8Array(SerializeByte32(value.tip_block_hash)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size());
   array.set(new Uint8Array(SerializeUint64(value.last_finalized_block_number)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size());
   view.setUint8(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size(), value.status);
+  return array.buffer;
+}
+
+export class GlobalState {
+  constructor(reader, { validate = true } = {}) {
+    this.view = new DataView(assertArrayBuffer(reader));
+    if (validate) {
+      this.validate();
+    }
+  }
+
+  getRollupConfigHash() {
+    return new Byte32(this.view.buffer.slice(0, 0 + Byte32.size()), { validate: false });
+  }
+
+  getAccount() {
+    return new AccountMerkleState(this.view.buffer.slice(0 + Byte32.size(), 0 + Byte32.size() + AccountMerkleState.size()), { validate: false });
+  }
+
+  getBlock() {
+    return new BlockMerkleState(this.view.buffer.slice(0 + Byte32.size() + AccountMerkleState.size(), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size()), { validate: false });
+  }
+
+  getRevertedBlockRoot() {
+    return new Byte32(this.view.buffer.slice(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size(), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size()), { validate: false });
+  }
+
+  getTipBlockHash() {
+    return new Byte32(this.view.buffer.slice(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size(), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size()), { validate: false });
+  }
+
+  getTipBlockTimestamp() {
+    return new Uint64(this.view.buffer.slice(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size(), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size()), { validate: false });
+  }
+
+  getLastFinalizedBlockNumber() {
+    return new Uint64(this.view.buffer.slice(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size(), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size()), { validate: false });
+  }
+
+  getStatus() {
+    return this.view.getUint8(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size());
+  }
+
+  getVersion() {
+    return this.view.getUint8(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size() + 1);
+  }
+
+  validate(compatible = false) {
+    assertDataLength(this.view.byteLength, GlobalState.size());
+    this.getRollupConfigHash().validate(compatible);
+    this.getAccount().validate(compatible);
+    this.getBlock().validate(compatible);
+    this.getRevertedBlockRoot().validate(compatible);
+    this.getTipBlockHash().validate(compatible);
+    this.getTipBlockTimestamp().validate(compatible);
+    this.getLastFinalizedBlockNumber().validate(compatible);
+  }
+  static size() {
+    return 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size() + 1 + 1;
+  }
+}
+
+export function SerializeGlobalState(value) {
+  const array = new Uint8Array(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size() + 1 + 1);
+  const view = new DataView(array.buffer);
+  array.set(new Uint8Array(SerializeByte32(value.rollup_config_hash)), 0);
+  array.set(new Uint8Array(SerializeAccountMerkleState(value.account)), 0 + Byte32.size());
+  array.set(new Uint8Array(SerializeBlockMerkleState(value.block)), 0 + Byte32.size() + AccountMerkleState.size());
+  array.set(new Uint8Array(SerializeByte32(value.reverted_block_root)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size());
+  array.set(new Uint8Array(SerializeByte32(value.tip_block_hash)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size());
+  array.set(new Uint8Array(SerializeUint64(value.tip_block_timestamp)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size());
+  array.set(new Uint8Array(SerializeUint64(value.last_finalized_block_number)), 0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size());
+  view.setUint8(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size(), value.status);
+  view.setUint8(0 + Byte32.size() + AccountMerkleState.size() + BlockMerkleState.size() + Byte32.size() + Byte32.size() + Uint64.size() + Uint64.size() + 1, value.version);
   return array.buffer;
 }
 
@@ -1791,7 +1865,7 @@ export class SUDTQuery {
     new Bytes(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
   }
 
-  getShortAddress() {
+  getShortScriptHash() {
     const start = 4;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.byteLength;
@@ -1801,7 +1875,7 @@ export class SUDTQuery {
 
 export function SerializeSUDTQuery(value) {
   const buffers = [];
-  buffers.push(SerializeBytes(value.short_address));
+  buffers.push(SerializeBytes(value.short_script_hash));
   return serializeTable(buffers);
 }
 
@@ -2509,6 +2583,7 @@ export class RollupRevert {
     new RawL2BlockVec(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
     new Bytes(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
     new Bytes(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
+    new RawL2Block(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
   }
 
   getRevertedBlocks() {
@@ -2528,8 +2603,15 @@ export class RollupRevert {
   getRevertedBlockProof() {
     const start = 12;
     const offset = this.view.getUint32(start, true);
-    const offset_end = this.view.byteLength;
+    const offset_end = this.view.getUint32(start + 4, true);
     return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getNewTipBlock() {
+    const start = 16;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new RawL2Block(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 }
 
@@ -2538,6 +2620,7 @@ export function SerializeRollupRevert(value) {
   buffers.push(SerializeRawL2BlockVec(value.reverted_blocks));
   buffers.push(SerializeBytes(value.block_proof));
   buffers.push(SerializeBytes(value.reverted_block_proof));
+  buffers.push(SerializeRawL2Block(value.new_tip_block));
   return serializeTable(buffers);
 }
 
