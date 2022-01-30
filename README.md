@@ -243,8 +243,6 @@ resource:
 - gw_submit_withdrawal_request
 
 ### poly
-- poly_getEthAddressByGodwokenShortScriptHash
-- poly_saveEthAddressGodwokenShortScriptHashMapping
 - poly_getChainInfo
 - poly_getDefaultFromAddress
 - poly_getContractValidatorTypeHash

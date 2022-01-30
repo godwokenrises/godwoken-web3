@@ -1,5 +1,5 @@
 import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
-import { RPC } from "ckb-js-toolkit";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
@@ -33,7 +33,7 @@ export interface GodwokenRawL2Transaction {
 export interface AccountInfo {
   script: Script;
   script_hash: Hash;
-  id: HexNumber;
+  id?: HexNumber;
 }
 
 function logger(level: string, ...messages: any[]) {
@@ -55,7 +55,7 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 
 export async function generateRawTransaction(
   data: HexString,
-  rpc: RPC
+  rpc: GodwokenClient
 ): Promise<GodwokenL2Transaction> {
   debugLogger("origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
@@ -134,7 +134,10 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   return "0x" + result.toString("hex");
 }
 
-async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
+async function parseRawTransactionData(
+  rawTx: PolyjuiceTransaction,
+  rpc: GodwokenClient
+) {
   const { nonce, gasPrice, gasLimit, to: toA, value, data, v, r, s } = rawTx;
 
   let real_v = "0x00";
@@ -150,7 +153,14 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
 
   const publicKey = recoverPublicKey(signature, message);
   const fromEthAddress = publicKeyToEthAddress(publicKey);
-  const fromId = await getAccountIdByEthAddress(fromEthAddress, rpc);
+  const fromId: HexNumber | undefined = await getAccountIdByEthAddress(
+    fromEthAddress,
+    rpc
+  );
+
+  if (fromId == null) {
+    throw new Error("from id not found!");
+  }
 
   // header
   const args_0_7 =
@@ -211,12 +221,15 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
 
 export async function ethAddressToPolyjuiceAddress(
   ethAddress: HexString,
-  rpc: RPC
-): Promise<HexString> {
+  rpc: GodwokenClient
+): Promise<HexString | undefined> {
   if (ethAddress === EMPTY_ETH_ADDRESS) {
     return EMPTY_ETH_ADDRESS;
   }
   const accountInfo = await getAccountInfoByEthAddress(ethAddress, rpc);
+  if (accountInfo.id == null) {
+    return undefined;
+  }
   const toAddress =
     "0x" +
     accountInfo.script_hash.slice(2, 16 * 2 + 2) +
@@ -226,23 +239,26 @@ export async function ethAddressToPolyjuiceAddress(
 
 export async function polyjuiceAddressToEthAddress(
   polyjuiceAddress: HexString,
-  rpc: RPC
-): Promise<HexString> {
+  rpc: GodwokenClient
+): Promise<HexString | undefined> {
   if (polyjuiceAddress === EMPTY_ETH_ADDRESS) {
     return EMPTY_ETH_ADDRESS;
   }
   const accountIdLe = "0x" + polyjuiceAddress.slice(-8);
   const accountId = LeBytesToUInt32(accountIdLe);
-  const scriptHash = await rpc.get_script_hash("0x" + accountId.toString(16));
-  const script = await rpc.get_script(scriptHash);
+  const scriptHash: Hash = await rpc.getScriptHash(accountId);
+  const script = await rpc.getScript(scriptHash);
+  if (script == null) {
+    return undefined;
+  }
   const ethAddress = "0x" + script.args.slice(-40);
   return ethAddress;
 }
 
 async function getAccountIdByEthAddress(
   to: HexString,
-  rpc: RPC
-): Promise<HexNumber> {
+  rpc: GodwokenClient
+): Promise<HexNumber | undefined> {
   const info = await getAccountInfoByEthAddress(to, rpc);
   return info.id;
 }
@@ -251,7 +267,7 @@ async function getAccountIdByEthAddress(
 // only for create account
 async function getAccountInfoByEthAddress(
   to: HexString,
-  rpc: RPC
+  rpc: GodwokenClient
 ): Promise<AccountInfo> {
   const toScript: Script = {
     code_hash: process.env.ETH_ACCOUNT_LOCK_HASH as string,
@@ -261,12 +277,14 @@ async function getAccountInfoByEthAddress(
 
   const toScriptHash = utils.computeScriptHash(toScript);
 
-  const accountId = await rpc.get_account_id_by_script_hash(toScriptHash);
+  const accountId: number | undefined = await rpc.getAccountIdByScriptHash(
+    toScriptHash
+  );
 
   return {
     script: toScript,
     script_hash: toScriptHash,
-    id: accountId,
+    id: accountId == null ? undefined : "0x" + accountId.toString(16),
   };
 }
 

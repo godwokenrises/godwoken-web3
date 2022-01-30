@@ -43,6 +43,7 @@ import {
 } from "../../db/types";
 import {
   HeaderNotFoundError,
+  InvalidParamsError,
   MethodNotSupportError,
   RpcError,
   Web3Error,
@@ -55,14 +56,14 @@ import {
   FailedReason,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
-import { Abi, ShortAddress, ShortAddressType } from "@polyjuice-provider/base";
-import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
+import { allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { isErc20Transfer } from "../../erc20-decoder";
+import { generateRawTransaction } from "../../convert-tx";
 
 const Config = require("../../../config/eth.json");
 
@@ -350,7 +351,6 @@ export class Eth {
     throw new MethodNotSupportError("eth_sendTransaction is not supported!");
   }
 
-  // TODO: second arguments
   async getBalance(args: [string, string]): Promise<HexNumber> {
     try {
       const address = args[0];
@@ -1092,8 +1092,18 @@ export class Eth {
   }
   /* #endregion */
 
-  async sendRawTransaction(args: [string]): Promise<void> {
-    throw new MethodNotSupportError("eth_sendRawTransaction is not supported!");
+  // return gw tx hash
+  async sendRawTransaction(args: [string]): Promise<Hash> {
+    try {
+      const data = args[0];
+      const rawTx = await generateRawTransaction(data, this.rpc);
+      const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
+      console.log("sendRawTransaction gw hash:", gwTxHash);
+      return gwTxHash;
+    } catch (error: any) {
+      console.error(error);
+      throw new InvalidParamsError(error.message);
+    }
   }
 
   private async getTipNumber(): Promise<U64> {
@@ -1311,60 +1321,11 @@ async function ethCallTx(
     throw new Web3Error("not supported to address!");
   }
 
-  const abi = new Abi(SUDT_ERC20_PROXY_ABI);
-
-  // TODO: save addressMapping into db when encounter not-exist-eth-eoa-address
-  const ethToGwAddr = async (addr: HexString): Promise<ShortAddress> => {
-    const result = await allTypeEthAddressToShortScriptHash(rpc, addr);
-    return {
-      value: result!,
-      type: ShortAddressType.eoaAddress, // TODO: return correct address type
-    };
-  };
-
-  // TODO: find by db.addresses when not found
-  const gwToEthAddr = async (addr: HexString): Promise<HexString> => {
-    const scriptHash = await rpc.getScriptHashByShortScriptHash(addr);
-    if (scriptHash == null) {
-      // return undefined;
-      throw new Web3Error(`eth address by short address ${addr} not found!`);
-    }
-    const script = await rpc.getScript(scriptHash);
-    if (script == null) {
-      // return undefined;
-      throw new Web3Error(`eth address by short address ${addr} not found!`);
-    }
-    return "0x" + script.args.slice(66, 106);
-  };
-
-  const data: HexString | undefined = txCallObj.data || "0x0";
-  if (isEthWallet) {
-    const dataWithShortScriptHash = await abi.refactor_data_with_short_address(
-      data,
-      ethToGwAddr
-    );
-    // replace data
-    txCallObj.data = dataWithShortScriptHash;
-  }
-
   const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
     blockNumber
   );
-
-  const abiItem = abi.get_interested_abi_item_by_encoded_data(data);
-
-  if (abiItem && isEthWallet) {
-    const returnDataWithShortScriptHash =
-      await abi.refactor_return_value_with_short_address(
-        runResult.return_data,
-        abiItem,
-        gwToEthAddr
-      );
-    // replace return_data
-    runResult.return_data = returnDataWithShortScriptHash;
-  }
 
   return runResult;
 }

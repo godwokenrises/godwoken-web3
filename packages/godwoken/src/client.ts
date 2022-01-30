@@ -26,7 +26,7 @@ export class GodwokenClient {
     this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
-  public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
+  public async getScriptHash(accountId: U32): Promise<Hash> {
     const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
   }
