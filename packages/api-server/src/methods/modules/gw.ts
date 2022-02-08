@@ -405,7 +405,7 @@ export class Gw {
 
   async get_last_submitted_info(args: any[]) {
     try {
-      const result = await this.readonlyRpc.gw_get_last_submitted_info(...args);
+      const result = await this.rpc.gw_get_last_submitted_info(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
