@@ -29,6 +29,7 @@ REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to 
 PG_POOL_MAX=<pg pool max count, optional, default to 20>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
 EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
+ENABLE_CACHE_POLY_EXECUTE_RAW_L2Tx=<optional, enable poly_executeRawL2Transaction cache, default to false>
 EOF
 
 $ yarn

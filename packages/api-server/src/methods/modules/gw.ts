@@ -411,6 +411,15 @@ export class Gw {
       parseGwRpcError(error);
     }
   }
+
+  async get_mem_pool_state_root(args: any[]) {
+    try {
+      const result = await this.readonlyRpc.gw_get_mem_pool_state_root(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
 }
 
 function formatHexNumber(
