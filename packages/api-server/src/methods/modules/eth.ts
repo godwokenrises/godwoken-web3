@@ -1036,17 +1036,20 @@ export class Eth {
     };
 
     const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
-    let ethTxHash: HexString;
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
     if (logs.length !== 0) {
       await this.filterManager.updateLastPoll(filter_id, logs[0].id);
-      ethTxHash =
-        (await this.gwTxHashToEthTxHash(logs[0].transaction_hash)) ||
-        EMPTY_TX_HASH;
     }
 
-    return logs.map((log) => toApiLog(log, ethTxHash));
+    return await Promise.all(
+      logs.map(async (log) => {
+        const ethTxHash =
+          (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+          EMPTY_TX_HASH;
+        return toApiLog(log, ethTxHash);
+      })
+    );
   }
 
   async getLogs(args: [FilterObject]): Promise<EthLog[]> {
@@ -1070,13 +1073,14 @@ export class Eth {
           undefined,
           offset
         );
-        let ethTxHash: HexString;
-        if (logs.length !== 0) {
-          ethTxHash =
-            (await this.gwTxHashToEthTxHash(logs[0].transaction_hash)) ||
-            EMPTY_TX_HASH;
-        }
-        return logs.map((log) => toApiLog(log, ethTxHash));
+        return await Promise.all(
+          logs.map(async (log) => {
+            const ethTxHash =
+              (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+              EMPTY_TX_HASH;
+            return toApiLog(log, ethTxHash);
+          })
+        );
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
@@ -1091,13 +1095,14 @@ export class Eth {
         toBlockNumber,
         offset
       );
-      let ethTxHash: HexString;
-      if (logs.length !== 0) {
-        ethTxHash =
-          (await this.gwTxHashToEthTxHash(logs[0].transaction_hash)) ||
-          EMPTY_TX_HASH;
-      }
-      return logs.map((log) => toApiLog(log, ethTxHash));
+      return await Promise.all(
+        logs.map(async (log) => {
+          const ethTxHash =
+            (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+            EMPTY_TX_HASH;
+          return toApiLog(log, ethTxHash);
+        })
+      );
     };
 
     const executeOneQuery = async (offset: number) => {
