@@ -164,7 +164,7 @@ export class RedisDataCache {
           await releaseLock(lockValue);
           return result;
         } catch (error: any) {
-          const reason = JSON.stringify(error.message);
+          const reason = error.message;
           if (!reason.includes("request to")) {
             // publish the non-network-connecting-error-result to channel
             const publishResult = errorResult(reason);
