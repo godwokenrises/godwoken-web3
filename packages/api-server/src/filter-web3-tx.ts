@@ -26,7 +26,7 @@ import {
 const PENDING_TRANSACTION_INDEX = "0x0";
 
 export async function filterWeb3Transaction(
-  txHash: Hash,
+  ethTxHash: Hash,
   rpc: GodwokenClient,
   tipBlockNumber: U64,
   tipBlockHash: Hash,
@@ -111,7 +111,7 @@ export async function filterWeb3Transaction(
       from: fromAddress,
       gas: polyjuiceArgs.gasLimit,
       gasPrice: polyjuiceArgs.gasPrice,
-      hash: txHash,
+      hash: ethTxHash,
       input,
       nonce,
       to: toAddress || null,
@@ -159,7 +159,7 @@ export async function filterWeb3Transaction(
       });
 
     const receipt: EthTransactionReceipt = {
-      transactionHash: txHash,
+      transactionHash: ethTxHash,
       transactionIndex: PENDING_TRANSACTION_INDEX,
       blockHash: pendingBlockHash,
       blockNumber: pendingBlockNumber,
@@ -175,7 +175,7 @@ export async function filterWeb3Transaction(
           blockHash: pendingBlockHash,
           blockNumber: pendingBlockNumber,
           transactionIndex: PENDING_TRANSACTION_INDEX,
-          transactionHash: txHash,
+          transactionHash: ethTxHash,
           removed: false,
         };
       }),
@@ -212,7 +212,7 @@ export async function filterWeb3Transaction(
         from: fromAddress,
         gas: gasLimit.toHex(),
         gasPrice: gasPrice.toHex(),
-        hash: txHash,
+        hash: ethTxHash,
         input: "0x",
         nonce,
         to: toAddress,
@@ -223,7 +223,7 @@ export async function filterWeb3Transaction(
       };
 
       const receipt: EthTransactionReceipt = {
-        transactionHash: txHash,
+        transactionHash: ethTxHash,
         transactionIndex: PENDING_TRANSACTION_INDEX,
         blockHash: pendingBlockHash,
         blockNumber: pendingBlockNumber,

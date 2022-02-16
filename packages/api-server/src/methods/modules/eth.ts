@@ -35,6 +35,7 @@ import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
 import {
   errorReceiptToApiTransaction,
   errorReceiptToApiTransactionReceipt,
+  Log,
   LogQueryOption,
   toApiBlock,
   toApiLog,
@@ -61,9 +62,13 @@ import { FilterManager } from "../../cache";
 import { parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
-import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
+import {
+  CACHE_EXPIRED_TIME_MILSECS,
+  TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
+  TX_HASH_MAPPING_PREFIX_KEY,
+} from "../../cache/constant";
 import { isErc20Transfer } from "../../erc20-decoder";
-import { generateRawTransaction } from "../../convert-tx";
+import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 
 const Config = require("../../../config/eth.json");
 
@@ -71,6 +76,7 @@ type U32 = number;
 type U64 = bigint;
 
 const EMPTY_ADDRESS = "0x" + "00".repeat(20);
+const EMPTY_TX_HASH = "0x" + "00".repeat(32);
 
 type GodwokenBlockParameter = U64 | undefined;
 
@@ -587,9 +593,9 @@ export class Eth {
         const apiBlock = toApiBlock(block, apiTxs);
         return apiBlock;
       } else {
-        const txHashes: Hash[] =
-          await this.query.getTransactionHashesByBlockHash(blockHash);
-        const apiBlock = toApiBlock(block, txHashes);
+        const ethTxHashes: Hash[] =
+          await this.query.getTransactionEthHashesByBlockHash(blockHash);
+        const apiBlock = toApiBlock(block, ethTxHashes);
         return apiBlock;
       }
     } catch (error: any) {
@@ -620,7 +626,8 @@ export class Eth {
       apiBlock.transactions = apiTxs;
     } else {
       const txHashes: Hash[] =
-        await this.query.getTransactionHashesByBlockNumber(blockNumber);
+        await this.query.getTransactionEthHashesByBlockNumber(blockNumber);
+
       apiBlock.transactions = txHashes;
     }
     return apiBlock;
@@ -694,16 +701,20 @@ export class Eth {
   }
 
   async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
-    const txHash: Hash = args[0];
+    const ethTxHash: Hash = args[0];
+    const gwTxHash: Hash | null = await this.ethTxHashToGwTxHash(ethTxHash);
+    if (gwTxHash == null) {
+      return null;
+    }
 
-    const tx = await this.query.getTransactionByHash(txHash);
+    const tx = await this.query.getTransactionByHash(gwTxHash);
     if (tx != null) {
       const apiTx = toApiTransaction(tx);
       return apiTx;
     }
 
     // find error receipt
-    const errorReceipt = await this.query.getErrorTransactionReceipt(txHash);
+    const errorReceipt = await this.query.getErrorTransactionReceipt(gwTxHash);
     if (errorReceipt != null) {
       const blockNumber = errorReceipt.block_number;
       const downBlockNumber = blockNumber - 1n;
@@ -714,15 +725,15 @@ export class Eth {
         blockHash =
           "0x" + (BigInt(downBlockHash) + 1n).toString(16).padStart(64, "0");
       }
-      return errorReceiptToApiTransaction(errorReceipt, blockHash);
+      return errorReceiptToApiTransaction(errorReceipt, blockHash, ethTxHash);
     }
 
     // if null, find pending transactions
-    const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
     if (godwokenTxWithStatus == null) {
       return null;
     }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
     const tipBlock = await this.query.getTipBlock();
     if (tipBlock == null) {
       throw new Error("tip block not found!");
@@ -730,7 +741,7 @@ export class Eth {
     let ethTxInfo = undefined;
     try {
       ethTxInfo = await filterWeb3Transaction(
-        txHash,
+        ethTxHash,
         this.rpc,
         tipBlock.number,
         tipBlock.hash,
@@ -798,17 +809,21 @@ export class Eth {
   async getTransactionReceipt(
     args: [string]
   ): Promise<EthTransactionReceipt | null> {
-    const txHash: Hash = args[0];
+    const ethTxHash: Hash = args[0];
+    const gwTxHash: Hash | null = await this.ethTxHashToGwTxHash(ethTxHash);
+    if (gwTxHash == null) {
+      return null;
+    }
 
-    const data = await this.query.getTransactionAndLogsByHash(txHash);
+    const data = await this.query.getTransactionAndLogsByHash(gwTxHash);
     if (data != null) {
       const [tx, logs] = data;
-      const apiLogs = logs.map((log) => toApiLog(log));
+      const apiLogs = logs.map((log) => toApiLog(log, ethTxHash));
       const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
       return transactionReceipt;
     }
 
-    const errorReceipt = await this.query.getErrorTransactionReceipt(txHash);
+    const errorReceipt = await this.query.getErrorTransactionReceipt(gwTxHash);
     if (errorReceipt != null) {
       const blockNumber = errorReceipt.block_number;
       const downBlockNumber = blockNumber - 1n;
@@ -821,7 +836,8 @@ export class Eth {
       }
       const receipt = errorReceiptToApiTransactionReceipt(
         errorReceipt,
-        blockHash
+        blockHash,
+        ethTxHash
       );
       const failedReason: FailedReason = {
         status_code: "0x" + errorReceipt.status_code.toString(16),
@@ -832,11 +848,11 @@ export class Eth {
       return receipt;
     }
 
-    const godwokenTxWithStatus = await this.rpc.getTransaction(txHash);
+    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
     if (godwokenTxWithStatus == null) {
       return null;
     }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(txHash);
+    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
     if (godwokenTxReceipt == null) {
       return null;
     }
@@ -847,7 +863,7 @@ export class Eth {
     let ethTxInfo = undefined;
     try {
       ethTxInfo = await filterWeb3Transaction(
-        txHash,
+        ethTxHash,
         this.rpc,
         tipBlock.number,
         tipBlock.hash,
@@ -1019,14 +1035,21 @@ export class Eth {
       }
     };
 
-    const logs = await limitQuery(executeOneQuery.bind(this));
+    const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
     // remember to update the last poll cache
     // logsData[0] is now the highest log id(meaning it is the newest cache log id)
     if (logs.length !== 0) {
       await this.filterManager.updateLastPoll(filter_id, logs[0].id);
     }
 
-    return logs.map((log) => toApiLog(log));
+    return await Promise.all(
+      logs.map(async (log) => {
+        const ethTxHash =
+          (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+          EMPTY_TX_HASH;
+        return toApiLog(log, ethTxHash);
+      })
+    );
   }
 
   async getLogs(args: [FilterObject]): Promise<EthLog[]> {
@@ -1050,7 +1073,14 @@ export class Eth {
           undefined,
           offset
         );
-        return logs.map((log) => toApiLog(log));
+        return await Promise.all(
+          logs.map(async (log) => {
+            const ethTxHash =
+              (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+              EMPTY_TX_HASH;
+            return toApiLog(log, ethTxHash);
+          })
+        );
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
@@ -1065,7 +1095,14 @@ export class Eth {
         toBlockNumber,
         offset
       );
-      return logs.map((log) => toApiLog(log));
+      return await Promise.all(
+        logs.map(async (log) => {
+          const ethTxHash =
+            (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
+            EMPTY_TX_HASH;
+          return toApiLog(log, ethTxHash);
+        })
+      );
     };
 
     const executeOneQuery = async (offset: number) => {
@@ -1099,7 +1136,24 @@ export class Eth {
       const rawTx = await generateRawTransaction(data, this.rpc);
       const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
       console.log("sendRawTransaction gw hash:", gwTxHash);
-      return gwTxHash;
+      const ethTxHash = calcEthTxHash(data);
+      console.log("sendRawTransaction eth hash:", ethTxHash);
+
+      // save the tx hash mapping for instant finality
+      const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+      await this.cacheStore.insert(
+        ethTxHashKey,
+        gwTxHash,
+        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+      );
+      const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+      await this.cacheStore.insert(
+        gwTxHashKey,
+        ethTxHash,
+        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+      );
+
+      return ethTxHash;
     } catch (error: any) {
       console.error(error);
       throw new InvalidParamsError(error.message);
@@ -1147,6 +1201,48 @@ export class Eth {
     }
     return blockNumber;
   }
+
+  private async ethTxHashToGwTxHash(ethTxHash: HexString) {
+    // query from redis for instant-finality tx
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    let gwTxHash = await this.cacheStore.get(ethTxHashKey);
+    if (gwTxHash != null) {
+      return gwTxHash;
+    }
+
+    // query from database
+    const transaction = await this.query.getTransactionByEthTxHash(ethTxHash);
+    if (transaction != null) {
+      return transaction.hash;
+    }
+
+    return null;
+  }
+
+  private async gwTxHashToEthTxHash(gwTxHash: HexString) {
+    // query from redis for instant-finality tx
+    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+    let ethTxHash = await this.cacheStore.get(gwTxHashKey);
+    if (ethTxHash != null) {
+      return ethTxHash;
+    }
+
+    // query from database
+    const transaction = await this.query.getTransactionByHash(gwTxHash);
+    if (transaction != null) {
+      return transaction.eth_tx_hash;
+    }
+
+    return null;
+  }
+}
+
+function ethTxHashCacheKey(ethTxHash: string) {
+  return `${TX_HASH_MAPPING_PREFIX_KEY}:eth:${ethTxHash}`;
+}
+
+function gwTxHashCacheKey(gwTxHash: string) {
+  return `${TX_HASH_MAPPING_PREFIX_KEY}:gw:${gwTxHash}`;
 }
 
 async function allTypeEthAddressToShortScriptHash(

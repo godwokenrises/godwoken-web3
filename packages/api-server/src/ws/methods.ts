@@ -4,10 +4,23 @@ import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
 import { middleware as wsrpc } from "./wss";
 import crypto from "crypto";
-import { HexNumber } from "@ckb-lumos/base";
+import { HexNumber, HexString } from "@ckb-lumos/base";
 import { Log, LogQueryOption, toApiLog } from "../db/types";
-import { filterLogsByAddress, filterLogsByTopics } from "../db";
+import { filterLogsByAddress, filterLogsByTopics, Query } from "../db";
 import { envConfig } from "../base/env-config";
+import { Store } from "../cache/store";
+import {
+  CACHE_EXPIRED_TIME_MILSECS,
+  TX_HASH_MAPPING_PREFIX_KEY,
+} from "../cache/constant";
+
+const query = new Query();
+const cacheStore = new Store(
+  envConfig.redisUrl,
+  true,
+  CACHE_EXPIRED_TIME_MILSECS
+);
+cacheStore.init();
 
 let newrelic: any = undefined;
 if (envConfig.newRelicLicenseKey) {
@@ -50,6 +63,27 @@ export function wrapper(ws: any, _req: any) {
   const syncingIds: Set<HexNumber> = new Set();
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
+  async function gwTxHashToEthTxHash(gwTxHash: HexString) {
+    // query from redis for instant-finality tx
+    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+    let ethTxHash = await cacheStore.get(gwTxHashKey);
+    if (ethTxHash != null) {
+      return ethTxHash;
+    }
+
+    // query from database
+    const transaction = await query.getTransactionByHash(gwTxHash);
+    if (transaction != null) {
+      return transaction.eth_tx_hash;
+    }
+
+    return null;
+  }
+
+  function gwTxHashCacheKey(gwTxHash: string) {
+    return `${TX_HASH_MAPPING_PREFIX_KEY}:gw:${gwTxHash}`;
+  }
+
   const blockListener = (blocks: EthNewHead[]) => {
     blocks.forEach((block) => {
       newHeadsIds.forEach((id) => {
@@ -74,7 +108,7 @@ export function wrapper(ws: any, _req: any) {
       log.transaction_id = BigInt(log.transaction_id);
       return log;
     });
-    logsQueryMaps.forEach((query, id) => {
+    logsQueryMaps.forEach(async (query, id) => {
       const _result = filterLogsByAddress(logs, query.address);
       const result = filterLogsByTopics(_result, query.topics || []);
 
@@ -84,7 +118,12 @@ export function wrapper(ws: any, _req: any) {
         jsonrpc: "2.0",
         method: "eth_subscription",
         params: {
-          result: result.map((log) => toApiLog(log)),
+          result: await Promise.all(
+            result.map(async (log) => {
+              const ethTxHash = await gwTxHashToEthTxHash(log.transaction_hash);
+              return toApiLog(log, ethTxHash!);
+            })
+          ),
           subscription: id,
         },
       };

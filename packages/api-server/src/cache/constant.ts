@@ -5,3 +5,6 @@ export const MAX_FILTER_TOPIC_ARRAY_LENGTH = 20;
 
 // The Cache Key Prfixs
 export const GW_RPC_KEY = "gwRPC";
+
+export const TX_HASH_MAPPING_PREFIX_KEY = "TxHashMapping";
+export const TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS = 30 * 60 * 1000; // 30 minutes
