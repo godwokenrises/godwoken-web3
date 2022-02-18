@@ -26,6 +26,7 @@ CREATE TABLE blocks (
 CREATE TABLE transactions (
     id NUMERIC PRIMARY KEY,
     hash TEXT UNIQUE NOT NULL,
+    eth_tx_hash TEXT UNIQUE NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
     block_hash TEXT NOT NULL,
     transaction_index INTEGER NOT NULL,
@@ -121,6 +122,7 @@ CREATE INDEX ON error_transactions (hash);
 
 ### transaction
 - hash: 交易哈希
+- eth_tx_hash: 交易的以太坊格式交易哈希
 - block_number：区块高度
 - block_hash：区块哈希
 - transaction_index：交易在区块里的位置，这个和L2Transaction在L2Block的位置存在差异
