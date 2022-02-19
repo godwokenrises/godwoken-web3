@@ -19,7 +19,9 @@ if (NEW_RELIC_LICENSE_KEY) {
 
 const app = express();
 
-app.use(express.json());
+const BODY_PARSER_LIMIT = "100mb";
+
+app.use(express.json({ limit: BODY_PARSER_LIMIT }));
 
 const sentryOptionRequest = [
   "cookies",
@@ -52,7 +54,7 @@ const corsOptions = {
 
 app.use(logger("dev"));
 app.use(cors(corsOptions));
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: BODY_PARSER_LIMIT }));
 
 app.use(function (req, _res, next) {
   if (NEW_RELIC_LICENSE_KEY) {
