@@ -41,8 +41,8 @@ export interface GwErrorItem {
 }
 const gwErrorMapping: { [key: string]: { type: string; message: string } } = {
   "92": {
-    type: "GW_SUDT_ERROR_INSUFFICIENT_BALANCE",
-    message: "insufficient balance", // TODO: update message
+    type: "SUDT_ERROR_INSUFFICIENT_BALANCE",
+    message: "sender doesn't have enough funds to send tx",
   },
 };
 
