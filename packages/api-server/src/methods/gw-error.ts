@@ -32,6 +32,37 @@ export const evmcCodeTypeMapping: {
   "-3": "OUT_OF_MEMORY",
 };
 
+const gwErrorPrefix = "invalid exit code ";
+export interface GwErrorItem {
+  code: number;
+  type: string;
+  message: string;
+}
+const gwErrorMapping: { [key: string]: { type: string; message: string } } = {
+  "92": {
+    type: "GW_SUDT_ERROR_INSUFFICIENT_BALANCE",
+    message: "insufficient balance", // TODO: update message
+  },
+};
+
+function parseGwErrorMapping(message: string): GwErrorItem | undefined {
+  if (!message.startsWith(gwErrorPrefix)) {
+    return undefined;
+  }
+  const code = message.slice(gwErrorPrefix.length);
+
+  const item = gwErrorMapping[code];
+  if (item != null) {
+    return {
+      code: +code,
+      type: item.type,
+      message: item.message,
+    };
+  }
+
+  return undefined;
+}
+
 export interface GwErrorDetail {
   code: number;
   message: string;
@@ -47,6 +78,21 @@ export function parseGwError(error: any): GwErrorDetail {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    const gwErrorItem = parseGwErrorMapping(err.message);
+    if (gwErrorItem != null) {
+      const failedReason: FailedReason = {
+        status_code: "0x" + gwErrorItem.code.toString(16),
+        status_type: gwErrorItem.type,
+        message: gwErrorItem.message,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
+    }
+
     let polyjuiceSystemLog: PolyjuiceSystemLog | undefined;
     if (err.data.last_log) {
       polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
@@ -81,6 +127,20 @@ export function parseGwRpcError(error: any): void {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    const gwErrorItem = parseGwErrorMapping(err.message);
+    if (gwErrorItem != null) {
+      const failedReason: FailedReason = {
+        status_code: "0x" + gwErrorItem.code.toString(16),
+        status_type: gwErrorItem.type,
+        message: gwErrorItem.message,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
+    }
 
     const last_log: LogItem | undefined = err.data?.last_log;
     if (last_log != null) {
