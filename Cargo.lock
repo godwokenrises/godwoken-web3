@@ -1160,7 +1160,7 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?tag=v0.6.9-rc1#2a42b89401cae2ea7f12ee2bc51401ac8616549d"
+source = "git+https://github.com/classicalliu/godwoken.git?branch=add-exit-code-to-error-receipt#4ef2688ed950b5dd4ac6f86e5b9c1453429d0700"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
@@ -1172,7 +1172,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?tag=v0.6.9-rc1#2a42b89401cae2ea7f12ee2bc51401ac8616549d"
+source = "git+https://github.com/classicalliu/godwoken.git?branch=add-exit-code-to-error-receipt#4ef2688ed950b5dd4ac6f86e5b9c1453429d0700"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1180,7 +1180,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?tag=v0.6.9-rc1#2a42b89401cae2ea7f12ee2bc51401ac8616549d"
+source = "git+https://github.com/classicalliu/godwoken.git?branch=add-exit-code-to-error-receipt#4ef2688ed950b5dd4ac6f86e5b9c1453429d0700"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash",
@@ -1194,7 +1194,7 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/nervosnetwork/godwoken.git?tag=v0.6.9-rc1#2a42b89401cae2ea7f12ee2bc51401ac8616549d"
+source = "git+https://github.com/classicalliu/godwoken.git?branch=add-exit-code-to-error-receipt#4ef2688ed950b5dd4ac6f86e5b9c1453429d0700"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash",
