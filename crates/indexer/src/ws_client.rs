@@ -102,6 +102,7 @@ fn to_result<T: DeserializeOwned>(output: Output) -> anyhow::Result<T> {
 fn convert_error_tx_receipt(
     receipt: gw_jsonrpc_types::godwoken::ErrorTxReceipt,
 ) -> gw_types::offchain::ErrorTxReceipt {
+    let exit_code: u32 = receipt.exit_code.into();
     gw_types::offchain::ErrorTxReceipt {
         tx_hash: {
             let mut buf = [0u8; 32];
@@ -111,5 +112,6 @@ fn convert_error_tx_receipt(
         block_number: receipt.block_number.into(),
         return_data: receipt.return_data.as_bytes().to_vec(),
         last_log: receipt.last_log.map(Into::into),
+        exit_code: exit_code as u8 as i8,
     }
 }
