@@ -58,7 +58,7 @@ import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { Abi, ShortAddress, ShortAddressType } from "@polyjuice-provider/base";
 import { SUDT_ERC20_PROXY_ABI, allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
-import { parseGwError } from "../gw-error";
+import { failedReasonByErrorReceipt, parseGwError } from "../gw-error";
 import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
@@ -821,11 +821,8 @@ export class Eth {
         errorReceipt,
         blockHash
       );
-      const failedReason: FailedReason = {
-        status_code: "0x" + errorReceipt.status_code.toString(16),
-        status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
-        message: errorReceipt.status_reason,
-      };
+      const failedReason: FailedReason =
+        failedReasonByErrorReceipt(errorReceipt);
       receipt.failed_reason = failedReason;
       return receipt;
     }
