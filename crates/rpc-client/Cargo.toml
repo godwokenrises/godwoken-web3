@@ -12,9 +12,9 @@ serde_json = "1.0"
 reqwest = { version = "0.11", features = ["json", "blocking"] }
 ckb-jsonrpc-types = "0.100.0"
 ckb-types = "0.100.0"
-gw-jsonrpc-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
-gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", tag = "v0.6.9-rc1" }
+gw-jsonrpc-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "08e2a451a74653cf8b9899aaa693d3aa91623337" }
+gw-types = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "08e2a451a74653cf8b9899aaa693d3aa91623337" }
+gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "08e2a451a74653cf8b9899aaa693d3aa91623337" }
 jsonrpc-core = "17"
 rand = "0.8"
 anyhow = "1.0"
