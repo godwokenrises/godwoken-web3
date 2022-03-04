@@ -3,7 +3,6 @@ import { Block, Transaction, Log, ErrorTransactionReceipt } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
-import { AccountsQuery } from "./accounts";
 import { envConfig } from "../base/env-config";
 import {
   MAX_QUERY_NUMBER,
@@ -23,15 +22,9 @@ const GLOBAL_KNEX = Knex({
 
 export class Query {
   private knex: KnexType;
-  private innerAccounts: AccountsQuery;
 
   constructor() {
     this.knex = GLOBAL_KNEX;
-    this.innerAccounts = new AccountsQuery(this.knex);
-  }
-
-  get accounts(): AccountsQuery {
-    return this.innerAccounts;
   }
 
   async getTipBlockNumber(): Promise<bigint | undefined> {
