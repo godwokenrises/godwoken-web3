@@ -44,7 +44,9 @@ export async function ethAddressToScriptHash(
 
   let scriptHash: Hash | undefined;
   try {
-    const runResult = await godwokenClient.executeRawL2Transaction(rawL2Tx);
+    const runResult = await godwokenClient.executeForGetAccountScriptHash(
+      rawL2Tx
+    );
     scriptHash = runResult.return_data;
   } catch (err: any) {
     // Account not found.

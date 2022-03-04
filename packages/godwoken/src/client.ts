@@ -101,6 +101,19 @@ export class GodwokenClient {
     return await this.rpcCall("get_data", dataHash, toHex(blockParameter));
   }
 
+  // Don't log `invalid exit code 83` error
+  public async executeForGetAccountScriptHash(
+    rawL2tx: RawL2Transaction,
+    blockParameter?: BlockParameter
+  ): Promise<RunResult> {
+    const data: HexString = new Reader(
+      SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
+    ).serializeJson();
+    const name = "gw_execute_raw_l2transaction";
+    const result = await this.readonlyRpc[name](data, toHex(blockParameter));
+    return result;
+  }
+
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
     blockParameter?: BlockParameter
