@@ -96,6 +96,7 @@ export async function filterWeb3Transaction(
     if (polyjuiceArgs.isCreate) {
       // polyjuiceChainId = toIdHex;
     } else {
+      // 74 = 2 + (32 + 4) * 2
       toAddress = "0x" + toScript.args.slice(74);
       // 32..36 bytes
       // const data = "0x" + toScript.args.slice(66, 74);
