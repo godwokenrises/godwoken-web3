@@ -246,10 +246,15 @@ impl Web3Indexer {
                 let (to_address, polyjuice_chain_id) = if polyjuice_args.is_create {
                     (None, to_id)
                 } else {
-                    let address = account_script_hash_to_eth_address(to_script_hash);
+                    let args: gw_types::bytes::Bytes = to_script.args().unpack();
+                    let address = {
+                        let mut to = [0u8; 20];
+                        to.copy_from_slice(&args[36..]);
+                        to
+                    };
                     let polyjuice_chain_id = {
                         let mut data = [0u8; 4];
-                        data.copy_from_slice(&to_script.args().raw_data()[32..36]);
+                        data.copy_from_slice(&args[32..36]);
                         u32::from_le_bytes(data)
                     };
                     (Some(address), polyjuice_chain_id)

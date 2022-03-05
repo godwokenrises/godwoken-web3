@@ -1,63 +1,102 @@
 import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
-import { GodwokenClient } from "../../../godwoken/lib";
+import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
 import { envConfig } from "./env-config";
+import { Uint32 } from "./types/uint";
 
-export function ethAddressToScript(ethAddress: HexString): Script {
-  return {
-    code_hash: envConfig.ethAccountLockHash,
-    hash_type: "type",
-    args: envConfig.rollupTypeHash + ethAddress.slice(2).toLowerCase(),
-  };
+class EthToGwArgsBuilder {
+  private method: number;
+  private ethAddress: HexString;
+
+  constructor(method: number, ethAddress: HexString) {
+    if (ethAddress.length !== 42) {
+      throw new Error("Eth address must be 20 bytes length");
+    }
+
+    if (!ethAddress.startsWith("0x")) {
+      throw new Error("Eth address must starts with 0x prefix");
+    }
+
+    this.method = method;
+    this.ethAddress = ethAddress;
+  }
+
+  public build(): HexString {
+    const methodLe: HexString = new Uint32(this.method).toLittleEndian();
+    return methodLe + this.ethAddress.slice(2);
+  }
 }
 
-export function ethAddressToScriptHash(ethAddress: HexString): Hash {
-  const script = ethAddressToScript(ethAddress);
-  const scriptHash = utils.computeScriptHash(script);
+// TODO: cache
+export async function ethAddressToScriptHash(
+  ethAddress: HexString,
+  godwokenClient: GodwokenClient
+): Promise<Hash | undefined> {
+  const fromId: number = +envConfig.defaultFromId;
+  const nonce: number = await godwokenClient.getNonce(fromId);
+  const args: HexString = new EthToGwArgsBuilder(0, ethAddress).build();
+
+  const rawL2Tx: RawL2Transaction = {
+    from_id: "0x" + fromId.toString(16),
+    to_id: "0x" + (+envConfig.ethAddressRegistryAccountId).toString(16),
+    nonce: "0x" + nonce.toString(16),
+    args,
+  };
+
+  let scriptHash: Hash | undefined;
+  try {
+    const runResult = await godwokenClient.executeForGetAccountScriptHash(
+      rawL2Tx
+    );
+    scriptHash = runResult.return_data;
+  } catch (err: any) {
+    // Account not found.
+    return undefined;
+  }
   return scriptHash;
 }
 
-export function ethAddressToShortScriptHash(ethAddress: HexString): HexString {
-  const scriptHash = ethAddressToScriptHash(ethAddress);
+export async function ethAddressToShortScriptHash(
+  ethAddress: HexString,
+  godwokenClient: GodwokenClient
+): Promise<HexString | undefined> {
+  const scriptHash: Hash | undefined = await ethAddressToScriptHash(
+    ethAddress,
+    godwokenClient
+  );
+  if (scriptHash == null) {
+    return undefined;
+  }
   return scriptHash.slice(0, 42);
 }
 
-export async function shortScriptHashToEthAddress(
-  godwokenClient: GodwokenClient,
-  shortScriptHash: HexString
-): Promise<HexString | undefined> {
-  const scriptHash = await godwokenClient.getScriptHashByShortScriptHash(
-    shortScriptHash
-  );
-  if (scriptHash == null) {
-    return undefined;
-  }
-  const script = await godwokenClient.getScript(scriptHash);
-  if (script == null) {
-    return undefined;
-  }
-  if (script.code_hash !== envConfig.ethAccountLockHash) {
-    return undefined;
-  }
-  return "0x" + script.args.slice(66, 106);
-}
-
-export function isAddressMatch(
+export async function ethAddressToAccountId(
   ethAddress: HexString,
-  shortScriptHash: HexString
-): boolean {
-  const computedShortScriptHash = ethAddressToShortScriptHash(ethAddress);
-  return shortScriptHash === computedShortScriptHash;
-}
+  godwokenClient: GodwokenClient
+): Promise<number | undefined> {
+  if (ethAddress === "0x0000000000000000000000000000000000000000") {
+    return +envConfig.creatorAccountId;
+  }
 
-export async function isShortScriptHashOnChain(
-  godwokenClient: GodwokenClient,
-  shortScriptHash: HexString
-) {
-  const scriptHash = await godwokenClient.getScriptHashByShortScriptHash(
-    shortScriptHash
+  const scriptHash: Hash | undefined = await ethAddressToScriptHash(
+    ethAddress,
+    godwokenClient
   );
   if (scriptHash == null) {
-    return false;
+    return undefined;
   }
-  return true;
+
+  const id: number | undefined = await godwokenClient.getAccountIdByScriptHash(
+    scriptHash
+  );
+  return id;
+}
+
+export function ethEoaAddressToScriptHash(address: string) {
+  const script: Script = {
+    code_hash: envConfig.ethAccountLockHash,
+    hash_type: "type",
+    args: envConfig.rollupTypeHash + address.slice(2),
+  };
+  const scriptHash = utils.computeScriptHash(script);
+  return scriptHash;
 }

@@ -1,8 +1,10 @@
-import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
+import { ethAddressToAccountId } from "./base/address";
+import { envConfig } from "./base/env-config";
 
 export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
 
@@ -28,12 +30,6 @@ export interface GodwokenRawL2Transaction {
   to_id: HexNumber;
   nonce: HexNumber;
   args: HexString;
-}
-
-export interface AccountInfo {
-  script: Script;
-  script_hash: Hash;
-  id?: HexNumber;
 }
 
 function logger(level: string, ...messages: any[]) {
@@ -185,13 +181,17 @@ async function parseRawTransactionData(
   const args_data = data;
 
   let args_7 = "";
-  let toId = await getAccountIdByEthAddress(to, rpc);
+  let toId: HexNumber | undefined;
   if (to === EMPTY_ETH_ADDRESS) {
     args_7 = "0x03";
-    toId = "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID!).toString(16);
+    toId = "0x" + BigInt(envConfig.creatorAccountId).toString(16);
   } else {
     args_7 = "0x00";
-    toId = getToIdFromCallContract(to);
+    toId = await getAccountIdByEthAddress(to, rpc);
+  }
+
+  if (toId == null) {
+    throw new Error(`to id not found by address: ${toA}`);
   }
 
   const args =
@@ -219,79 +219,15 @@ async function parseRawTransactionData(
   return godwokenL2Tx;
 }
 
-export async function ethAddressToPolyjuiceAddress(
-  ethAddress: HexString,
-  rpc: GodwokenClient
-): Promise<HexString | undefined> {
-  if (ethAddress === EMPTY_ETH_ADDRESS) {
-    return EMPTY_ETH_ADDRESS;
-  }
-  const accountInfo = await getAccountInfoByEthAddress(ethAddress, rpc);
-  if (accountInfo.id == null) {
-    return undefined;
-  }
-  const toAddress =
-    "0x" +
-    accountInfo.script_hash.slice(2, 16 * 2 + 2) +
-    UInt32ToLeBytes(+accountInfo.id);
-  return toAddress;
-}
-
-export async function polyjuiceAddressToEthAddress(
-  polyjuiceAddress: HexString,
-  rpc: GodwokenClient
-): Promise<HexString | undefined> {
-  if (polyjuiceAddress === EMPTY_ETH_ADDRESS) {
-    return EMPTY_ETH_ADDRESS;
-  }
-  const accountIdLe = "0x" + polyjuiceAddress.slice(-8);
-  const accountId = LeBytesToUInt32(accountIdLe);
-  const scriptHash: Hash = await rpc.getScriptHash(accountId);
-  const script = await rpc.getScript(scriptHash);
-  if (script == null) {
-    return undefined;
-  }
-  const ethAddress = "0x" + script.args.slice(-40);
-  return ethAddress;
-}
-
 async function getAccountIdByEthAddress(
   to: HexString,
   rpc: GodwokenClient
 ): Promise<HexNumber | undefined> {
-  const info = await getAccountInfoByEthAddress(to, rpc);
-  return info.id;
-}
-
-// to address => account id
-// only for create account
-async function getAccountInfoByEthAddress(
-  to: HexString,
-  rpc: GodwokenClient
-): Promise<AccountInfo> {
-  const toScript: Script = {
-    code_hash: process.env.ETH_ACCOUNT_LOCK_HASH as string,
-    hash_type: "type",
-    args: process.env.ROLLUP_TYPE_HASH + to.slice(2),
-  };
-
-  const toScriptHash = utils.computeScriptHash(toScript);
-
-  const accountId: number | undefined = await rpc.getAccountIdByScriptHash(
-    toScriptHash
-  );
-
-  return {
-    script: toScript,
-    script_hash: toScriptHash,
-    id: accountId == null ? undefined : "0x" + accountId.toString(16),
-  };
-}
-
-function getToIdFromCallContract(toAddress: HexString): HexNumber {
-  const toIdLe = "0x" + toAddress.slice(-8);
-  const toId = LeBytesToUInt32(toIdLe);
-  return "0x" + toId.toString(16);
+  const id: number | undefined = await ethAddressToAccountId(to, rpc);
+  if (id == null) {
+    return undefined;
+  }
+  return "0x" + id.toString(16);
 }
 
 function UInt32ToLeBytes(num: number): HexString {
@@ -320,11 +256,6 @@ function UInt128ToLeBytes(u128: bigint): HexString {
   buf.writeBigUInt64LE(u128 & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
   buf.writeBigUInt64LE(u128 >> BigInt(64), 8);
   return "0x" + buf.toString("hex");
-}
-
-function LeBytesToUInt32(hex: HexString): number {
-  const buf = Buffer.from(hex.slice(2), "hex");
-  return buf.readUInt32LE();
 }
 
 function recoverPublicKey(signature: HexString, message: HexString) {

@@ -17,8 +17,11 @@ ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
 CHAIN_ID=<your chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
 DEFAULT_FROM_ADDRESS=<default from eth address>
+DEFAULT_FROM_ID=<default from eth address's godwoken account id>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
+ETH_ADDRESS_REGISTRY_ACCOUNT_ID=<required, eth address registry account id>
+
 TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,

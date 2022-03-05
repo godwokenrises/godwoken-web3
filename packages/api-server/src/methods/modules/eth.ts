@@ -10,9 +10,8 @@ import {
 } from "../types";
 import { middleware, validators } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
-import { utils, HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
+import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
-import { Script } from "@ckb-lumos/base";
 import {
   CKB_SUDT_ID,
   POLYJUICE_CONTRACT_CODE,
@@ -69,6 +68,10 @@ import {
 } from "../../cache/constant";
 import { isErc20Transfer } from "../../erc20-decoder";
 import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
+import {
+  ethAddressToAccountId,
+  ethAddressToShortScriptHash,
+} from "../../base/address";
 
 const Config = require("../../../config/eth.json");
 
@@ -363,10 +366,8 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const shortScriptHash = await allTypeEthAddressToShortScriptHash(
-        this.rpc,
-        address
-      );
+      const shortScriptHash: Hash | undefined =
+        await ethAddressToShortScriptHash(address, this.rpc);
       if (shortScriptHash == null) {
         return "0x0";
       }
@@ -398,7 +399,7 @@ export class Eth {
       const blockParameter = args[2];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const accountId: U32 | undefined = await ethContractAddressToAccountId(
+      const accountId: U32 | undefined = await ethAddressToAccountId(
         address,
         this.rpc
       );
@@ -425,9 +426,9 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const accountId: number | undefined = await allTypeEthAddressToAccountId(
-        this.rpc,
-        address
+      const accountId: number | undefined = await ethAddressToAccountId(
+        address,
+        this.rpc
       );
       if (accountId == null) {
         return "0x0";
@@ -448,7 +449,10 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const accountId = await ethContractAddressToAccountId(address, this.rpc);
+      const accountId: number | undefined = await ethAddressToAccountId(
+        address,
+        this.rpc
+      );
       if (accountId == null) {
         return defaultResult;
       }
@@ -509,7 +513,7 @@ export class Eth {
 
       console.log("RunResult:", runResult);
       return runResult.return_data;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message, error.data);
     }
   }
@@ -1112,7 +1116,7 @@ export class Eth {
           status: QueryRoundStatus.keepGoing,
           data: data,
         } as ExecuteOneQueryResult;
-      } catch (error) {
+      } catch (error: any) {
         if (
           (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
         ) {
@@ -1245,55 +1249,6 @@ function gwTxHashCacheKey(gwTxHash: string) {
   return `${TX_HASH_MAPPING_PREFIX_KEY}:gw:${gwTxHash}`;
 }
 
-async function allTypeEthAddressToShortScriptHash(
-  rpc: GodwokenClient,
-  address: string
-): Promise<string | null> {
-  const accountId = await ethContractAddressToAccountId(address, rpc);
-  if (accountId == null) {
-    const shortScriptHash = ethAddressToScriptHash(address).slice(0, 42);
-    return shortScriptHash;
-  }
-  // TODO: another type ?
-  return address;
-}
-
-function ethAddressToScriptHash(address: string) {
-  const script: Script = {
-    code_hash: envConfig.ethAccountLockHash as string,
-    hash_type: "type",
-    args: envConfig.rollupTypeHash + address.slice(2),
-  };
-  const scriptHash = utils.computeScriptHash(script);
-  return scriptHash;
-}
-
-// https://github.com/nervosnetwork/godwoken-polyjuice/blob/7a04c9274c559e91b677ff3ea2198b58ba0003e7/polyjuice-tests/src/helper.rs#L239
-async function ethContractAddressToAccountId(
-  address: string,
-  rpc: GodwokenClient
-): Promise<number | undefined> {
-  if (address.length !== 42) {
-    throw new Error(`Invalid eth address length: ${address.length}`);
-  }
-  if (address === "0x0000000000000000000000000000000000000000") {
-    return +(process.env.CREATOR_ACCOUNT_ID as string);
-  }
-  // todo: support create2 contract address in which case it has not been created.
-  try {
-    const scriptHash: Hash | undefined =
-      await rpc.getScriptHashByShortScriptHash(address);
-    if (scriptHash == null) {
-      return undefined;
-    }
-    const accountId = await rpc.getAccountIdByScriptHash(scriptHash);
-    console.log(`eth contract address: ${address}, account id: ${accountId}`);
-    return accountId == null ? undefined : +accountId;
-  } catch (error: any) {
-    return undefined;
-  }
-}
-
 function polyjuiceBuildContractCodeKey(accountId: number) {
   return polyjuiceBuildSystemKey(accountId, POLYJUICE_CONTRACT_CODE);
 }
@@ -1396,18 +1351,6 @@ function buildStorageKey(storagePosition: string) {
   return "0x" + key;
 }
 
-async function allTypeEthAddressToAccountId(
-  rpc: GodwokenClient,
-  address: string
-): Promise<number | undefined> {
-  const scriptHash = ethAddressToScriptHash(address);
-  let accountId = await rpc.getAccountIdByScriptHash(scriptHash);
-  if (accountId === null || accountId === undefined) {
-    accountId = await ethContractAddressToAccountId(address, rpc);
-  }
-  return accountId;
-}
-
 async function ethCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient,
@@ -1446,8 +1389,7 @@ async function buildEthCallTx(
     fromAddress != undefined &&
     typeof fromAddress === "string"
   ) {
-    const fromScriptHash = ethAddressToScriptHash(fromAddress);
-    fromId = await rpc.getAccountIdByScriptHash(fromScriptHash);
+    fromId = await ethAddressToAccountId(fromAddress, rpc);
     console.log(`fromId: ${fromId}`);
   }
 
@@ -1455,7 +1397,7 @@ async function buildEthCallTx(
     throw new Error("from id not found!");
   }
 
-  const toId = await ethContractAddressToAccountId(toAddress, rpc);
+  const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
   if (toId == null) {
     throw new Error("to id missing!");
   }
