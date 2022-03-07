@@ -134,7 +134,19 @@ async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient
 ) {
-  const { nonce, gasPrice, gasLimit, to: toA, value, data, v, r, s } = rawTx;
+  const {
+    nonce,
+    gasPrice,
+    gasLimit,
+    to: toA,
+    value,
+    data,
+    v,
+    r: rA,
+    s: sA,
+  } = rawTx;
+  const r = "0x" + rA.slice(2).padStart(64, "0");
+  const s = "0x" + sA.slice(2).padStart(64, "0");
 
   let real_v = "0x00";
   if (+v % 2 === 0) {
