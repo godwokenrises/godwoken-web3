@@ -10,7 +10,7 @@ export class Poly {
     try {
       const creatorIdHex = toHexNumber(BigInt(envConfig.creatorAccountId));
       return creatorIdHex;
-    } catch (err) {
+    } catch (err: any) {
       throw new Web3Error(err.message);
     }
   }
@@ -59,7 +59,7 @@ export class Poly {
         chainId: envConfig.chainId || null,
       };
       return chainInfo;
-    } catch (error) {
+    } catch (error: any) {
       throw new Web3Error(error.message);
     }
   }
