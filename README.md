@@ -14,7 +14,7 @@ GODWOKEN_READONLY_JSON_RPC=<optional, default equals to GODWOKEN_JSON_RPC>
 ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
-CHAIN_ID=<your chain id in integer>
+COMPATIBLE_CHAIN_ID=<godwoken compatible chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
 DEFAULT_FROM_ADDRESS=<default from eth address>
 DEFAULT_FROM_ID=<default from eth address's godwoken account id>
@@ -89,6 +89,7 @@ tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"
+compatible_chain_id=<godwoken compatible_chain_id in integer>
 EOF
 ```
 

@@ -9,7 +9,11 @@ export const envConfig = {
   rollupTypeHash: getRequired("ROLLUP_TYPE_HASH"),
   godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
   creatorAccountId: getRequired("CREATOR_ACCOUNT_ID"),
-  chainId: getRequired("CHAIN_ID"),
+  compatibleChainId: getRequired("COMPATIBLE_CHAIN_ID"),
+  chainId: calculateChainId(
+    +getRequired("CREATOR_ACCOUNT_ID"),
+    +getRequired("COMPATIBLE_CHAIN_ID")
+  ),
   defaultFromAddress: getRequired("DEFAULT_FROM_ADDRESS"),
   defaultFromId: getRequired("DEFAULT_FROM_ID"),
   l2SudtValidatorScriptTypeHash: getRequired(
@@ -40,4 +44,15 @@ function getRequired(name: string): string {
 
 function getOptional(name: string): string | undefined {
   return env[name];
+}
+
+export function calculateChainId(
+  creatorId: number,
+  compatibleChainId: number
+): string {
+  const chainId = (BigInt(compatibleChainId) << 32n) + BigInt(creatorId);
+  console.log(
+    `web3 chain_id: ${chainId}, calculating from compatible_chain_id: ${compatibleChainId}, creator_id: ${creatorId}`
+  );
+  return chainId.toString(10);
 }

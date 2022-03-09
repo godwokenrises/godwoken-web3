@@ -16,6 +16,7 @@ let config = {
   tron_account_lock_hash: process.env.TRON_ACCOUNT_LOCK_HASH,
   godwoken_rpc_url: process.env.GODWOKEN_JSON_RPC,
   pg_url: process.env.DATABASE_URL,
+  compatible_chain_id: process.env.COMPATIBLE_CHAIN_ID,
   sentry_dsn: process.env.SENTRY_DNS,
   sentry_environment: process.env.SENTRY_ENVIRONMENT,
 }
@@ -28,8 +29,12 @@ let tomlStr = "";
 
 for (const [key, value] of Object.entries(config)) {
   console.log(`[${key}]: ${value}`)
+  if(value != null && key === "compatible_chain_id"){
+    tomlStr += `${key}=${Number(value)}\n`;
+    continue;
+  }
   if (value != null) {
-    tomlStr += `${key}="${value}"\n`
+    tomlStr += `${key}="${value}"\n`;
   }
 }
 

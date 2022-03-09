@@ -32,6 +32,7 @@ pub struct Web3Indexer {
     rollup_type_hash: H256,
     allowed_eoa_hashes: HashSet<H256>,
     godwoken_rpc_client: GodwokenRpcClient,
+    compatible_chain_id: u64,
 }
 
 impl Web3Indexer {
@@ -42,6 +43,7 @@ impl Web3Indexer {
         eth_account_lock_hash: H256,
         tron_account_lock_hash: Option<H256>,
         gw_rpc_url: &str,
+        compatible_chain_id: u64,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
@@ -56,6 +58,7 @@ impl Web3Indexer {
             rollup_type_hash,
             allowed_eoa_hashes,
             godwoken_rpc_client,
+            compatible_chain_id,
         }
     }
 
@@ -260,7 +263,7 @@ impl Web3Indexer {
                     (Some(address), polyjuice_chain_id)
                 };
                 // calculate chain_id
-                let chain_id: u64 = polyjuice_chain_id as u64;
+                let chain_id: u64 = (self.compatible_chain_id << 32) | (polyjuice_chain_id as u64);
                 let nonce: u32 = l2_transaction.raw().nonce().unpack();
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
