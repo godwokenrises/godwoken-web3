@@ -47,12 +47,12 @@ function getOptional(name: string): string | undefined {
 }
 
 export function calculateChainId(
-  creator_id: number,
-  compatible_chain_id: number
+  creatorId: number,
+  compatibleChainId: number
 ): string {
-  const chain_id_num = compatible_chain_id * Math.pow(2, 32) + creator_id;
+  const chainId = (BigInt(compatibleChainId) << 32n) + BigInt(creatorId);
   console.log(
-    `web3 chain_id: ${chain_id_num}, calculating from compatible_chain_id: ${compatible_chain_id}, creator_id: ${creator_id}`
+    `web3 chain_id: ${chainId}, calculating from compatible_chain_id: ${compatibleChainId}, creator_id: ${creatorId}`
   );
-  return BigInt(chain_id_num).toString(10);
+  return chainId.toString(10);
 }
