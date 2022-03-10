@@ -2,11 +2,11 @@ name: Docker
 
 on:
   push:
-    branches: [main, hot-fix, compatibility-breaking-changes]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login]
     # Publish semver tags as releases.
     tags: ["v*.*.*"]
   pull_request:
-    branches: [main, hot-fix, compatibility-breaking-changes]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -27,14 +27,14 @@ jobs:
 
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
-      # The GHP_CRT secret is password or personal access token with `write:packages` access scope
+      # GitHub automatically creates a unique GITHUB_TOKEN secret to use in this workflow. 
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.ref_type != 'tag' && github.actor || secrets.DOCKERHUB_USERNAME }}
-          password: ${{ github.ref_type != 'tag' && secrets.GHP_CRT || secrets.DOCKERHUB_TOKEN }}
+          username: ${{ github.ref_type != 'tag' && github.repository_owner || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ github.ref_type != 'tag' && secrets.GITHUB_TOKEN || secrets.DOCKERHUB_TOKEN }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
