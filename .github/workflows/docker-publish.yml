@@ -42,7 +42,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ env.REGISTRY }}${{ github.repository_owner == 'nervosnetwork' && 'nervos' || github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}${{ startsWith(github.ref, 'refs/tags') && github.repository_owner == 'nervosnetwork' && 'nervos' || github.repository_owner }}/${{ env.IMAGE_NAME }}
 
       - name: Get Current Commit Id
         id: commit
