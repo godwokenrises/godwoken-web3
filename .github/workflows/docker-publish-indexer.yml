@@ -2,18 +2,17 @@ name: Docker
 
 on:
   push:
-    branches: [ main, hot-fix ]
+    branches: [main, hot-fix, compatibility-breaking-changes]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: ["v*.*.*"]
   pull_request:
-    branches: [ main, hot-fix ]
+    branches: [main, hot-fix, compatibility-breaking-changes]
 
 env:
   # Use docker.io for Docker Hub if empty
-  REGISTRY: ${{ github.repository_owner != 'nervosnetwork' && 'ghcr.io/' || '' }}
+  REGISTRY: ${{ github.ref_type != 'tag' && 'ghcr.io/' || '' }}
   # github.repository as <account>/<repo>
   IMAGE_NAME: godwoken-web3-indexer-prebuilds
-
 
 jobs:
   docker-build-push:
@@ -25,7 +24,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       # The GHP_CRT secret is password or personal access token with `write:packages` access scope
@@ -34,8 +33,8 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME || github.actor }}
-          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.GHP_CRT }}
+          username: ${{ github.ref_type != 'tag' && github.actor || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ github.ref_type != 'tag' && secrets.GHP_CRT || secrets.DOCKERHUB_TOKEN }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -47,8 +46,8 @@ jobs:
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
-      - name: Build and push Docker image to ${{ env.REGISTRY }}${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-        if: ${{ github.repository_owner != 'nervosnetwork'}}
+      - name: New Commit Build => Build and push Docker image to ${{ env.REGISTRY }}${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+        if: ${{ github.ref_type != 'tag' }}
         uses: docker/build-push-action@v2
         with:
           file: docker/indexer/Dockerfile
@@ -59,7 +58,7 @@ jobs:
 
       # Build and push Docker image with Buildx (don't push on PR)
       # only for new tag
-      - name: Build and push Docker image to https://hub.docker.com/r/nervos/godwoken-web3-indexer-prebuilds
+      - name: Official Release Build => Build and push Docker image to https://hub.docker.com/r/nervos/godwoken-web3-indexer-prebuilds
         if: ${{ github.repository_owner == 'nervosnetwork' && startsWith(github.ref, 'refs/tags') }}
         uses: docker/build-push-action@v2
         with:
