@@ -1,4 +1,4 @@
-name: Docker
+name: Docker Build Push (Web3)
 
 on:
   push:
