@@ -150,6 +150,11 @@ export const validators = {
     const value = targetParam.value;
     const data = targetParam.data;
 
+    // to is required
+    if (to == null) {
+      return invalidParamsError(index, `to address is null!`);
+    }
+
     // validate `to`
     if (to !== undefined && to !== null) {
       const toErr = verifyAddress(to, index);

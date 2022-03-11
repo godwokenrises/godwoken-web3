@@ -78,8 +78,8 @@ const Config = require("../../../config/eth.json");
 type U32 = number;
 type U64 = bigint;
 
-const EMPTY_ADDRESS = "0x" + "00".repeat(20);
-const EMPTY_TX_HASH = "0x" + "00".repeat(32);
+const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
+const ZERO_TX_HASH = "0x" + "00".repeat(32);
 
 type GodwokenBlockParameter = U64 | undefined;
 
@@ -276,7 +276,7 @@ export class Eth {
    * 20 bytes 0 hex string as the second argument.
    */
   coinbase(args: []): Address {
-    return EMPTY_ADDRESS;
+    return ZERO_ETH_ADDRESS;
   }
 
   /**
@@ -1050,7 +1050,7 @@ export class Eth {
       logs.map(async (log) => {
         const ethTxHash =
           (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-          EMPTY_TX_HASH;
+          ZERO_TX_HASH;
         return toApiLog(log, ethTxHash);
       })
     );
@@ -1081,7 +1081,7 @@ export class Eth {
           logs.map(async (log) => {
             const ethTxHash =
               (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-              EMPTY_TX_HASH;
+              ZERO_TX_HASH;
             return toApiLog(log, ethTxHash);
           })
         );
@@ -1103,7 +1103,7 @@ export class Eth {
         logs.map(async (log) => {
           const ethTxHash =
             (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-            EMPTY_TX_HASH;
+            ZERO_TX_HASH;
           return toApiLog(log, ethTxHash);
         })
       );
@@ -1357,7 +1357,7 @@ async function ethCallTx(
   isEthWallet: boolean,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const toAddress = txCallObj.to || "0x" + "00".repeat(20);
+  const toAddress = txCallObj.to;
 
   // if eth wallet mode, and `toAddress` not in allow list, reject.
   if (isEthWallet && !allowedAddresses.has(toAddress.toLowerCase())) {
@@ -1378,7 +1378,7 @@ async function buildEthCallTx(
   rpc: GodwokenClient
 ): Promise<RawL2Transaction> {
   const fromAddress = txCallObj.from || envConfig.defaultFromAddress;
-  const toAddress = txCallObj.to || "0x" + "00".repeat(20);
+  const toAddress = txCallObj.to;
   const gas = txCallObj.gas || "0x1000000";
   const gasPrice = txCallObj.gasPrice || "0x1";
   const value = txCallObj.value || "0x0";
