@@ -47,6 +47,11 @@ export function parseGwError(error: any): GwErrorDetail {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    if (err.data == null) {
+      parseGwRpcError(error);
+    }
+
     let polyjuiceSystemLog: PolyjuiceSystemLog | undefined;
     if (err.data.last_log) {
       polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
