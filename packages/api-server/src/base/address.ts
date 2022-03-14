@@ -3,6 +3,8 @@ import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
 import { envConfig } from "./env-config";
 import { Uint32 } from "./types/uint";
 
+const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
+
 class EthToGwArgsBuilder {
   private method: number;
   private ethAddress: HexString;
@@ -14,6 +16,12 @@ class EthToGwArgsBuilder {
 
     if (!ethAddress.startsWith("0x")) {
       throw new Error("Eth address must starts with 0x prefix");
+    }
+
+    if (ethAddress === ZERO_ETH_ADDRESS) {
+      throw new Error(
+        `zero address ${ZERO_ETH_ADDRESS} has no valid script hash!`
+      );
     }
 
     this.method = method;
@@ -73,8 +81,14 @@ export async function ethAddressToAccountId(
   ethAddress: HexString,
   godwokenClient: GodwokenClient
 ): Promise<number | undefined> {
-  if (ethAddress === "0x0000000000000000000000000000000000000000") {
+  if (ethAddress === "0x") {
     return +envConfig.creatorAccountId;
+  }
+
+  if (ethAddress === ZERO_ETH_ADDRESS) {
+    throw new Error(
+      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id!`
+    );
   }
 
   const scriptHash: Hash | undefined = await ethAddressToScriptHash(

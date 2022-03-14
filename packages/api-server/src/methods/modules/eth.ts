@@ -192,7 +192,7 @@ export class Eth {
       validators.blockParameter,
     ]);
     this.estimateGas = middleware(this.estimateGas.bind(this), 1, [
-      validators.ethCallParams,
+      validators.ethEstimateGasParams,
     ]);
     this.newFilter = middleware(this.newFilter.bind(this), 1, [
       validators.newFilterParams,
@@ -518,9 +518,15 @@ export class Eth {
     }
   }
 
-  async estimateGas(args: [TransactionCallObject]): Promise<HexNumber> {
+  async estimateGas(
+    args: [Partial<TransactionCallObject>]
+  ): Promise<HexNumber> {
     try {
       const txCallObj = args[0];
+
+      if (txCallObj.to == null) {
+        txCallObj.to = "0x";
+      }
 
       const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
 
@@ -540,7 +546,7 @@ export class Eth {
       let runResult;
       try {
         runResult = await ethCallTx(
-          txCallObj,
+          txCallObj as TransactionCallObject,
           this.rpc,
           this.ethWallet,
           undefined
