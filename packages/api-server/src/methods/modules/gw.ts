@@ -67,6 +67,7 @@ export class Gw {
       this.get_last_submitted_info.bind(this),
       0
     );
+    this.get_node_info = middleware(this.get_node_info.bind(this), 0);
   }
 
   async ping(args: any[]) {
@@ -405,6 +406,15 @@ export class Gw {
   async get_last_submitted_info(args: any[]) {
     try {
       const result = await this.rpc.gw_get_last_submitted_info(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  async get_node_info(args: any[]) {
+    try {
+      const result = await this.readonlyRpc.gw_get_node_info(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);

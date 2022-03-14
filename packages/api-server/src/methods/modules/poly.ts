@@ -2,9 +2,18 @@ import { Hash, HexNumber, Address } from "@ckb-lumos/base";
 import { toHexNumber } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
 import { Web3Error } from "../error";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
+const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
-  constructor() {}
+  private rpc: GodwokenClient;
+
+  constructor() {
+    this.rpc = new GodwokenClient(
+      envConfig.godwokenJsonRpc,
+      envConfig.godwokenReadonlyJsonRpc
+    );
+  }
 
   async getCreatorId(_args: []): Promise<HexNumber> {
     try {
@@ -62,5 +71,14 @@ export class Poly {
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
+  }
+
+  async version() {
+    const godwokenVersion = await this.rpc.getNodeInfo();
+    return {
+      web3Version,
+      web3IndexerVersion: web3Version, // indexer and api-server should use the same version
+      godwokenVersion,
+    };
   }
 }

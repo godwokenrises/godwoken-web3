@@ -154,6 +154,10 @@ export class GodwokenClient {
     return await this.rpcCall("get_transaction_receipt", hash);
   }
 
+  public async getNodeInfo() {
+    return await this.rpcCall("get_node_info");
+  }
+
   private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
     const name = "gw_" + methodName;
     try {
