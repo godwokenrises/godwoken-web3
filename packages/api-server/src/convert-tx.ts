@@ -3,8 +3,12 @@ import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
-import { ethAddressToAccountId } from "./base/address";
+import {
+  ethAddressToAccountId,
+  ethEoaAddressToScriptHash,
+} from "./base/address";
 import { envConfig } from "./base/env-config";
+import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 
 export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
 
@@ -204,6 +208,15 @@ async function parseRawTransactionData(
 
   if (toId == null) {
     throw new Error(`to id not found by address: ${toA}`);
+  }
+
+  // disable to address is eoa case
+  const toScriptHash = await rpc.getScriptHash(Number(toId));
+  const eoaScriptHash = ethEoaAddressToScriptHash(to);
+  if (toScriptHash === eoaScriptHash) {
+    throw new Error(
+      `to_address can not be EOA address! more info: ${COMPATIBLE_DOCS_URL}`
+    );
   }
 
   const args =
