@@ -4,18 +4,18 @@
 
 ### Transfer Value From EOA To EOA
 
-since there is no native token in Godwoken Polyjuice(while Ethereum has ETH as its native token), we disable transferring value from eoa to eoa ability in the Polyjuice EVM.
+Since there is no native token in Godwoken Polyjuice(while Ethereum has ETH as its native token), we disable transferring value from EOA to EOA ability in Polyjuice EVM.
 
-result:
+### Result
 
 - in the following RPCs, to_address parameter **CAN NOT** be EOA address:
   - eth_call
   - eth_estimateGas
   - eth_sendRawTransaction
 
-recommend workaround:
+#### Recommend workaround
 
-- use Erc20 contract transfer function for transferring the token you want
+- Use the `transfer function` in [CKB_ERC20_Proxy](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b/solidity/erc20/README.md) contract [combined](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b322/solidity/erc20/SudtERC20Proxy_UserDefinedDecimals.sol#L154) with sUDT_ID = 1 (CKB a.k.a. pETH).
 
 ## EVM compatibility
 
