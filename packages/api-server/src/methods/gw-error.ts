@@ -2,6 +2,7 @@
 
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { FailedReason } from "../base/types/api";
+import { COMPATIBLE_DOCS_URL } from "./constant";
 import { RpcError } from "./error";
 import { GW_RPC_REQUEST_ERROR } from "./error-code";
 import { LogItem, PolyjuiceSystemLog } from "./types";
@@ -47,6 +48,11 @@ export function parseGwError(error: any): GwErrorDetail {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    if (err.data == null) {
+      parseGwRpcError(error);
+    }
+
     let polyjuiceSystemLog: PolyjuiceSystemLog | undefined;
     if (err.data.last_log) {
       polyjuiceSystemLog = parsePolyjuiceSystemLog(err.data.last_log);
@@ -111,7 +117,10 @@ export function parseGwRpcError(error: any): void {
 
     // can't find backend by script hash error
     if (err.message?.startsWith("can't find backend for script_hash")) {
-      throw new RpcError(err.code, "to address is not a valid contract.");
+      throw new RpcError(
+        err.code,
+        `to address is not a valid contract. more info: ${COMPATIBLE_DOCS_URL}`
+      );
     }
 
     throw new RpcError(err.code, err.message);
