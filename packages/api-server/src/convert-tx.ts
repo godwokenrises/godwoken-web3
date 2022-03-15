@@ -6,7 +6,7 @@ import * as secp256k1 from "secp256k1";
 import { ethAddressToAccountId } from "./base/address";
 import { envConfig } from "./base/env-config";
 
-export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
+export const DEPLOY_TO_ADDRESS = "0x";
 
 export interface PolyjuiceTransaction {
   nonce: HexNumber;
@@ -134,17 +134,7 @@ async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient
 ) {
-  const {
-    nonce,
-    gasPrice,
-    gasLimit,
-    to: toA,
-    value,
-    data,
-    v,
-    r: rA,
-    s: sA,
-  } = rawTx;
+  const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
   const r = "0x" + rA.slice(2).padStart(64, "0");
   const s = "0x" + sA.slice(2).padStart(64, "0");
 
@@ -152,8 +142,6 @@ async function parseRawTransactionData(
   if (+v % 2 === 0) {
     real_v = "0x01";
   }
-
-  const to = toA === "0x" ? EMPTY_ETH_ADDRESS : toA;
 
   const signature = r + s.slice(2) + real_v.slice(2);
 
@@ -194,7 +182,7 @@ async function parseRawTransactionData(
 
   let args_7 = "";
   let toId: HexNumber | undefined;
-  if (to === EMPTY_ETH_ADDRESS) {
+  if (to === DEPLOY_TO_ADDRESS) {
     args_7 = "0x03";
     toId = "0x" + BigInt(envConfig.creatorAccountId).toString(16);
   } else {
@@ -203,7 +191,7 @@ async function parseRawTransactionData(
   }
 
   if (toId == null) {
-    throw new Error(`to id not found by address: ${toA}`);
+    throw new Error(`to id not found by address: ${to}`);
   }
 
   const args =

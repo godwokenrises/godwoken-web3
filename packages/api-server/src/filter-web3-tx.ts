@@ -17,7 +17,7 @@ import { Uint128, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
 import {
   CKB_SUDT_ID,
-  DEFAULT_EMPTY_ETH_ADDRESS,
+  ZERO_ETH_ADDRESS,
   DEFAULT_LOGS_BLOOM,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
@@ -136,10 +136,7 @@ export async function filterWeb3Transaction(
     const logInfo = parsePolyjuiceSystemLog(polyjuiceSystemLog.data);
 
     let contractAddress = undefined;
-    if (
-      polyjuiceArgs.isCreate &&
-      logInfo.createdAddress !== DEFAULT_EMPTY_ETH_ADDRESS
-    ) {
+    if (polyjuiceArgs.isCreate && logInfo.createdAddress !== ZERO_ETH_ADDRESS) {
       contractAddress = logInfo.createdAddress;
     }
 
