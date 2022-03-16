@@ -25,8 +25,8 @@ export class Poly {
   }
 
   // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
-  async getDefaultFromAddress(_args: []): Promise<Address> {
-    return envConfig.defaultFromAddress;
+  async getDefaultFromId(_args: []): Promise<Address> {
+    return envConfig.defaultFromId;
   }
 
   async getContractValidatorTypeHash(args: []): Promise<Hash> {
