@@ -72,6 +72,8 @@ import {
   ethAddressToAccountId,
   ethAddressToShortScriptHash,
 } from "../../base/address";
+import { keccakFromString } from "ethereumjs-util";
+import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 
 const Config = require("../../../config/eth.json");
 
@@ -476,43 +478,77 @@ export class Eth {
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
 
-      let runResult;
-      try {
-        runResult = await ethCallTx(
+      const executeCallResult = async () => {
+        let runResult;
+        try {
+          runResult = await ethCallTx(
+            txCallObj,
+            this.rpc,
+            this.ethWallet,
+            blockNumber
+          );
+        } catch (err) {
+          const gwErr = parseGwError(err);
+          const failedReason: any = {};
+          if (gwErr.statusCode != null) {
+            failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
+            failedReason.status_type =
+              evmcCodeTypeMapping[gwErr.statusCode.toString()];
+          }
+          if (gwErr.statusReason != null) {
+            failedReason.message = gwErr.statusReason;
+          }
+          let errorData: any = undefined;
+          if (Object.keys(failedReason).length !== 0) {
+            errorData = { failed_reason: failedReason };
+          }
+
+          let errorMessage = gwErr.message;
+          if (gwErr.statusReason != null && failedReason.status_type != null) {
+            // REVERT => revert
+            // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
+            errorMessage = `${failedReason.status_type.toLowerCase()}: ${
+              gwErr.statusReason
+            }`;
+          }
+          throw new RpcError(gwErr.code, errorMessage, errorData);
+        }
+
+        console.log("RunResult:", runResult);
+        return runResult.return_data;
+      };
+
+      // using cache
+      if (envConfig.enableCacheEthCall === "true") {
+        // calculate raw data cache key
+        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+          this.rpc.getTipBlockHash(),
+          this.rpc.getMemPoolStateRoot(),
+        ]);
+        const serializeParams = serializeEthCallParameters(
           txCallObj,
-          this.rpc,
-          this.ethWallet,
           blockNumber
         );
-      } catch (err) {
-        const gwErr = parseGwError(err);
-        const failedReason: any = {};
-        if (gwErr.statusCode != null) {
-          failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
-          failedReason.status_type =
-            evmcCodeTypeMapping[gwErr.statusCode.toString()];
-        }
-        if (gwErr.statusReason != null) {
-          failedReason.message = gwErr.statusReason;
-        }
-        let errorData: any = undefined;
-        if (Object.keys(failedReason).length !== 0) {
-          errorData = { failed_reason: failedReason };
-        }
+        const rawDataKey = getEthCallCacheKey(
+          serializeParams,
+          tipBlockHash,
+          memPollStateRoot
+        );
 
-        let errorMessage = gwErr.message;
-        if (gwErr.statusReason != null && failedReason.status_type != null) {
-          // REVERT => revert
-          // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
-          errorMessage = `${failedReason.status_type.toLowerCase()}: ${
-            gwErr.statusReason
-          }`;
-        }
-        throw new RpcError(gwErr.code, errorMessage, errorData);
+        const prefixName = `${this.constructor.name}:call`; // FIXME: ${this.call.name} is null
+        const constructArgs: DataCacheConstructor = {
+          prefixName,
+          rawDataKey,
+          executeCallResult,
+        };
+        const dataCache = new RedisDataCache(constructArgs);
+        const return_data = await dataCache.get();
+        return return_data;
+      } else {
+        // not using cache
+        const return_data = await executeCallResult();
+        return return_data;
       }
-
-      console.log("RunResult:", runResult);
-      return runResult.return_data;
     } catch (error: any) {
       throw new Web3Error(error.message, error.data);
     }
@@ -1533,4 +1569,34 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
     data: "0x" + logData.toString("hex"),
     topics: topics,
   };
+}
+
+function serializeEthCallParameters(
+  ethCallObj: TransactionCallObject,
+  blockNumber: GodwokenBlockParameter
+): HexString {
+  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  const toSerializeObj = {
+    from: ethCallObj.from,
+    to: ethCallObj.to,
+    gas: ethCallObj.gas || "0x",
+    data: ethCallObj.data || "0x",
+    value: ethCallObj.value || "0x",
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x",
+  };
+  //console.log("to serialize eth_call cache obj", toSerializeObj);
+  return JSON.stringify(toSerializeObj);
+}
+
+function getEthCallCacheKey(
+  serializeEthCallParams: string,
+  tipBlockHash: HexString,
+  memPoolStateRoot: HexString
+) {
+  const hash = "0x" + keccakFromString(serializeEthCallParams).toString("hex");
+  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+    2,
+    18
+  )}${hash.slice(2, 18)}`;
+  return id;
 }
