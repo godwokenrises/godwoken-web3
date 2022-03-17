@@ -1383,13 +1383,19 @@ async function buildEthCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient
 ): Promise<RawL2Transaction> {
-  const fromAddress = txCallObj.from || envConfig.defaultFromAddress;
+  const fromAddress = txCallObj.from;
   const toAddress = txCallObj.to;
   const gas = txCallObj.gas || "0x1000000";
   const gasPrice = txCallObj.gasPrice || "0x1";
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x0";
   let fromId: number | undefined;
+
+  if (!fromAddress) {
+    fromId = +envConfig.defaultFromId;
+    console.log(`use default fromId: ${fromId}`);
+  }
+
   if (
     fromAddress != null &&
     fromAddress != undefined &&

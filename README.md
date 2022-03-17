@@ -16,7 +16,6 @@ ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
 COMPATIBLE_CHAIN_ID=<godwoken compatible chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
-DEFAULT_FROM_ADDRESS=<default from eth address>
 DEFAULT_FROM_ID=<default from eth address's godwoken account id>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
@@ -248,7 +247,7 @@ resource:
 
 ### poly
 - poly_getChainInfo
-- poly_getDefaultFromAddress
+- poly_getDefaultFromId
 - poly_getContractValidatorTypeHash
 - poly_getRollupTypeHash
 - poly_getRollupConfigHash

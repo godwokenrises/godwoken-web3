@@ -14,7 +14,6 @@ export const envConfig = {
     +getRequired("CREATOR_ACCOUNT_ID"),
     +getRequired("COMPATIBLE_CHAIN_ID")
   ),
-  defaultFromAddress: getRequired("DEFAULT_FROM_ADDRESS"),
   defaultFromId: getRequired("DEFAULT_FROM_ID"),
   l2SudtValidatorScriptTypeHash: getRequired(
     "L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH"
