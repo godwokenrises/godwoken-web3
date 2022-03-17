@@ -57,10 +57,11 @@ export class Store {
     value: string | number,
     expiredTimeMilSecs?: number
   ) {
-    const setOptions = {
-      ...this.setOptions,
-      PX: expiredTimeMilSecs || this.setOptions.PX,
-    };
+    let setOptions = this.setOptions;
+    const PX = expiredTimeMilSecs || this.setOptions.PX;
+    if (PX) {
+      setOptions.PX = PX;
+    }
 
     return await this.client.set(key, value.toString(), setOptions);
   }

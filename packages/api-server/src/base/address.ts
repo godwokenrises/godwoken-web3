@@ -1,9 +1,14 @@
 import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
 import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
+import { Store } from "../cache/store";
 import { envConfig } from "./env-config";
 import { Uint32 } from "./types/uint";
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
+
+// the eth address vs script hash is not changeable, so we set no expire for cache
+const scriptHashCache = new Store(envConfig.redisUrl, false);
+scriptHashCache.init();
 
 class EthToGwArgsBuilder {
   private method: number;
@@ -34,11 +39,20 @@ class EthToGwArgsBuilder {
   }
 }
 
-// TODO: cache
 export async function ethAddressToScriptHash(
   ethAddress: HexString,
   godwokenClient: GodwokenClient
 ): Promise<Hash | undefined> {
+  // try get result from redis cache
+  const CACHE_KEY_PREFIX = "ethAddressToScriptHash";
+  let result = await scriptHashCache.get(`${CACHE_KEY_PREFIX}:${ethAddress}`);
+  if (result != null) {
+    console.debug(
+      `[ethAddressToScriptHash] using cache: ${ethAddress} -> ${result}`
+    );
+    return result;
+  }
+
   const fromId: number = +envConfig.defaultFromId;
   const nonce: number = await godwokenClient.getNonce(fromId);
   const args: HexString = new EthToGwArgsBuilder(0, ethAddress).build();
@@ -56,6 +70,14 @@ export async function ethAddressToScriptHash(
       rawL2Tx
     );
     scriptHash = runResult.return_data;
+
+    // add cache
+    if (scriptHash != null) {
+      console.debug(
+        `[ethAddressToScriptHash] update cache: ${ethAddress} -> ${scriptHash}`
+      );
+      scriptHashCache.insert(`${CACHE_KEY_PREFIX}:${ethAddress}`, scriptHash);
+    }
   } catch (err: any) {
     // Account not found.
     return undefined;
