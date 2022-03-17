@@ -94,7 +94,7 @@ export class RedisDataCache {
   async get() {
     const dataKey = this.dataKey;
     const value = await pubClient.get(dataKey);
-    if (value !== null) {
+    if (value != null) {
       console.debug(
         `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
       );
@@ -103,7 +103,7 @@ export class RedisDataCache {
 
     const setDataKeyOptions = { PX: this.dataKeyExpiredTimeOut };
 
-    if (this.lock == undefined) {
+    if (this.lock == null) {
       const result = await this.executeCallResult();
       // set data cache
       await pubClient.set(dataKey, result, setDataKeyOptions);
@@ -133,7 +133,7 @@ export class RedisDataCache {
 
     while (true) {
       const value = await pubClient.get(dataKey);
-      if (value !== null) {
+      if (value != null) {
         console.debug(
           `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
         );
@@ -215,7 +215,7 @@ export class RedisDataCache {
   }
 
   async subscribe() {
-    if (this.lock == undefined) {
+    if (this.lock == null) {
       throw new Error(`enable redis lock first!`);
     }
 
