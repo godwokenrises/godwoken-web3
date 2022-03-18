@@ -320,7 +320,7 @@ export class Query {
     const address = normalizeLogQueryAddress(option.address);
     const topics = option.topics || [];
 
-    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+    if (typeof blockHashOrFromBlock === "string" && typeof toBlock === 'undefined') {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
         address,
@@ -335,7 +335,7 @@ export class Query {
       return filterLogsByTopics(logs, topics);
     }
 
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+    if (typeof blockHashOrFromBlock === "bigint" && typeof toBlock !== 'undefined') {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
