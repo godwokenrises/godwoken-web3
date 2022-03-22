@@ -1,8 +1,13 @@
 import { middleware, validators } from "../validator";
 import { Hash, HexNumber, Address, HexString } from "@ckb-lumos/base";
-import { toHexNumber } from "../../base/types/uint";
+import { toHexNumber, Uint64 } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
-import { InternalError, InvalidParamsError, Web3Error } from "../error";
+import {
+  HeaderNotFoundError,
+  InternalError,
+  InvalidParamsError,
+  Web3Error,
+} from "../error";
 import { Query } from "../../db";
 import { isAddressMatch, isShortAddressOnChain } from "../../base/address";
 import {
@@ -18,10 +23,13 @@ import {
   L2TransactionWithAddressMapping,
   RawL2TransactionWithAddressMapping,
 } from "@polyjuice-provider/godwoken/lib/addressTypes";
-import { GodwokenClient, RunResult } from "@godwoken-web3/godwoken";
+import { GodwokenClient, RunResult, U64 } from "@godwoken-web3/godwoken";
 import { parseGwRpcError } from "../gw-error";
 import { keccakFromHexString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+import { BlockParameter } from "../types";
+
+type GodwokenBlockParameter = U64 | undefined;
 
 export class Poly {
   private query: Query;
@@ -87,15 +95,58 @@ export class Poly {
     }
   }
 
+  private async getTipNumber(): Promise<U64> {
+    const num = await this.query.getTipBlockNumber();
+    if (num == null) {
+      throw new Error("tip block number not found!!");
+    }
+    return num;
+  }
+
+  private async parseBlockParameter(
+    blockParameter: BlockParameter
+  ): Promise<GodwokenBlockParameter> {
+    console.log(blockParameter);
+    switch (blockParameter) {
+      case "latest":
+        return undefined;
+      case "earliest":
+        return 10n;
+      case "pending":
+        // null means pending in godwoken
+        return undefined;
+    }
+
+    const tipNumber: bigint = await this.getTipNumber();
+    const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
+    if (tipNumber < blockNumber) {
+      throw new HeaderNotFoundError();
+    }
+    return blockNumber;
+  }
+
   async executeRawL2Transaction(args: any[]) {
     try {
       const serializeRawL2Tx = args[0];
+      const blockParameter: BlockParameter = args[1] || "latest";
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
+
+      console.log(
+        "[poly_executeRawL2Transaction] blockParameter: ",
+        blockParameter,
+        "blockNumber: ",
+        blockNumber
+      );
 
       const executeCallResult = async () => {
         const txWithAddressMapping: RawL2TransactionWithAddressMapping =
           deserializeRawL2TransactionWithAddressMapping(serializeRawL2Tx);
         const rawL2Tx = txWithAddressMapping.raw_tx;
-        const jsonResult = await this.rpc.executeRawL2Transaction(rawL2Tx);
+        const jsonResult = await this.rpc.executeRawL2Transaction(
+          rawL2Tx,
+          blockNumber
+        );
         // if result is fine, then tx is legal, we can start thinking to store the address mapping
         await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
         const stringResult = JSON.stringify(jsonResult);
@@ -109,11 +160,12 @@ export class Poly {
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
-        const rawDataKey = getPolyExecRawL2TxCacheKey(
-          serializeRawL2Tx,
-          tipBlockHash,
-          memPollStateRoot
-        );
+        const rawDataKey =
+          getPolyExecRawL2TxCacheKey(
+            serializeRawL2Tx,
+            tipBlockHash,
+            memPollStateRoot
+          ) + `:${blockNumber?.toString()}`; // block number will effect the result
 
         const prefixName = `${this.constructor.name}:${this.executeRawL2Transaction.name}`;
         const constructArgs: DataCacheConstructor = {
