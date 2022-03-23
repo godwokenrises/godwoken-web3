@@ -109,7 +109,7 @@ checkout [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/develop/
 
 > This method is similar to the concept of `"eth_call"` in Ethereum.
 
-all most the same with `gw_execute_raw_l2Transaction`, but the first param `serialized raw l2Transaction` use different molecule structure with an additional `addressMapping` filed.
+`poly_executeRawL2Transaction` is almost the same with `gw_execute_raw_l2Transaction`, but its first param `serializedRawL2TransactionWithAddressMapping` uses different molecule structure with an additional `addressMapping` filed.
 
 - gw_execute_raw_l2Transaction
   - params: [serializedRawL2Transaction, blockNumber]
@@ -122,7 +122,7 @@ all most the same with `gw_execute_raw_l2Transaction`, but the first param `seri
 
 > This method is similar to the concept of `"eth_sendRawTransaction"` in Ethereum.
 
-all most the same with `gw_submit_l2Transaction`, but the first param `serialized l2Transaction` use different molecule structure with an additional `addressMapping` filed.
+`poly_submitL2Transaction` is almost the same with `gw_submit_l2Transaction`, but its first param `serializedL2TransactionWithAddressMapping` use different molecule structure with an additional `addressMapping` filed.
 
 - gw_submit_l2Transaction
   - params: [serializedL2Transaction]
