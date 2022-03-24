@@ -23,7 +23,7 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
-"@ckb-lumos/base@0.18.0-rc1", "@ckb-lumos/base@^0.18.0-rc1":
+"@ckb-lumos/base@0.18.0-rc1":
   version "0.18.0-rc1"
   resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.18.0-rc1.tgz#2465f6d66d0ab18e5cea7ffcc8a79da508451ab2"
   integrity sha512-HzifCF5svubFWDeG636FtdE4qJed3sWwG1huUxlMl4nGL3gdjotGiVm/x6xhedS/wzw//4wFcnEVXcMd/IZikA==
@@ -32,6 +32,30 @@
     ckb-js-toolkit "^0.10.2"
     immutable "^4.0.0-rc.12"
     js-xxhash "^1.0.4"
+
+"@ckb-lumos/base@0.18.0-rc6":
+  version "0.18.0-rc6"
+  resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.18.0-rc6.tgz#47fba5c619359e0715b191d806608f22bf96d52d"
+  integrity sha512-c/bgMljQaLYtB1HXioEDQUOKt+XyHnm7aB5JSaJm5GQHZsmgstf1H+XfOT6GWH2GyvC2FgltQxXt03DI5Er4vg==
+  dependencies:
+    "@ckb-lumos/bi" "0.18.0-rc6"
+    "@ckb-lumos/toolkit" "0.18.0-rc6"
+    "@types/lodash.isequal" "^4.5.5"
+    blake2b "^2.1.3"
+    js-xxhash "^1.0.4"
+    lodash.isequal "^4.5.0"
+
+"@ckb-lumos/bi@0.18.0-rc6":
+  version "0.18.0-rc6"
+  resolved "https://registry.yarnpkg.com/@ckb-lumos/bi/-/bi-0.18.0-rc6.tgz#9c9754ebe7bd95ebcf907f5cac9e4619273d6056"
+  integrity sha512-5qWS+7ssrV6CqM0qMuSILbqUto93VDJNBdr6yA2Q1y+3/WCXmP8LkZ7aczCHaNH4Vpv9VpQjCtps8LXaZIBqug==
+  dependencies:
+    jsbi "^4.1.0"
+
+"@ckb-lumos/toolkit@0.18.0-rc6":
+  version "0.18.0-rc6"
+  resolved "https://registry.yarnpkg.com/@ckb-lumos/toolkit/-/toolkit-0.18.0-rc6.tgz#e11849aab895bd152b953ce0cd25101970111d06"
+  integrity sha512-s4VweBERcelCupeaAZlspaAXJFZH9BGlLkPbYUDbVuNz7Fmss39FqKQOJohS9rBqLkeINxO4BmuSjdCaqnuDfg==
 
 "@concordance/react@^2.0.0":
   version "2.0.0"
@@ -551,6 +575,18 @@
     "@types/abstract-leveldown" "*"
     "@types/level-errors" "*"
     "@types/node" "*"
+
+"@types/lodash.isequal@^4.5.5":
+  version "4.5.5"
+  resolved "https://registry.yarnpkg.com/@types/lodash.isequal/-/lodash.isequal-4.5.5.tgz#4fed1b1b00bef79e305de0352d797e9bb816c8ff"
+  integrity sha512-4IKbinG7MGP131wRfceK6W4E/Qt3qssEFLF30LnJbjYiSfHGGRU/Io8YxXrZX109ir+iDETC8hw8QsDijukUVg==
+  dependencies:
+    "@types/lodash" "*"
+
+"@types/lodash@*":
+  version "4.14.180"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.180.tgz#4ab7c9ddfc92ec4a887886483bc14c79fb380670"
+  integrity sha512-XOKXa1KIxtNXgASAnwj7cnttJxS4fksBRywK/9LzRV5YxrF80BXZIGeQSuoESQ/VkUj30Ae0+YcuHc15wJCB2g==
 
 "@types/lodash@^4.14.159":
   version "4.14.171"
@@ -2902,6 +2938,11 @@ jsbi@^3.1.2:
   resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.1.5.tgz#70c2aaa2f75e1dc7604fed45298061ca23724046"
   integrity sha512-w2BY0VOYC1ahe+w6Qhl4SFoPvPsZ9NPHY4bwass+LCgU7RK3PBoVQlQ3G1s7vI8W3CYyJiEXcbKF7FIM/L8q3Q==
 
+jsbi@^4.1.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-4.2.0.tgz#975567e0dd47fdf91bad4b5a681070d15e244b68"
+  integrity sha512-JzhwPkH7Ra8O1b5uHmWxl6N8ZumqGvMXgpKcsq0/iWlnB+KkzbekCIcLl3hu3sFGTLNXAuXIqY4STtE0ZfT1zA==
+
 json-buffer@3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/json-buffer/-/json-buffer-3.0.0.tgz#5b1f397afc75d677bde8bcfc0e47e1f9a3d9a898"
@@ -3087,6 +3128,11 @@ lodash.camelcase@^4.3.0:
   version "4.3.0"
   resolved "https://registry.yarnpkg.com/lodash.camelcase/-/lodash.camelcase-4.3.0.tgz#b28aa6288a2b9fc651035c7711f65ab6190331a6"
   integrity sha1-soqmKIorn8ZRA1x3EfZathkDMaY=
+
+lodash.isequal@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/lodash.isequal/-/lodash.isequal-4.5.0.tgz#415c4478f2bcc30120c22ce10ed3226f7d3e18e0"
+  integrity sha1-QVxEePK8wwEgwizhDtMib30+GOA=
 
 lodash.merge@^4.6.2:
   version "4.6.2"
