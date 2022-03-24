@@ -30,6 +30,7 @@ export const envConfig = {
   sentryDns: getOptional("SENTRY_DNS"),
   sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
   godwokenReadonlyJsonRpc: getOptional("GODWOKEN_READONLY_JSON_RPC"),
+  enableCacheEthCall: getOptional("ENABLE_CACHE_ETH_CALL"),
 };
 
 function getRequired(name: string): string {
