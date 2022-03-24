@@ -1,23 +1,24 @@
-name: Docker
+name: Docker Build Push (Web3)
 
 on:
   push:
-    branches: [ main, hot-fix ]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: ["v*.*.*"]
   pull_request:
-    branches: [ main, hot-fix ]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login]
 
 env:
   # Use docker.io for Docker Hub if empty
-  REGISTRY: ${{ github.repository_owner != 'nervosnetwork' && 'ghcr.io/' || '' }}
+  REGISTRY: ${{ github.ref_type != 'tag' && 'ghcr.io/' || '' }}
   # github.repository as <account>/<repo>
   IMAGE_NAME: godwoken-web3-prebuilds
-
 
 jobs:
   docker-build-push:
     runs-on: ubuntu-latest
+
+    # If you specify the access for any of these scopes, all of those that are not specified are set to none.
     permissions:
       contents: read
       packages: write
@@ -25,17 +26,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
-      # The GHP_CRT secret is password or personal access token with `write:packages` access scope
+      # GitHub automatically creates a unique GITHUB_TOKEN secret to use in this workflow. 
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME || github.actor }}
-          password: ${{ secrets.DOCKERHUB_TOKEN || secrets.GHP_CRT }}
+          username: ${{ github.ref_type != 'tag' && github.repository_owner || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ github.ref_type != 'tag' && secrets.GITHUB_TOKEN || secrets.DOCKERHUB_TOKEN }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -43,22 +44,26 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ env.REGISTRY }}${{ github.repository_owner == 'nervosnetwork' && 'nervos' || github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}${{ startsWith(github.ref, 'refs/tags') && github.repository_owner == 'nervosnetwork' && 'nervos' || github.repository_owner }}/${{ env.IMAGE_NAME }}
+
+      - name: Get Current Commit Id
+        id: commit
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
-      - name: Build and push Docker image to ${{ env.REGISTRY }}${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-        if: ${{ github.repository_owner != 'nervosnetwork'}}
+      - name: New Commit Build => Build and push Docker image to ${{ env.REGISTRY }}${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+        if: ${{ github.ref_type != 'tag' }}
         uses: docker/build-push-action@v2
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}-${{ steps.commit.outputs.sha_short }}
           labels: ${{ steps.meta.outputs.labels }}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # only for new tag
-      - name: Build and push Docker image to https://hub.docker.com/r/nervos/godwoken-web3-prebuilds
+      - name: Official Release Build => Build and push Docker image to https://hub.docker.com/r/nervos/godwoken-web3-prebuilds
         if: ${{ github.repository_owner == 'nervosnetwork' && startsWith(github.ref, 'refs/tags') }}
         uses: docker/build-push-action@v2
         with:
@@ -66,8 +71,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Setup tmate session
-        if: ${{ failure() }}
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 30
