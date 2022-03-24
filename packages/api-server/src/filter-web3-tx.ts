@@ -10,7 +10,7 @@ import {
   schemas,
   U64,
 } from "@godwoken-web3/godwoken";
-import { Reader } from "ckb-js-toolkit";
+import { Reader } from "@ckb-lumos/toolkit";
 import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
 import { Uint128, Uint32, Uint64 } from "./base/types/uint";
