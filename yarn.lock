@@ -23,16 +23,6 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
-"@ckb-lumos/base@0.18.0-rc1":
-  version "0.18.0-rc1"
-  resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.18.0-rc1.tgz#2465f6d66d0ab18e5cea7ffcc8a79da508451ab2"
-  integrity sha512-HzifCF5svubFWDeG636FtdE4qJed3sWwG1huUxlMl4nGL3gdjotGiVm/x6xhedS/wzw//4wFcnEVXcMd/IZikA==
-  dependencies:
-    blake2b "^2.1.3"
-    ckb-js-toolkit "^0.10.2"
-    immutable "^4.0.0-rc.12"
-    js-xxhash "^1.0.4"
-
 "@ckb-lumos/base@0.18.0-rc6":
   version "0.18.0-rc6"
   resolved "https://registry.yarnpkg.com/@ckb-lumos/base/-/base-0.18.0-rc6.tgz#47fba5c619359e0715b191d806608f22bf96d52d"
@@ -328,13 +318,14 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@polyjuice-provider/base@^0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@polyjuice-provider/base/-/base-0.1.3.tgz#aa77d9e424ad8927637b96b84be4a3810d44df44"
-  integrity sha512-RDD7QygnU/XOfFl2dliAySkBsQvtgETkT5iB6OpLVAljlVDzuGiWMIuVLo/VGOIBW9Iao3nVutJ4U4SXoIPq0A==
+"@polyjuice-provider/base@^0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@polyjuice-provider/base/-/base-0.1.5.tgz#0ab348e98e77c96ff3343ba83fdd223c81c9f837"
+  integrity sha512-KEaUv+PIKoMxChf3c08PsMSw+1fN50qLDPfd4RYqh3WGBmwyfm69WzWhVbyjWpVPyTDnPZrkJIaL34O0oLU7rg==
   dependencies:
-    "@ckb-lumos/base" "0.18.0-rc1"
-    "@polyjuice-provider/godwoken" "0.1.3"
+    "@ckb-lumos/base" "0.18.0-rc6"
+    "@ckb-lumos/toolkit" "0.18.0-rc6"
+    "@polyjuice-provider/godwoken" "0.1.5"
     buffer "^6.0.3"
     encoding "^0.1.13"
     eth-sig-util "^3.0.1"
@@ -344,14 +335,16 @@
     web3-utils "1.6.1"
     xhr2-cookies "^1.1.0"
 
-"@polyjuice-provider/godwoken@0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@polyjuice-provider/godwoken/-/godwoken-0.1.3.tgz#468d3c2dcc7e20cd47e790184c718a91756e9e37"
-  integrity sha512-JlqwxcKLXice3r96HJsfSb6N3lVA3AaIMkElUYQR1oY/JQgFjHBr7h2zMZkBQGdTSZsDbqz2ePIqHjyvvFpJaw==
+"@polyjuice-provider/godwoken@0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@polyjuice-provider/godwoken/-/godwoken-0.1.5.tgz#7b412b039768fed5abe66b5684b9abed666a42f9"
+  integrity sha512-feLl4kksZTvmCjrVPjky610qu0NG8sDjYGfgs3pTr9zrP1/q7aRQzuKTrkJnskv5OMOsnsY7r3eLQDlml0C+DA==
   dependencies:
-    "@ckb-lumos/base" "0.18.0-rc1"
-    ckb-js-toolkit "^0.9.3"
+    "@ckb-lumos/base" "0.18.0-rc6"
+    "@ckb-lumos/toolkit" "0.18.0-rc6"
+    cross-fetch "^3.1.4"
     immutable "^4.0.0-rc.12"
+    jsbi "^4.1.0"
     keccak256 "^1.0.2"
 
 "@protobufjs/aspromise@^1.1.1", "@protobufjs/aspromise@^1.1.2":
@@ -1319,22 +1312,6 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
     inherits "^2.0.1"
     safe-buffer "^5.0.1"
 
-ckb-js-toolkit@^0.10.2:
-  version "0.10.2"
-  resolved "https://registry.yarnpkg.com/ckb-js-toolkit/-/ckb-js-toolkit-0.10.2.tgz#d616eaef315babe797ea9ee7a271c51f82fe5a80"
-  integrity sha512-hVfIH5OBYibAssTag68zVhuUdqB4Iu3EqbCJrOsePpW+TryvqdmvGca2RQyGm0h6fhVK6RuNuKQ8rSdq/cjgUg==
-  dependencies:
-    cross-fetch "^3.0.6"
-    jsbi "^3.1.2"
-
-ckb-js-toolkit@^0.9.3:
-  version "0.9.3"
-  resolved "https://registry.yarnpkg.com/ckb-js-toolkit/-/ckb-js-toolkit-0.9.3.tgz#a0e71a3b8098915ba677b7f7215435878a5f1d98"
-  integrity sha512-P/j+0e98alJmulLFJNzcVFAlWu7OqoAjgAbW86Zywh0tU7UQGmTBnv0pEmAmWLFoq7jYmIp/aabf+XfC4kFrtw==
-  dependencies:
-    cross-fetch "^3.0.6"
-    jsbi "^3.1.2"
-
 clean-stack@^2.0.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/clean-stack/-/clean-stack-2.2.0.tgz#ee8472dbb129e727b31e8a10a427dee9dfe4008b"
@@ -1583,7 +1560,7 @@ create-require@^1.1.0:
   resolved "https://registry.yarnpkg.com/create-require/-/create-require-1.1.1.tgz#c1d7e8f1e5f6cfc9ff65f9cd352d37348756c333"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
 
-cross-fetch@^3.0.6, cross-fetch@^3.1.5:
+cross-fetch@^3.1.4, cross-fetch@^3.1.5:
   version "3.1.5"
   resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-3.1.5.tgz#e1389f44d9e7ba767907f7af8454787952ab534f"
   integrity sha512-lvb1SBsI0Z7GDwmuid+mU3kWVBwTVUbe7S0H52yaaAdQOXq2YktTCZdlAcNKFzE6QtRz0snpw9bNiPeOIkkQvw==
@@ -2932,11 +2909,6 @@ js-yaml@^4.1.0:
   integrity sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA==
   dependencies:
     argparse "^2.0.1"
-
-jsbi@^3.1.2:
-  version "3.1.5"
-  resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.1.5.tgz#70c2aaa2f75e1dc7604fed45298061ca23724046"
-  integrity sha512-w2BY0VOYC1ahe+w6Qhl4SFoPvPsZ9NPHY4bwass+LCgU7RK3PBoVQlQ3G1s7vI8W3CYyJiEXcbKF7FIM/L8q3Q==
 
 jsbi@^4.1.0, jsbi@^4.2.0:
   version "4.2.0"
