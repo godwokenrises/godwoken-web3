@@ -1,6 +1,6 @@
 import http from "http";
 import https from "https";
-import { RPC as Rpc } from "ckb-js-toolkit";
+import { RPC as Rpc } from "@ckb-lumos/toolkit";
 
 const httpAgent = new http.Agent({
   keepAlive: true,
