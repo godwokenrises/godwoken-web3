@@ -1,5 +1,5 @@
 import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
-import { RPC } from "ckb-js-toolkit";
+import { RPC } from "@ckb-lumos/toolkit";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";

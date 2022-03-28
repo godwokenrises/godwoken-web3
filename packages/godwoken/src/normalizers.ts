@@ -1,4 +1,4 @@
-import { Reader } from "ckb-js-toolkit";
+import { Reader } from "@ckb-lumos/toolkit";
 import { L2Transaction, RawL2Transaction } from "./types";
 
 // Taken for now from https://github.com/xxuejie/ckb-js-toolkit/blob/68f5ff709f78eb188ee116b2887a362123b016cc/src/normalizers.js#L17-L69,
