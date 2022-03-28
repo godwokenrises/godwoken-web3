@@ -452,9 +452,20 @@ impl Web3Indexer {
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
         let block_producer_id: u32 = l2_block.raw().block_producer_id().unpack();
-        let block_producer_script_hash =
-            get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
-        let miner_address = account_script_hash_to_eth_address(block_producer_script_hash);
+
+        // If block producer id == 0 (meta contract id), log a warning message.
+        // If block producer id != 0, and eth address not found, log an error message.
+        let miner_address = if block_producer_id == 0 {
+            log::warn!("Block producer id equals to 0");
+            [0u8; 20]
+        } else {
+            let block_producer_script_hash =
+                get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
+            account_script_hash_to_eth_address(
+                block_producer_script_hash,
+                &self.godwoken_rpc_client,
+            )?
+        };
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();
         let timestamp =
             NaiveDateTime::from_timestamp((epoch_time_as_millis / MILLIS_PER_SEC) as i64, 0);
