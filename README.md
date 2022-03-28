@@ -9,26 +9,18 @@ A Web3 RPC compatible layer build upon Godwoken/Polyjuice.
 ```bash
 $ cat > ./packages/api-server/.env <<EOF
 DATABASE_URL=postgres://username:password@localhost:5432/your_db
+REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
+
 GODWOKEN_JSON_RPC=<godwoken rpc>
 GODWOKEN_READONLY_JSON_RPC=<optional, default equals to GODWOKEN_JSON_RPC>
-ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
-ROLLUP_TYPE_HASH=<godwoken rollup type hash>
-ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
-COMPATIBLE_CHAIN_ID=<godwoken compatible chain id in integer>
-CREATOR_ACCOUNT_ID=<your creator account id in integer>
-DEFAULT_FROM_ID=<default from eth address's godwoken account id>
-POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
-L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
-ETH_ADDRESS_REGISTRY_ACCOUNT_ID=<required, eth address registry account id>
 
-TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
 NEW_RELIC_APP_NAME=<new relic app name, optional, default to 'Godwoken Web3'>
-CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
-REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to localhost on port 6379>
+
 PG_POOL_MAX=<pg pool max count, optional, default to 20>
+CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
 EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
 ENABLE_CACHE_ETH_CALL=<optional, enable eth_call cache, default to false>

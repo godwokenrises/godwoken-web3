@@ -11,7 +11,6 @@ import {
   U64,
 } from "@godwoken-web3/godwoken";
 import { Reader } from "@ckb-lumos/toolkit";
-import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
 import { Uint128, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
@@ -22,6 +21,7 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
+import { gwConfig } from "./base/gw-config";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -47,11 +47,11 @@ export async function filterWeb3Transaction(
   }
 
   // skip tx with non eth_account_lock or non tron_account_lock from_id
-  if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
-    if (envConfig.tronAccountLockHash == null) {
+  if (fromScript.code_hash !== gwConfig.configEoas?.eth.typeHash!) {
+    if (gwConfig.configEoas?.tron.typeHash == null) {
       return undefined;
     }
-    if (fromScript.code_hash !== envConfig.tronAccountLockHash) {
+    if (fromScript.code_hash !== gwConfig.configEoas?.tron.typeHash!) {
       return undefined;
     }
   }
@@ -59,7 +59,7 @@ export async function filterWeb3Transaction(
   const fromScriptArgs: HexString = fromScript.args;
   if (
     fromScriptArgs.length !== 106 ||
-    fromScriptArgs.slice(0, 66) !== envConfig.rollupTypeHash
+    fromScriptArgs.slice(0, 66) !== gwConfig.rollupCell?.typeHash
   ) {
     console.error("Wrong from_address's script args:", fromScriptArgs);
     return undefined;
@@ -87,7 +87,10 @@ export async function filterWeb3Transaction(
 
   const nonce: HexU32 = l2Tx.raw.nonce;
 
-  if (toScript.code_hash === envConfig.polyjuiceValidatorTypeHash) {
+  if (
+    toScript.code_hash ===
+    gwConfig.configBackends?.polyjuice.validatorScriptTypeHash!
+  ) {
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
 
@@ -184,7 +187,7 @@ export async function filterWeb3Transaction(
     return [ethTx, receipt];
   } else if (
     toId === +CKB_SUDT_ID &&
-    toScript.code_hash === envConfig.l2SudtValidatorScriptTypeHash
+    toScript.code_hash === gwConfig.configGwScripts?.l2Sudt.typeHash!
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {

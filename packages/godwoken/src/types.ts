@@ -1,4 +1,4 @@
-import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 
 export type U32 = number;
 export type U64 = bigint;
@@ -53,4 +53,66 @@ export interface L2TransactionReceipt {
 export interface AccountMerkleState {
   merkle_root: Hash;
   count: HexU32;
+}
+
+export enum EoaType {
+  Eth = "Eth",
+  Tron = "Tron",
+}
+
+export interface Eoa {
+  typeHash: HexString;
+  type: EoaType;
+}
+
+export enum BackendType {
+  Unknown = "Unknown",
+  Meta = "Meta",
+  Sudt = "Sudt",
+  Polyjuice = "Polyjuice",
+  EthAddrReg = "EthAddrReg",
+}
+export interface BackendInfo {
+  validatorScriptHash: HexString;
+  generatorCodeHash: HexString;
+  validatorScriptTypeHash: HexString;
+  type: BackendType;
+}
+
+export enum GwScriptType {
+  Deposit = "Deposit",
+  Withdraw = "Withdraw",
+  StateValidator = "StateValidator",
+  StakeLock = "StakeLock",
+  CustodianLock = "CustodianLock",
+  ChallengeLock = "ChallengeLock",
+  L1Sudt = "L1Sudt",
+  L2Sudt = "L2Sudt",
+  omniLock = "OmniLock",
+}
+export interface GwScript {
+  typeHash: HexString;
+  script: Script;
+  type: GwScriptType;
+}
+
+export interface RollupCell {
+  typeHash: HexString;
+  script: Script;
+}
+
+export interface RollupConfig {
+  RequiredStakingCapacity: HexNumber;
+  ChallengeMaturityBlocks: HexNumber;
+  FinalityBlocks: HexNumber;
+  RewardBurnRate: HexNumber;
+  CompatibleChainId: HexNumber;
+}
+export interface NodeInfo {
+  backends: Array<BackendInfo>;
+  eoas: Array<Eoa>;
+  scripts: Array<GwScript>;
+  rollupCell: RollupCell;
+  rollupConfig: RollupConfig;
+  version: string;
 }

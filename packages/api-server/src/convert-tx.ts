@@ -7,7 +7,7 @@ import {
   ethAddressToAccountId,
   ethEoaAddressToScriptHash,
 } from "./base/address";
-import { envConfig } from "./base/env-config";
+import { gwConfig } from "./base/gw-config";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 
 export const DEPLOY_TO_ADDRESS = "0x";
@@ -188,7 +188,7 @@ async function parseRawTransactionData(
   let toId: HexNumber | undefined;
   if (to === DEPLOY_TO_ADDRESS) {
     args_7 = "0x03";
-    toId = "0x" + BigInt(envConfig.creatorAccountId).toString(16);
+    toId = gwConfig.accounts?.creator.id;
   } else {
     args_7 = "0x00";
     toId = await getAccountIdByEthAddress(to, rpc);

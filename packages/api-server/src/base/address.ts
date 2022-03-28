@@ -1,7 +1,8 @@
-import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
 import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
 import { envConfig } from "./env-config";
+import { gwConfig } from "./gw-config";
 import { Uint32 } from "./types/uint";
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
@@ -53,13 +54,13 @@ export async function ethAddressToScriptHash(
     return result;
   }
 
-  const fromId: number = +envConfig.defaultFromId;
-  const nonce: number = await godwokenClient.getNonce(fromId);
+  const fromId: HexNumber = gwConfig.accounts?.defaultFrom.id!;
+  const nonce: number = await godwokenClient.getNonce(parseInt(fromId));
   const args: HexString = new EthToGwArgsBuilder(0, ethAddress).build();
 
   const rawL2Tx: RawL2Transaction = {
-    from_id: "0x" + fromId.toString(16),
-    to_id: "0x" + (+envConfig.ethAddressRegistryAccountId).toString(16),
+    from_id: fromId,
+    to_id: gwConfig.accounts?.ethAddrReg.id!,
     nonce: "0x" + nonce.toString(16),
     args,
   };
@@ -104,7 +105,7 @@ export async function ethAddressToAccountId(
   godwokenClient: GodwokenClient
 ): Promise<number | undefined> {
   if (ethAddress === "0x") {
-    return +envConfig.creatorAccountId;
+    return parseInt(gwConfig.accounts?.creator.id!);
   }
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
@@ -129,9 +130,9 @@ export async function ethAddressToAccountId(
 
 export function ethEoaAddressToScriptHash(address: string) {
   const script: Script = {
-    code_hash: envConfig.ethAccountLockHash,
+    code_hash: gwConfig.configEoas?.eth.typeHash!,
     hash_type: "type",
-    args: envConfig.rollupTypeHash + address.slice(2),
+    args: gwConfig.rollupCell?.typeHash! + address.slice(2),
   };
   const scriptHash = utils.computeScriptHash(script);
   return scriptHash;

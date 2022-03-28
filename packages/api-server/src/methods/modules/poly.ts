@@ -1,8 +1,8 @@
 import { Hash, HexNumber, Address } from "@ckb-lumos/base";
-import { toHexNumber } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
-import { Web3Error } from "../error";
+import { MethodNotSupportError, Web3Error } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
+import { gwConfig } from "../../base/gw-config";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
@@ -17,7 +17,7 @@ export class Poly {
 
   async getCreatorId(_args: []): Promise<HexNumber> {
     try {
-      const creatorIdHex = toHexNumber(BigInt(envConfig.creatorAccountId));
+      const creatorIdHex = gwConfig.accounts?.creator.id!;
       return creatorIdHex;
     } catch (err: any) {
       throw new Web3Error(err.message);
@@ -26,59 +26,48 @@ export class Poly {
 
   // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
   async getDefaultFromId(_args: []): Promise<Address> {
-    return envConfig.defaultFromId;
+    return gwConfig.accounts?.defaultFrom.id!;
   }
 
-  async getContractValidatorTypeHash(args: []): Promise<Hash> {
-    if (envConfig.polyjuiceValidatorTypeHash) {
-      return envConfig.polyjuiceValidatorTypeHash;
-    }
-    throw new Web3Error("POLYJUICE_VALIDATOR_TYPE_HASH not found!");
+  async getContractValidatorTypeHash(_args: []): Promise<Hash> {
+    return gwConfig.configBackends?.polyjuice.validatorScriptTypeHash!;
   }
 
-  async getRollupTypeHash(args: []): Promise<Hash> {
-    if (envConfig.rollupTypeHash) {
-      return envConfig.rollupTypeHash;
-    }
-    throw new Web3Error("ROLLUP_TYPE_HASH not found!");
+  async getRollupTypeHash(_args: []): Promise<Hash> {
+    return gwConfig.rollupCell?.typeHash!;
   }
 
-  async getRollupConfigHash(args: []): Promise<Hash> {
-    if (envConfig.rollupConfigHash) {
-      return envConfig.rollupConfigHash;
-    }
-    throw new Web3Error("ROLLUP_CONFIG_HASH not found!");
+  async getRollupConfigHash(_args: []): Promise<Hash> {
+    throw new MethodNotSupportError("ROLLUP_CONFIG_HASH not supported!");
   }
 
-  async getEthAccountLockHash(args: []): Promise<Hash> {
-    if (envConfig.ethAccountLockHash) {
-      return envConfig.ethAccountLockHash;
-    }
-    throw new Web3Error("ETH_ACCOUNT_LOCK_HASH not found!");
+  async getEthAccountLockHash(_args: []): Promise<Hash> {
+    return gwConfig.configEoas?.eth.typeHash!;
   }
 
-  async getChainInfo(args: []): Promise<any> {
-    try {
-      const chainInfo = {
-        rollupScriptHash: envConfig.rollupTypeHash || null,
-        rollupConfigHash: envConfig.rollupConfigHash || null,
-        ethAccountLockTypeHash: envConfig.ethAccountLockHash || null,
-        polyjuiceContractTypeHash: envConfig.polyjuiceValidatorTypeHash || null,
-        polyjuiceCreatorId: envConfig.creatorAccountId || null,
-        chainId: envConfig.chainId || null,
-      };
-      return chainInfo;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
-    }
+  async getChainInfo(_args: []): Promise<any> {
+    throw new MethodNotSupportError(
+      "getChainInfo is deprecated! please use poly_version"
+    );
   }
 
   async version() {
-    const godwokenVersion = await this.rpc.getNodeInfo();
+    const nodeInfo = await this.rpc.getNodeInfo();
     return {
-      web3Version,
-      web3IndexerVersion: web3Version, // indexer and api-server should use the same version
-      godwokenVersion,
+      versions: {
+        web3Version,
+        web3IndexerVersion: web3Version, // indexer and api-server should use the same version
+        godwokenVersion: nodeInfo.version,
+      },
+      configs: {
+        rollupCell: gwConfig.rollupCell,
+        rollupConfig: gwConfig.rollupConfig,
+        scripts: gwConfig.configGwScripts,
+        eoas: gwConfig.configEoas,
+        backends: gwConfig.configBackends,
+        accounts: gwConfig.accounts,
+        chainId: gwConfig.web3ChainId,
+      },
     };
   }
 }

@@ -74,6 +74,7 @@ import {
 } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+import { gwConfig } from "../../base/gw-config";
 
 const Config = require("../../../config/eth.json");
 
@@ -235,7 +236,7 @@ export class Eth {
   }
 
   chainId(args: []): HexNumber {
-    return "0x" + BigInt(envConfig.chainId).toString(16);
+    return gwConfig.web3ChainId!;
   }
 
   /**
@@ -1428,7 +1429,7 @@ async function buildEthCallTx(
   let fromId: number | undefined;
 
   if (!fromAddress) {
-    fromId = +envConfig.defaultFromId;
+    fromId = parseInt(gwConfig.accounts?.defaultFrom.id!, 16);
     console.log(`use default fromId: ${fromId}`);
   }
 
