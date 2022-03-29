@@ -100,6 +100,13 @@ function numberToRlpEncode(num: HexString) {
 function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
+
+  if (vInt === 27 || vInt === 28) {
+    throw new Error(
+      `only EIP155 transaction is allowed, illegal transaction recId ${tx.v}. more info: ${COMPATIBLE_DOCS_URL}`
+    );
+  }
+
   if (vInt % 2 === 0) {
     finalVInt = "0x" + BigInt((vInt - 36) / 2).toString(16);
   } else {
