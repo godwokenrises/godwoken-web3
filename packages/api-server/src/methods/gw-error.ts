@@ -3,6 +3,7 @@
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { FailedReason } from "../base/types/api";
 import { COMPATIBLE_DOCS_URL } from "./constant";
+import { ErrorTransactionReceipt } from "../db/types";
 import { RpcError } from "./error";
 import { GW_RPC_REQUEST_ERROR } from "./error-code";
 import { LogItem, PolyjuiceSystemLog } from "./types";
@@ -33,6 +34,37 @@ export const evmcCodeTypeMapping: {
   "-3": "OUT_OF_MEMORY",
 };
 
+const gwErrorPrefix = "invalid exit code ";
+export interface GwErrorItem {
+  code: number;
+  type: string;
+  message: string;
+}
+const gwErrorMapping: { [key: string]: { type: string; message: string } } = {
+  "92": {
+    type: "SUDT_ERROR_INSUFFICIENT_BALANCE",
+    message: "sender doesn't have enough funds to send tx",
+  },
+};
+
+function parseGwErrorMapping(message: string): GwErrorItem | undefined {
+  if (!message.startsWith(gwErrorPrefix)) {
+    return undefined;
+  }
+  const code = message.slice(gwErrorPrefix.length);
+
+  const item = gwErrorMapping[code];
+  if (item != null) {
+    return {
+      code: +code,
+      type: item.type,
+      message: item.message,
+    };
+  }
+
+  return undefined;
+}
+
 export interface GwErrorDetail {
   code: number;
   message: string;
@@ -51,6 +83,20 @@ export function parseGwError(error: any): GwErrorDetail {
 
     if (err.data == null) {
       parseGwRpcError(error);
+    }
+
+    const gwErrorItem = parseGwErrorMapping(err.message);
+    if (gwErrorItem != null) {
+      const failedReason: FailedReason = {
+        status_code: "0x" + gwErrorItem.code.toString(16),
+        status_type: gwErrorItem.type,
+        message: gwErrorItem.message,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
     }
 
     let polyjuiceSystemLog: PolyjuiceSystemLog | undefined;
@@ -87,6 +133,20 @@ export function parseGwRpcError(error: any): void {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    const gwErrorItem = parseGwErrorMapping(err.message);
+    if (gwErrorItem != null) {
+      const failedReason: FailedReason = {
+        status_code: "0x" + gwErrorItem.code.toString(16),
+        status_type: gwErrorItem.type,
+        message: gwErrorItem.message,
+      };
+      const data = { failed_reason: failedReason };
+      const newMessage = `${failedReason.status_type.toLowerCase()}: ${
+        failedReason.message
+      }`;
+      throw new RpcError(err.code, newMessage, data);
+    }
 
     const last_log: LogItem | undefined = err.data?.last_log;
     if (last_log != null) {
@@ -149,4 +209,28 @@ export function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
     createdAddress: createdAddress,
     statusCode: statusCode,
   };
+}
+
+export function failedReasonByErrorReceipt(
+  errorReceipt: ErrorTransactionReceipt
+): FailedReason {
+  const statusCode: number = errorReceipt.status_code;
+  const gwErrorItem = gwErrorMapping[statusCode.toString()];
+  if (gwErrorItem != null) {
+    const failedReason: FailedReason = {
+      status_code: "0x" + statusCode.toString(16),
+      status_type: gwErrorItem.type,
+      message: gwErrorItem.message,
+    };
+    return failedReason;
+  }
+
+  // if not in gwErrorMapping
+  const failedReason: FailedReason = {
+    status_code: "0x" + statusCode.toString(16),
+    status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
+    message: errorReceipt.status_reason,
+  };
+
+  return failedReason;
 }
