@@ -19,11 +19,11 @@ Since there is no native token in Godwoken Polyjuice(while Ethereum has ETH as i
 
 ### Signing Transaction Only Support EIP155
 
-[EIP155](https://eips.ethereum.org/EIPS/eip-155) add the chainId for simple replay attack protection. currently we only support EIP155 signing scheme.
+[EIP155](https://eips.ethereum.org/EIPS/eip-155) add the chainId for simple replay attack protection. Currently we only support EIP155 signing scheme.
 
 ### Result
 
-use outdated ethereum toolchain like `truffle-hdwallet-provider` to send transaction will result failed. 
+Using outdated Ethereum toolchain like `truffle-hdwallet-provider` to send transaction will result in failure. 
 
 issue: #238
 
