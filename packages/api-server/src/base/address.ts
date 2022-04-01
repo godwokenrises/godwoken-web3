@@ -1,6 +1,7 @@
 import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
 import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
+import { COMPATIBLE_DOCS_URL } from "../methods/constant";
 import { envConfig } from "./env-config";
 import { Uint32 } from "./types/uint";
 
@@ -25,7 +26,7 @@ class EthToGwArgsBuilder {
 
     if (ethAddress === ZERO_ETH_ADDRESS) {
       throw new Error(
-        `zero address ${ZERO_ETH_ADDRESS} has no valid script hash!`
+        `zero address ${ZERO_ETH_ADDRESS} has no valid script hash! more info: ${COMPATIBLE_DOCS_URL}`
       );
     }
 
@@ -109,7 +110,7 @@ export async function ethAddressToAccountId(
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
     throw new Error(
-      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id!`
+      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id! more info: ${COMPATIBLE_DOCS_URL}`
     );
   }
 
