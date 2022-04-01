@@ -2,20 +2,20 @@
 
 ## RPC compatibility
 
-### 1. Transfer Value From EOA To EOA
+### 1. `transaction.to` MUST be a Contract Address
 
-Since there is no native token in Godwoken Polyjuice(while Ethereum has ETH as its native token), we disable transferring value from EOA to EOA ability in Polyjuice EVM.
+The `to` member of a Godwoken transaction must be a contract.
 
 #### Result
 
-- in the following RPCs, to_address parameter **CAN NOT** be EOA address:
+- in the following RPCs, the transaction `to_address` parameter **CAN NOT** be an EOA address:
   - eth_call
   - eth_estimateGas
   - eth_sendRawTransaction
 
 #### Recommend workaround
 
-- Use the `transfer function` in [CKB_ERC20_Proxy](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b/solidity/erc20/README.md) contract [combined](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b322/solidity/erc20/SudtERC20Proxy_UserDefinedDecimals.sol#L154) with sUDT_ID = 1 (CKB a.k.a. pETH).
+- **Transfer Value From EOA To EOA**: Use the `transfer function` in [CKB_ERC20_Proxy](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b/solidity/erc20/README.md) contract [combined](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b322/solidity/erc20/SudtERC20Proxy_UserDefinedDecimals.sol#L154) with sUDT_ID = 1 (CKB a.k.a. [pCKB](https://github.com/nervosnetwork/godwoken/blob/compatibility-breaking-changes/docs/life_of_a_polyjuice_transaction.md#pckb)).
 
 ### 2. Signing Transaction Only Support EIP155
 
