@@ -25,7 +25,7 @@
     ],
     "files": [
       "tests/**/*",
-      "!tests/common.ts"
+      "!tests/www.ts"
     ]
   },
   "dependencies": {
