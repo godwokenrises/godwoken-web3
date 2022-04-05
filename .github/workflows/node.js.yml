@@ -20,7 +20,7 @@ jobs:
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v2
       with:
@@ -28,7 +28,34 @@ jobs:
         cache: 'yarn'
     - run: yarn install
     - run: yarn run build
-    - run: yarn workspace @godwoken-web3/api-server run test tests/db/helpers.test.ts
     - run: yarn run fmt
     - run: yarn run lint
-    - run: git diff --exit-code
+    # TODO - run: git diff --exit-code
+
+    - uses: actions/checkout@v3
+      with:
+        repository: RetricSu/godwoken-kicker
+        ref: compatibility-changes
+        path: godwoken-kicker
+    - name: Start Godwoken-Kicker services
+      timeout-minutes: 45
+      working-directory: godwoken-kicker
+      run: ./kicker start
+    - name: Stop kicker's godwoken-web3 service
+      working-directory: godwoken-kicker
+      run: |
+        ./kicker -- stop web3
+        ./kicker ps
+    - working-directory: godwoken-kicker
+      run: |
+        cat docker/layer2/config/web3-config.env | grep -v '^#'           >> $GITHUB_ENV
+        echo "PORT=9025"                                                  >> $GITHUB_ENV
+        echo "DATABASE_URL=postgres://user:password@127.0.0.1:5432/lumos" >> $GITHUB_ENV
+        echo "REDIS_URL=redis://127.0.0.1:6379"                           >> $GITHUB_ENV
+        echo "GODWOKEN_JSON_RPC=http://127.0.0.1:8119"                    >> $GITHUB_ENV
+        echo "GODWOKEN_WS_RPC_URL=ws://127.0.0.1:8120"                    >> $GITHUB_ENV
+    - name: Start godwoken-web3 service
+      run: yarn run start &
+    - run: yarn workspace @godwoken-web3/api-server run test
+    - working-directory: godwoken-kicker
+      run: ./kicker stop && sudo ./kicker clean
