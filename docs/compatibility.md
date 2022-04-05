@@ -8,7 +8,7 @@ The `to` member of a Godwoken transaction must be a contract.
 
 #### Result
 
-- in the following RPCs, the transaction `to_address` parameter **CAN NOT** be an EOA address:
+- In the following RPCs, the `to` parameter can only be a contract address and **CANNOT** be an EOA address:
   - eth_call
   - eth_estimateGas
   - eth_sendRawTransaction
