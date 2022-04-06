@@ -45,7 +45,6 @@ import {
   HeaderNotFoundError,
   InvalidParamsError,
   MethodNotSupportError,
-  RpcError,
   Web3Error,
 } from "../error";
 import {
@@ -58,8 +57,7 @@ import {
 import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
-import { failedReasonByErrorReceipt, parseGwError } from "../gw-error";
-import { evmcCodeTypeMapping } from "../gw-error";
+import { failedReasonByErrorReceipt, parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
   CACHE_EXPIRED_TIME_MILSECS,
@@ -479,7 +477,7 @@ export class Eth {
         await this.parseBlockParameter(blockParameter);
 
       const executeCallResult = async () => {
-        let runResult;
+        let runResult: RunResult | undefined;
         try {
           runResult = await ethCallTx(
             txCallObj,
@@ -488,30 +486,7 @@ export class Eth {
             blockNumber
           );
         } catch (err) {
-          const gwErr = parseGwError(err);
-          const failedReason: any = {};
-          if (gwErr.statusCode != null) {
-            failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
-            failedReason.status_type =
-              evmcCodeTypeMapping[gwErr.statusCode.toString()];
-          }
-          if (gwErr.statusReason != null) {
-            failedReason.message = gwErr.statusReason;
-          }
-          let errorData: any = undefined;
-          if (Object.keys(failedReason).length !== 0) {
-            errorData = { failed_reason: failedReason };
-          }
-
-          let errorMessage = gwErr.message;
-          if (gwErr.statusReason != null && failedReason.status_type != null) {
-            // REVERT => revert
-            // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
-            errorMessage = `${failedReason.status_type.toLowerCase()}: ${
-              gwErr.statusReason
-            }`;
-          }
-          throw new RpcError(gwErr.code, errorMessage, errorData);
+          throw parseGwRunResultError(err);
         }
 
         console.log("RunResult:", runResult);
@@ -579,7 +554,7 @@ export class Eth {
         }
       }
 
-      let runResult;
+      let runResult: RunResult | undefined;
       try {
         runResult = await ethCallTx(
           txCallObj as TransactionCallObject,
@@ -587,14 +562,8 @@ export class Eth {
           this.ethWallet,
           undefined
         );
-      } catch (err) {
-        const gwErr = parseGwError(err);
-        const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
-        if (gasUsed != null) {
-          const gasUsedHex = "0x" + (gasUsed + extraGas).toString(16);
-          return gasUsedHex;
-        }
-        throw err;
+      } catch (error) {
+        throw parseGwRunResultError(error);
       }
 
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
@@ -619,7 +588,7 @@ export class Eth {
 
       return result;
     } catch (error: any) {
-      throw new Web3Error(error.message);
+      throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
     }
   }
 

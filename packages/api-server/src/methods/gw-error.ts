@@ -234,3 +234,29 @@ export function failedReasonByErrorReceipt(
 
   return failedReason;
 }
+
+export function parseGwRunResultError(err: any): RpcError {
+  const gwErr = parseGwError(err);
+  const failedReason: any = {};
+  if (gwErr.statusCode != null) {
+    failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
+    failedReason.status_type = evmcCodeTypeMapping[gwErr.statusCode.toString()];
+  }
+  if (gwErr.statusReason != null) {
+    failedReason.message = gwErr.statusReason;
+  }
+  let errorData: any = undefined;
+  if (Object.keys(failedReason).length !== 0) {
+    errorData = { failed_reason: failedReason };
+  }
+
+  let errorMessage = gwErr.message;
+  if (gwErr.statusReason != null && failedReason.status_type != null) {
+    // REVERT => revert
+    // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
+    errorMessage = `${failedReason.status_type.toLowerCase()}: ${
+      gwErr.statusReason
+    }`;
+  }
+  return new RpcError(gwErr.code, errorMessage, errorData);
+}
