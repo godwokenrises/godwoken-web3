@@ -82,20 +82,3 @@ export class Poly {
     };
   }
 }
-
-// key: tipBlockHash first 8 bytes + memPollStateRoot first 8 bytes + dataHash first 8 bytes
-function getPolyExecRawL2TxCacheKey(
-  serializeRawL2Transaction: HexString,
-  tipBlockHash: HexString,
-  memPoolStateRoot: HexString
-) {
-  const hash =
-    "0x" + keccakFromHexString(serializeRawL2Transaction).toString("hex");
-  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
-    2,
-    18
-  )}${hash.slice(2, 18)}`;
-  return id;
-  // const key = `${POLY_RPC_KEY}:executeRawL2Transaction:${id}`;
-  // return key;
-}
