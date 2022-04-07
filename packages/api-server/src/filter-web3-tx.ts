@@ -17,7 +17,7 @@ import { Uint128, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
 import {
   CKB_SUDT_ID,
-  DEFAULT_EMPTY_ETH_ADDRESS,
+  ZERO_ETH_ADDRESS,
   DEFAULT_LOGS_BLOOM,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
@@ -26,7 +26,7 @@ import {
 const PENDING_TRANSACTION_INDEX = "0x0";
 
 export async function filterWeb3Transaction(
-  txHash: Hash,
+  ethTxHash: Hash,
   rpc: GodwokenClient,
   tipBlockNumber: U64,
   tipBlockHash: Hash,
@@ -96,7 +96,8 @@ export async function filterWeb3Transaction(
     if (polyjuiceArgs.isCreate) {
       // polyjuiceChainId = toIdHex;
     } else {
-      toAddress = toScriptHash.slice(0, 42);
+      // 74 = 2 + (32 + 4) * 2
+      toAddress = "0x" + toScript.args.slice(74);
       // 32..36 bytes
       // const data = "0x" + toScript.args.slice(66, 74);
       // polyjuiceChainId = "0x" + readUInt32LE(data).toString(16);
@@ -111,7 +112,7 @@ export async function filterWeb3Transaction(
       from: fromAddress,
       gas: polyjuiceArgs.gasLimit,
       gasPrice: polyjuiceArgs.gasPrice,
-      hash: txHash,
+      hash: ethTxHash,
       input,
       nonce,
       to: toAddress || null,
@@ -135,10 +136,7 @@ export async function filterWeb3Transaction(
     const logInfo = parsePolyjuiceSystemLog(polyjuiceSystemLog.data);
 
     let contractAddress = undefined;
-    if (
-      polyjuiceArgs.isCreate &&
-      logInfo.createdAddress !== DEFAULT_EMPTY_ETH_ADDRESS
-    ) {
+    if (polyjuiceArgs.isCreate && logInfo.createdAddress !== ZERO_ETH_ADDRESS) {
       contractAddress = logInfo.createdAddress;
     }
 
@@ -159,7 +157,7 @@ export async function filterWeb3Transaction(
       });
 
     const receipt: EthTransactionReceipt = {
-      transactionHash: txHash,
+      transactionHash: ethTxHash,
       transactionIndex: PENDING_TRANSACTION_INDEX,
       blockHash: pendingBlockHash,
       blockNumber: pendingBlockNumber,
@@ -175,7 +173,7 @@ export async function filterWeb3Transaction(
           blockHash: pendingBlockHash,
           blockNumber: pendingBlockNumber,
           transactionIndex: PENDING_TRANSACTION_INDEX,
-          transactionHash: txHash,
+          transactionHash: ethTxHash,
           removed: false,
         };
       }),
@@ -212,7 +210,7 @@ export async function filterWeb3Transaction(
         from: fromAddress,
         gas: gasLimit.toHex(),
         gasPrice: gasPrice.toHex(),
-        hash: txHash,
+        hash: ethTxHash,
         input: "0x",
         nonce,
         to: toAddress,
@@ -223,7 +221,7 @@ export async function filterWeb3Transaction(
       };
 
       const receipt: EthTransactionReceipt = {
-        transactionHash: txHash,
+        transactionHash: ethTxHash,
         transactionIndex: PENDING_TRANSACTION_INDEX,
         blockHash: pendingBlockHash,
         blockNumber: pendingBlockNumber,

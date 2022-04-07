@@ -14,11 +14,13 @@ GODWOKEN_READONLY_JSON_RPC=<optional, default equals to GODWOKEN_JSON_RPC>
 ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
-CHAIN_ID=<your chain id in integer>
+COMPATIBLE_CHAIN_ID=<godwoken compatible chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
-DEFAULT_FROM_ADDRESS=<default from eth address>
+DEFAULT_FROM_ID=<default from eth address's godwoken account id>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
+ETH_ADDRESS_REGISTRY_ACCOUNT_ID=<required, eth address registry account id>
+
 TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
@@ -29,7 +31,7 @@ REDIS_URL=redis://user:password@localhost:6379 <redis url, optional, default to 
 PG_POOL_MAX=<pg pool max count, optional, default to 20>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
 EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
-ENABLE_CACHE_POLY_EXECUTE_RAW_L2Tx=<optional, enable poly_executeRawL2Transaction cache, default to false>
+ENABLE_CACHE_ETH_CALL=<optional, enable eth_call cache, default to false>
 EOF
 
 $ yarn
@@ -87,6 +89,7 @@ tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"
+compatible_chain_id=<godwoken compatible_chain_id in integer>
 EOF
 ```
 
@@ -161,6 +164,98 @@ resource:
 - docker image: https://hub.docker.com/repository/docker/nervos/godwoken-web3-prebuilds
 - code is located in `/godwoken-web3` with node_modules already installed and typescript compiled to js code.
 
-### APIs
+## Web3 RPC Modules
+
+### net
+
+- net_version
+- net_peerCount
+- net_listening
+
+### web3
+
+- web3_sha3
+- web3_clientVersion
+
+### eth
+- eth_chainId
+- eth_protocolVersion
+- eth_syncing
+- eth_coinbase
+- eth_mining
+- eth_hashrate
+- eth_gasPrice
+- eth_accounts
+- eth_blockNumber
+- eth_sign
+- eth_signTransaction
+- eth_sendTransaction
+- eth_getBalance
+- eth_getStorageAt
+- eth_getTransactionCount
+- eth_getCode
+- eth_call
+- eth_estimateGas
+- eth_getBlockByHash
+- eth_getBlockByNumber
+- eth_getBlockTransactionCountByHash
+- eth_getBlockTransactionCountByNumber
+- eth_getUncleByBlockHashAndIndex
+- eth_getUncleByBlockNumberAndIndex
+- eth_getUncleCountByBlockHash
+- eth_getCompilers
+- eth_getTransactionByHash
+- eth_getTransactionByBlockHashAndIndex
+- eth_getTransactionByBlockNumberAndIndex
+- eth_getTransactionReceipt
+- eth_newFilter
+- eth_newBlockFilter
+- eth_newPendingTransactionFilter
+- eth_uninstallFilter
+- eth_getFilterLogs
+- eth_getFilterChanges
+- eth_getLogs
+- eth_sendRawTransaction
+- eth_getTipNumber
+- eth_gw_executeL2Tranaction
+- eth_gw_submitL2Transaction
+- eth_gw_getAccountIdByScriptHash
+- eth_gw_getScriptHashByAccountId
+- eth_gw_getNonce
+- eth_gw_getTransactionReceipt
+- eth_subscribe (only for WebSocket)
+- eth_unsubscribe (only for WebSocket)
+
+### gw
+
+- gw_ping
+- gw_get_tip_block_hash
+- gw_get_block_hash
+- gw_get_block
+- gw_get_block_by_number
+- gw_get_balance
+- gw_get_storage_at
+- gw_get_account_id_by_script_hash
+- gw_get_nonce
+- gw_get_script
+- gw_get_script_hash
+- gw_get_data
+- gw_get_transaction_receipt
+- gw_execute_l2transaction
+- gw_execute_raw_l2transaction
+- gw_submit_l2transaction
+- gw_submit_withdrawal_request
+
+### poly
+- poly_getChainInfo
+- poly_getDefaultFromId
+- poly_getContractValidatorTypeHash
+- poly_getRollupTypeHash
+- poly_getRollupConfigHash
+- poly_getEthAccountLockHash
+- poly_getCreatorId
+
+## Examples
+### web3_clientVersion
 
 see: [docs](docs/apis.md)

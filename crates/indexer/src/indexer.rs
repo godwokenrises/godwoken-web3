@@ -32,6 +32,7 @@ pub struct Web3Indexer {
     rollup_type_hash: H256,
     allowed_eoa_hashes: HashSet<H256>,
     godwoken_rpc_client: GodwokenRpcClient,
+    compatible_chain_id: u64,
 }
 
 impl Web3Indexer {
@@ -42,6 +43,7 @@ impl Web3Indexer {
         eth_account_lock_hash: H256,
         tron_account_lock_hash: Option<H256>,
         gw_rpc_url: &str,
+        compatible_chain_id: u64,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
@@ -56,6 +58,7 @@ impl Web3Indexer {
             rollup_type_hash,
             allowed_eoa_hashes,
             godwoken_rpc_client,
+            compatible_chain_id,
         }
     }
 
@@ -246,16 +249,21 @@ impl Web3Indexer {
                 let (to_address, polyjuice_chain_id) = if polyjuice_args.is_create {
                     (None, to_id)
                 } else {
-                    let address = account_script_hash_to_eth_address(to_script_hash);
+                    let args: gw_types::bytes::Bytes = to_script.args().unpack();
+                    let address = {
+                        let mut to = [0u8; 20];
+                        to.copy_from_slice(&args[36..]);
+                        to
+                    };
                     let polyjuice_chain_id = {
                         let mut data = [0u8; 4];
-                        data.copy_from_slice(&to_script.args().raw_data()[32..36]);
+                        data.copy_from_slice(&args[32..36]);
                         u32::from_le_bytes(data)
                     };
                     (Some(address), polyjuice_chain_id)
                 };
                 // calculate chain_id
-                let chain_id: u64 = polyjuice_chain_id as u64;
+                let chain_id: u64 = (self.compatible_chain_id << 32) | (polyjuice_chain_id as u64);
                 let nonce: u32 = l2_transaction.raw().nonce().unpack();
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
@@ -382,12 +390,12 @@ impl Web3Indexer {
                         to_address.copy_from_slice(to_address_data.as_ref());
 
                         let amount: u128 = sudt_transfer.amount().unpack();
-                        let fee: u128 = sudt_transfer.fee().unpack();
+                        let fee: u64 = sudt_transfer.fee().unpack();
                         let value = amount;
 
                         // Represent SUDTTransfer fee in web3 style, set gas_price as 1 temporary.
                         let gas_price = 1;
-                        let gas_limit = fee;
+                        let gas_limit = fee.into();
                         cumulative_gas_used += gas_limit;
 
                         let nonce: u32 = l2_transaction.raw().nonce().unpack();
@@ -444,9 +452,20 @@ impl Web3Indexer {
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
         let block_producer_id: u32 = l2_block.raw().block_producer_id().unpack();
-        let block_producer_script_hash =
-            get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
-        let miner_address = account_script_hash_to_eth_address(block_producer_script_hash);
+
+        // If block producer id == 0 (meta contract id), log a warning message.
+        // If block producer id != 0, and eth address not found, log an error message.
+        let miner_address = if block_producer_id == 0 {
+            log::warn!("Block producer id equals to 0");
+            [0u8; 20]
+        } else {
+            let block_producer_script_hash =
+                get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
+            account_script_hash_to_eth_address(
+                block_producer_script_hash,
+                &self.godwoken_rpc_client,
+            )?
+        };
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();
         let timestamp =
             NaiveDateTime::from_timestamp((epoch_time_as_millis / MILLIS_PER_SEC) as i64, 0);

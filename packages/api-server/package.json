@@ -1,13 +1,13 @@
 {
   "name": "@godwoken-web3/api-server",
-  "version": "0.13.5",
+  "version": "1.0.0-rc1",
   "private": true,
   "scripts": {
     "start": "concurrently \"tsc -w\" \"DEBUG=godwoken-web3-api:server nodemon ./bin/cluster\"",
     "start:prod": "NODE_ENV=production DEBUG=godwoken-web3-api:server node ./bin/cluster",
     "start:pm2": "NODE_ENV=production DEBUG=godwoken-web3-api:server pm2 start ./bin/cluster --no-daemon --name gw-web3 --max-memory-restart 1G",
     "test": "ava",
-    "fmt": "prettier --write \"{migrations,tests}/**/*.js\" app.js src/* package.json",
+    "fmt": "prettier --write \"{migrations,tests}/**/*.{js,ts,tsx}\" app.js src/* package.json",
     "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
     "reset_database": "NODE_ENV=test knex migrate:down && knex migrate:up && knex seed:run",
     "knex": "knex",
@@ -27,7 +27,7 @@
   "dependencies": {
     "@ckb-lumos/base": "0.18.0-rc6",
     "@ckb-lumos/toolkit": "0.18.0-rc6",
-    "@godwoken-web3/godwoken": "0.13.5",
+    "@godwoken-web3/godwoken": "1.0.0-rc1",
     "@newrelic/native-metrics": "^7.0.1",
     "@polyjuice-provider/base": "^0.1.5",
     "@sentry/node": "^6.11.0",

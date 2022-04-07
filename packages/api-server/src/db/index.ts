@@ -3,7 +3,6 @@ import { Block, Transaction, Log, ErrorTransactionReceipt } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { FilterTopic } from "../cache/types";
-import { AccountsQuery } from "./accounts";
 import { envConfig } from "../base/env-config";
 import {
   MAX_QUERY_NUMBER,
@@ -23,15 +22,9 @@ const GLOBAL_KNEX = Knex({
 
 export class Query {
   private knex: KnexType;
-  private innerAccounts: AccountsQuery;
 
   constructor() {
     this.knex = GLOBAL_KNEX;
-    this.innerAccounts = new AccountsQuery(this.knex);
-  }
-
-  get accounts(): AccountsQuery {
-    return this.innerAccounts;
   }
 
   async getTipBlockNumber(): Promise<bigint | undefined> {
@@ -128,6 +121,14 @@ export class Query {
     });
   }
 
+  async getTransactionByEthTxHash(
+    eth_tx_hash: Hash
+  ): Promise<Transaction | undefined> {
+    return await this.getTransaction({
+      eth_tx_hash,
+    });
+  }
+
   async getTransactionByBlockHashAndIndex(
     blockHash: Hash,
     index: number
@@ -184,6 +185,30 @@ export class Query {
       .where(params);
 
     return transactionHashes.map((tx) => tx.hash);
+  }
+
+  async getTransactionEthHashesByBlockHash(blockHash: Hash): Promise<Hash[]> {
+    return await this.getTransactionEthHashes({
+      block_hash: blockHash,
+    });
+  }
+
+  async getTransactionEthHashesByBlockNumber(
+    blockNumber: bigint
+  ): Promise<Hash[]> {
+    return await this.getTransactionEthHashes({
+      block_number: blockNumber,
+    });
+  }
+
+  private async getTransactionEthHashes(
+    params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
+  ): Promise<Hash[]> {
+    const transactionHashes = await this.knex<Transaction>("transactions")
+      .select("eth_tx_hash")
+      .where(params);
+
+    return transactionHashes.map((tx) => tx.eth_tx_hash);
   }
 
   // undefined means not found
@@ -295,7 +320,7 @@ export class Query {
     const address = normalizeLogQueryAddress(option.address);
     const topics = option.topics || [];
 
-    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+    if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
         address,
@@ -310,7 +335,7 @@ export class Query {
       return filterLogsByTopics(logs, topics);
     }
 
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
@@ -339,7 +364,7 @@ export class Query {
     const address = normalizeLogQueryAddress(option.address);
     const topics = option.topics || [];
 
-    if (typeof blockHashOrFromBlock === "string" && !toBlock) {
+    if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
         address,
@@ -354,7 +379,7 @@ export class Query {
       return filterLogsByTopics(logs, topics);
     }
 
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock) {
+    if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),

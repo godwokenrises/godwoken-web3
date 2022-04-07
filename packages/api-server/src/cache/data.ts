@@ -1,7 +1,6 @@
 import { createClient } from "redis";
 import { envConfig } from "../base/env-config";
 import crypto from "crypto";
-import { asyncSleep } from "../util";
 
 // init publisher redis client
 export const pubClient = createClient({
@@ -17,7 +16,7 @@ export const subClient = createClient({
 subClient.connect();
 subClient.on("error", (err) => console.log("Redis Client Error", err));
 
-export const SUB_TIME_OUT_MS = 5 * 1000; // 5s;
+export const SUB_TIME_OUT_MS = 2 * 1000; // 2s;
 export const LOCK_KEY_EXPIRED_TIME_OUT_MS = 60 * 1000; // 60s, the max tolerate timeout for execute call
 export const DATA_KEY_EXPIRED_TIME_OUT_MS = 5 * 60 * 1000; // 5 minutes
 export const POLL_INTERVAL_MS = 50; // 50ms
@@ -95,7 +94,7 @@ export class RedisDataCache {
   async get() {
     const dataKey = this.dataKey;
     const value = await pubClient.get(dataKey);
-    if (value !== null) {
+    if (value != null) {
       console.debug(
         `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
       );
@@ -104,7 +103,7 @@ export class RedisDataCache {
 
     const setDataKeyOptions = { PX: this.dataKeyExpiredTimeOut };
 
-    if (this.lock == undefined) {
+    if (this.lock == null) {
       const result = await this.executeCallResult();
       // set data cache
       await pubClient.set(dataKey, result, setDataKeyOptions);
@@ -134,7 +133,7 @@ export class RedisDataCache {
 
     while (true) {
       const value = await pubClient.get(dataKey);
-      if (value !== null) {
+      if (value != null) {
         console.debug(
           `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
         );
@@ -216,7 +215,7 @@ export class RedisDataCache {
   }
 
   async subscribe() {
-    if (this.lock == undefined) {
+    if (this.lock == null) {
       throw new Error(`enable redis lock first!`);
     }
 
@@ -285,5 +284,9 @@ export function parseExecuteResult(res: string) {
     return jsonRes.data!;
   }
 
-  throw new Error(jsonRes.err);
+  throw new Error("[RedisSubscribeResult]" + jsonRes.err);
 }
+
+const asyncSleep = async (ms = 0) => {
+  return new Promise((r) => setTimeout(() => r("ok"), ms));
+};

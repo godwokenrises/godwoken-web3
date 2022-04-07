@@ -26,7 +26,7 @@ export class GodwokenClient {
     this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
-  public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
+  public async getScriptHash(accountId: U32): Promise<Hash> {
     const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
   }
@@ -41,24 +41,24 @@ export class GodwokenClient {
     return +accountId;
   }
 
-  public async getScriptHashByShortAddress(
-    shortAddress: HexString
+  public async getScriptHashByShortScriptHash(
+    shortScriptHash: HexString
   ): Promise<Hash | undefined> {
     const scriptHash: Hash | undefined = await this.rpcCall(
-      "get_script_hash_by_short_address",
-      shortAddress
+      "get_script_hash_by_short_script_hash",
+      shortScriptHash
     );
     return scriptHash;
   }
 
   public async getBalance(
-    short_address: HexString,
+    shortScriptHash: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      short_address,
+      shortScriptHash,
       toHex(sudtId),
       toHex(blockParameter)
     );
@@ -101,6 +101,19 @@ export class GodwokenClient {
     return await this.rpcCall("get_data", dataHash, toHex(blockParameter));
   }
 
+  // Don't log `invalid exit code 83` error
+  public async executeForGetAccountScriptHash(
+    rawL2tx: RawL2Transaction,
+    blockParameter?: BlockParameter
+  ): Promise<RunResult> {
+    const data: HexString = new Reader(
+      SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
+    ).serializeJson();
+    const name = "gw_execute_raw_l2transaction";
+    const result = await this.readonlyRpc[name](data, toHex(blockParameter));
+    return result;
+  }
+
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
     blockParameter?: BlockParameter
@@ -139,6 +152,10 @@ export class GodwokenClient {
     hash: Hash
   ): Promise<L2TransactionReceipt | undefined> {
     return await this.rpcCall("get_transaction_receipt", hash);
+  }
+
+  public async getNodeInfo() {
+    return await this.rpcCall("get_node_info");
   }
 
   public async getTipBlockHash(): Promise<HexString> {

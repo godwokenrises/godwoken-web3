@@ -15,7 +15,7 @@ import {
 
 export interface Account {
   eth_address: HexString;
-  gw_short_address: HexString;
+  gw_short_script_hash: HexString;
 }
 
 export interface Block {
@@ -102,7 +102,7 @@ export function toApiBlock(
 
 export function toApiTransaction(t: Transaction): EthTransaction {
   return {
-    hash: t.hash,
+    hash: t.eth_tx_hash,
     blockHash: t.block_hash,
     blockNumber: new Uint64(t.block_number).toHex(),
     transactionIndex: new Uint32(t.transaction_index).toHex(),
@@ -124,7 +124,7 @@ export function toApiTransactionReceipt(
   logs: EthLog[] = []
 ): EthTransactionReceipt {
   return {
-    transactionHash: t.hash,
+    transactionHash: t.eth_tx_hash,
     blockHash: t.block_hash,
     blockNumber: new Uint64(t.block_number).toHex(),
     transactionIndex: new Uint32(t.transaction_index).toHex(),
@@ -141,10 +141,11 @@ export function toApiTransactionReceipt(
 
 export function errorReceiptToApiTransaction(
   t: ErrorTransactionReceipt,
-  blockHash: HexString
+  blockHash: HexString,
+  ethTxHash: HexString
 ): EthTransaction {
   return {
-    hash: t.hash,
+    hash: ethTxHash,
     blockHash,
     blockNumber: new Uint64(t.block_number).toHex(),
     transactionIndex: "0x0", // dummy
@@ -163,10 +164,11 @@ export function errorReceiptToApiTransaction(
 
 export function errorReceiptToApiTransactionReceipt(
   e: ErrorTransactionReceipt,
-  blockHash: HexString
+  blockHash: HexString,
+  ethTxHash: HexString
 ): EthTransactionReceipt {
   return {
-    transactionHash: e.hash,
+    transactionHash: ethTxHash,
     blockHash,
     blockNumber: new Uint64(e.block_number).toHex(),
     transactionIndex: "0x0", // dummy
@@ -181,14 +183,14 @@ export function errorReceiptToApiTransactionReceipt(
   };
 }
 
-export function toApiLog(l: Log): EthLog {
+export function toApiLog(l: Log, ethTxHash: HexString): EthLog {
   const data = l.data === "0x" ? "0x" + "00".repeat(32) : l.data;
   return {
     address: l.address,
     blockHash: l.block_hash,
     blockNumber: new Uint64(l.block_number).toHex(),
     transactionIndex: new Uint32(l.transaction_index).toHex(),
-    transactionHash: l.transaction_hash,
+    transactionHash: ethTxHash,
     data,
     logIndex: new Uint32(l.log_index).toHex(),
     topics: l.topics,

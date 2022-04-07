@@ -2,6 +2,7 @@
 
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { FailedReason } from "../base/types/api";
+import { COMPATIBLE_DOCS_URL } from "./constant";
 import { ErrorTransactionReceipt } from "../db/types";
 import { RpcError } from "./error";
 import { GW_RPC_REQUEST_ERROR } from "./error-code";
@@ -79,6 +80,10 @@ export function parseGwError(error: any): GwErrorDetail {
   if (message.startsWith(prefix)) {
     const jsonErr = message.slice(prefix.length);
     const err = JSON.parse(jsonErr);
+
+    if (err.data == null) {
+      parseGwRpcError(error);
+    }
 
     const gwErrorItem = parseGwErrorMapping(err.message);
     if (gwErrorItem != null) {
@@ -172,7 +177,10 @@ export function parseGwRpcError(error: any): void {
 
     // can't find backend by script hash error
     if (err.message?.startsWith("can't find backend for script_hash")) {
-      throw new RpcError(err.code, "to address is not a valid contract.");
+      throw new RpcError(
+        err.code,
+        `to address is not a valid contract. more info: ${COMPATIBLE_DOCS_URL}`
+      );
     }
 
     throw new RpcError(err.code, err.message);
@@ -225,4 +233,30 @@ export function failedReasonByErrorReceipt(
   };
 
   return failedReason;
+}
+
+export function parseGwRunResultError(err: any): RpcError {
+  const gwErr = parseGwError(err);
+  const failedReason: any = {};
+  if (gwErr.statusCode != null) {
+    failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
+    failedReason.status_type = evmcCodeTypeMapping[gwErr.statusCode.toString()];
+  }
+  if (gwErr.statusReason != null) {
+    failedReason.message = gwErr.statusReason;
+  }
+  let errorData: any = undefined;
+  if (Object.keys(failedReason).length !== 0) {
+    errorData = { failed_reason: failedReason };
+  }
+
+  let errorMessage = gwErr.message;
+  if (gwErr.statusReason != null && failedReason.status_type != null) {
+    // REVERT => revert
+    // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
+    errorMessage = `${failedReason.status_type.toLowerCase()}: ${
+      gwErr.statusReason
+    }`;
+  }
+  return new RpcError(gwErr.code, errorMessage, errorData);
 }

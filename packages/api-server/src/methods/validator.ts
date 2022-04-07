@@ -136,8 +136,76 @@ export const validators = {
     return undefined;
   },
 
-  //TODO: estimateGas `to` is optional
   ethCallParams(params: any[], index: number): any {
+    const targetParam = params[index];
+    if (typeof targetParam !== "object") {
+      return invalidParamsError(index, `argument must be an object`);
+    }
+
+    const from = targetParam.from;
+    const to = targetParam.to;
+    const gas = targetParam.gas;
+    const gasLimit = targetParam.gasLimit;
+    const value = targetParam.value;
+    const data = targetParam.data;
+
+    // to is required
+    if (to == null) {
+      return invalidParamsError(index, `to address is null!`);
+    }
+
+    // validate `to`
+    if (to !== undefined && to !== null) {
+      const toErr = verifyAddress(to, index);
+      if (toErr !== undefined) {
+        return toErr;
+      }
+    }
+
+    // validate `from`
+    if (from !== undefined && from !== null) {
+      const fromErr = verifyAddress(from, index);
+      if (fromErr !== undefined) {
+        return fromErr;
+      }
+    }
+
+    // validate `gas`
+    if (gas !== undefined && gas !== null) {
+      const gasErr = verifyHexNumber(gas, index);
+      if (gasErr !== undefined) {
+        return gasErr;
+      }
+    }
+
+    // validate `gasLimit`
+    if (gasLimit !== undefined && gasLimit !== null) {
+      const gasLimitErr = verifyHexNumber(gasLimit, index);
+      if (gasLimitErr !== undefined) {
+        return gasLimitErr;
+      }
+    }
+
+    // validate `value`
+    if (value !== undefined && value !== null) {
+      const valueErr = verifyHexNumber(value, index);
+      if (valueErr !== undefined) {
+        return valueErr;
+      }
+    }
+
+    // validate `data`
+    if (data !== undefined && data !== null) {
+      const dataErr = verifyHexString(data, index);
+      if (dataErr !== undefined) {
+        return dataErr;
+      }
+    }
+
+    return undefined;
+  },
+
+  ethEstimateGasParams(params: any[], index: number): any {
     const targetParam = params[index];
     if (typeof targetParam !== "object") {
       return invalidParamsError(index, `argument must be an object`);
@@ -371,6 +439,6 @@ function validateAddress(address: string): boolean {
   return /^0x[0-9a-fA-F]+$/.test(address) && address.length === 42;
 }
 
-function invalidParamsError(index: number, message: string): void {
-  throw new InvalidParamsError(`invalid argument ${index}: ${message}`);
+function invalidParamsError(index: number, message: string): any {
+  return new InvalidParamsError(`invalid argument ${index}: ${message}`);
 }
