@@ -439,6 +439,6 @@ function validateAddress(address: string): boolean {
   return /^0x[0-9a-fA-F]+$/.test(address) && address.length === 42;
 }
 
-function invalidParamsError(index: number, message: string): void {
-  throw new InvalidParamsError(`invalid argument ${index}: ${message}`);
+function invalidParamsError(index: number, message: string): any {
+  return new InvalidParamsError(`invalid argument ${index}: ${message}`);
 }
