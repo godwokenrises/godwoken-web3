@@ -1413,7 +1413,7 @@ async function buildEthCallTx(
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
   if (toId == null) {
-    throw new Error("to id missing!");
+    throw new Error(`to id missing! toAddress: ${toAddress}`);
   }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
