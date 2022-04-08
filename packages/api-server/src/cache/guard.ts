@@ -4,6 +4,7 @@ import { envConfig } from "../base/env-config";
 import fs from "fs";
 import path from "path";
 import { CACHE_EXPIRED_TIME_MILSECS } from "./constant";
+import { logger } from "../base/logger";
 
 const RedisPrefixName = "access";
 const configPath = path.resolve(__dirname, "../../rate-limit-config.json");
@@ -45,7 +46,7 @@ export class AccessGuard {
     store?: Store
   ) {
     const config = getRateLimitConfig();
-    console.debug("rate-limit-config:", config);
+    logger.debug("rate-limit-config:", config);
     expiredTimeMilsecs = expiredTimeMilsecs || config.expired_time_milsec;
     this.store =
       store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
@@ -119,7 +120,7 @@ export class AccessGuard {
     const remainSecs = await this.store.client.ttl(id);
     if (remainSecs === -1) {
       const value = (await this.store.client.get(id)) || "0";
-      console.log(
+      logger.info(
         `key ${id} with no ttl, reset: ${this.expiredTimeMilsecs}ms, ${value}`
       );
       await this.store.client.setEx(id, this.expiredTimeMilsecs / 1000, value);

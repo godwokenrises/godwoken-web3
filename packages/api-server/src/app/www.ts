@@ -2,10 +2,8 @@
  * Module dependencies.
  */
 
+import { logger } from "../base/logger";
 import { app } from "./app";
-import debugModule from "debug";
-
-const debug = debugModule("godwoken-web3-api:server");
 
 /**
  * Get port from environment and store in Express.
@@ -61,13 +59,11 @@ function onError(error: any) {
   // handle specific listen errors with friendly messages
   switch (error.code) {
     case "EACCES":
-      console.error(bind + " requires elevated privileges");
+      logger.error(bind + " requires elevated privileges");
       process.exit(1);
-      break;
     case "EADDRINUSE":
-      console.error(bind + " is already in use");
+      logger.error(bind + " is already in use");
       process.exit(1);
-      break;
     default:
       throw error;
   }
@@ -80,7 +76,7 @@ function onError(error: any) {
 function onListening() {
   const addr = server.address();
   const bind = typeof addr === "string" ? "pipe " + addr : "port " + addr!.port;
-  debug("Listening on " + bind);
+  logger.info("godwoken-web3-api:server Listening on " + bind);
 }
 
 export const isListening = function () {

@@ -12,6 +12,7 @@
     "@ckb-lumos/base": "0.18.0-rc6",
     "@ckb-lumos/toolkit": "0.18.0-rc6",
     "cross-fetch": "^3.1.5",
-    "jsbi": "^4.2.0"
+    "jsbi": "^4.2.0",
+    "winston": "^3.7.2"
   }
 }

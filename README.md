@@ -32,6 +32,8 @@ PG_POOL_MAX=<pg pool max count, optional, default to 20>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
 EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
 ENABLE_CACHE_ETH_CALL=<optional, enable eth_call cache, default to false>
+LOG_LEVEL=<optional, allowed value: `debug` / `info` / `warn` / `error`, default to `debug` in development, and default to `info` in production>
+LOG_FORMAT=<optional, allowed value: `json`>
 EOF
 
 $ yarn
