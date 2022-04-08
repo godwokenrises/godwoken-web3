@@ -455,7 +455,7 @@ export function verifyNewFilterObj(
       for (const addr of address) {
         const addressErr = verifyAddress(addr, index);
         if (addressErr) {
-          return padErrorContext(addressErr, "filter address[] element");
+          return padErrorContext(addressErr, "filter address[] Array");
         }
       }
     } else {
