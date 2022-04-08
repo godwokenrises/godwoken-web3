@@ -1,0 +1,14 @@
+name: Godwoken Tests
+
+on:
+  push:
+    branches: [develop, master, ci, 'v1*', compatibility-changes]
+    tags: ["v*.*.*"]
+  pull_request:
+
+jobs:
+  godwoken-tests:
+    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
+    with:
+      web3_ref: ${{ github.head_ref || github.ref }}
+      kicker_ref: fix-manual-web3-path

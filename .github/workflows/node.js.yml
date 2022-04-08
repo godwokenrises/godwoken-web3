@@ -30,7 +30,7 @@ jobs:
     - run: yarn run build
     - run: yarn run fmt
     - run: yarn run lint
-    # TODO - run: git diff --exit-code
+    - run: git diff --exit-code
 
     - uses: actions/checkout@v3
       with:
