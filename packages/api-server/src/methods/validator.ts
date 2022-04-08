@@ -55,15 +55,15 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  hexString(params: any[], index: number): any {
+  hexString(params: any[], index: number) {
     return verifyHexString(params[index], index);
   },
 
-  hexNumber(params: any[], index: number): any {
+  hexNumber(params: any[], index: number) {
     return verifyHexNumber(params[index], index);
   },
 
-  storageKey(params: any[], index: number): any {
+  storageKey(params: any[], index: number) {
     return verifyStorageKey(params[index], index);
   },
 
@@ -73,7 +73,7 @@ export const validators = {
    * @param index
    * @returns
    */
-  blockParameter(params: any[], index: number): any {
+  blockParameter(params: any[], index: number) {
     return verifyBlockParameter(params[index], index);
   },
 
@@ -82,7 +82,7 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  blockHash(params: any[], index: number): any {
+  blockHash(params: any[], index: number) {
     return verifyBlockHash(params[index], index);
   },
 
@@ -91,7 +91,7 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  txHash(params: any[], index: number): any {
+  txHash(params: any[], index: number) {
     return verifyTxHash(params[index], index);
   },
 
@@ -100,7 +100,7 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  address(params: any[], index: number): any {
+  address(params: any[], index: number) {
     return verifyAddress(params[index], index);
   },
 
@@ -109,19 +109,19 @@ export const validators = {
    * @param {any[]} params parameters of method
    * @param {number} index index of parameter
    */
-  bool(params: any[], index: number): any {
+  bool(params: any[], index: number) {
     return verifyBoolean(params[index], index);
   },
 
-  ethCallParams(params: any[], index: number): any {
+  ethCallParams(params: any[], index: number) {
     return verifyEthCallObject(params[index], index);
   },
 
-  ethEstimateGasParams(params: any[], index: number): any {
+  ethEstimateGasParams(params: any[], index: number) {
     return verifyEstimateGasCallObject(params[index], index);
   },
 
-  newFilterParams(params: any[], index: number): any {
+  newFilterParams(params: any[], index: number) {
     return verifyNewFilterObj(params[index], index);
   },
 };
