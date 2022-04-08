@@ -8,7 +8,12 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators } from "../validator";
+import {
+  middleware,
+  padErrorContext,
+  validators,
+  verifyGasLimit,
+} from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -21,6 +26,8 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
   QUERY_OFFSET_REACHED_END,
+  POLY_MAX_BLOCK_GAS_LIMIT,
+  POLY_MIN_GAS_PRICE,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -1387,28 +1394,31 @@ async function buildEthCallTx(
 ): Promise<RawL2Transaction> {
   const fromAddress = txCallObj.from;
   const toAddress = txCallObj.to;
-  const gas = txCallObj.gas || "0x1000000";
-  const gasPrice = txCallObj.gasPrice || "0x1";
+  const gas =
+    txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
+  const gasPrice =
+    txCallObj.gasPrice || "0x" + BigInt(POLY_MIN_GAS_PRICE).toString(16);
   const value = txCallObj.value || "0x0";
-  const data = txCallObj.data || "0x0";
+  const data = txCallObj.data || "0x";
   let fromId: number | undefined;
+
+  const gasLimitErr = verifyGasLimit(gas, 0);
+  if (gasLimitErr) {
+    throw padErrorContext(gasLimitErr, buildEthCallTx.name);
+  }
 
   if (!fromAddress) {
     fromId = +envConfig.defaultFromId;
     console.log(`use default fromId: ${fromId}`);
   }
 
-  if (
-    fromAddress != null &&
-    fromAddress != undefined &&
-    typeof fromAddress === "string"
-  ) {
+  if (fromAddress != null && typeof fromAddress === "string") {
     fromId = await ethAddressToAccountId(fromAddress, rpc);
     console.log(`fromId: ${fromId}`);
   }
 
   if (fromId == null) {
-    throw new Error("from id not found!");
+    throw new Error(`from id not found! fromAddress: ${fromAddress}`);
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
