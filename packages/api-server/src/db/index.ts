@@ -520,15 +520,16 @@ export function filterLogsByTopics(
   if (filterTopics.length === 0) {
     return logs;
   }
+  // match anything with required length
   if (filterTopics.every((t) => t === null)) {
-    return logs;
+    return logs.filter((log) => log.topics.length >= filterTopics.length);
   }
 
   let result: Log[] = [];
   for (let log of logs) {
     let topics = log.topics;
     let length = topics.length;
-    let match = true;
+    let match = length >= filterTopics.length;
     for (let i of [...Array(length).keys()]) {
       if (
         filterTopics[i] &&
@@ -631,37 +632,4 @@ export function buildQueryLogAddress(
     const queryAddress = Array.isArray(address) ? [...address] : [address];
     queryBuilder.whereIn("address", queryAddress);
   }
-}
-
-// test
-export function testTopicMatch() {
-  const log: Log = {
-    id: BigInt(0),
-    transaction_hash: "",
-    transaction_id: BigInt(0),
-    transaction_index: 0,
-    block_number: BigInt(0),
-    block_hash: "",
-    address: "",
-    data: "",
-    log_index: 0,
-    topics: ["a", "b"],
-  };
-
-  const f0: FilterTopic[] = [null, null, null];
-  const f1: FilterTopic[] = [];
-  const f2: FilterTopic[] = ["a"];
-  const f3: FilterTopic[] = [null, "b"];
-  const f4: FilterTopic[] = ["a", "b"];
-  const f5: FilterTopic[] = [
-    ["a", "b"],
-    ["a", "b"],
-  ];
-
-  console.log("f0 =>", filterLogsByTopics([log], f0));
-  console.log("f1 =>", filterLogsByTopics([log], f1));
-  console.log("f2 =>", filterLogsByTopics([log], f2));
-  console.log("f3 =>", filterLogsByTopics([log], f3));
-  console.log("f4 =>", filterLogsByTopics([log], f4));
-  console.log("f5 =>", filterLogsByTopics([log], f5));
 }
