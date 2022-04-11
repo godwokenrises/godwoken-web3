@@ -2,6 +2,8 @@ import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
+import { POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
+import { HexString } from "@ckb-lumos/base";
 
 /**
  * middleware for parameters validation
@@ -282,8 +284,8 @@ export function verifyOptEthCallObject(
 
   const from = callObj.from;
   const to = callObj.to;
-  const gas = callObj.gas;
-  const gasLimit = callObj.gasLimit;
+  const gasPrice = callObj.gasPrice;
+  const gasLimit = callObj.gas;
   const value = callObj.value;
   const data = callObj.data;
 
@@ -303,19 +305,19 @@ export function verifyOptEthCallObject(
     }
   }
 
-  // validate `gas`
-  if (gas != null) {
-    const gasErr = verifyHexNumber(gas, index);
+  // validate `gasPrice`
+  if (gasPrice != null) {
+    const gasErr = verifyHexNumber(gasPrice, index);
     if (gasErr) {
-      return padErrorContext(gasErr, "callObj gas");
+      return padErrorContext(gasErr, "callObj gasPrice");
     }
   }
 
   // validate `gasLimit`
   if (gasLimit != null) {
-    const gasLimitErr = verifyHexNumber(gasLimit, index);
+    const gasLimitErr = verifyGasLimit(gasLimit, index);
     if (gasLimitErr) {
-      return padErrorContext(gasLimitErr, "callObj gasLimit");
+      return padErrorContext(gasLimitErr, "callObj");
     }
   }
 
@@ -481,14 +483,32 @@ export function verifyNewFilterObj(
 
   return undefined;
 }
+
+export function verifyGasLimit(
+  gasLimit: HexString,
+  index: number
+): InvalidParamsError | undefined {
+  const gasLimitErr = verifyHexNumber(gasLimit, index);
+  if (gasLimitErr) {
+    return padErrorContext(gasLimitErr, "gasLimit");
+  }
+
+  if (BigInt(gasLimit) > BigInt(POLY_MAX_BLOCK_GAS_LIMIT)) {
+    return invalidParamsError(
+      index,
+      `gas limit ${gasLimit} exceeds block gas limit of ${POLY_MAX_BLOCK_GAS_LIMIT}`
+    );
+  }
+  return undefined;
+}
 //******* end of standalone verify function ********/
 
 // some utils function
-function invalidParamsError(index: number, message: string): any {
+function invalidParamsError(index: number, message: string) {
   return new InvalidParamsError(`invalid argument ${index}: ${message}`);
 }
 
-function padErrorContext(
+export function padErrorContext(
   err: InvalidParamsError,
   context: string
 ): InvalidParamsError {
