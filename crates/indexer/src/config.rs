@@ -14,7 +14,7 @@ pub struct IndexerConfig {
     pub godwoken_rpc_url: String,
     pub ws_rpc_url: String,
     pub pg_url: String,
-    pub compatible_chain_id: u64,
+    pub chain_id: u64,
     pub sentry_dsn: Option<String>,
     pub sentry_environment: Option<String>,
 }
@@ -46,7 +46,7 @@ impl Display for IndexerConfig {
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
         write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;
-        write!(f, "compatible_chain_id: {}", self.compatible_chain_id)?;
+        write!(f, "chain_id: {}", self.chain_id)?;
         if let Some(t) = &self.sentry_dsn {
             write!(f, "sentry_dsn: {}, ", t)?;
         } else {

@@ -22,7 +22,7 @@ impl Runner {
             config.eth_account_lock_hash,
             config.tron_account_lock_hash,
             config.godwoken_rpc_url.as_str(),
-            config.compatible_chain_id,
+            config.chain_id,
         );
         let godwoken_rpc_client = GodwokenRpcClient::new(config.godwoken_rpc_url.as_str());
         let runner = Runner {

@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use gw_common::H256;
 use gw_types::packed::LogItem;
 use gw_types::prelude::*;
-use gw_web3_rpc_client::godwoken_rpc_client::GodwokenRpcClient;
 use std::{convert::TryInto, usize};
 
 // 128KB
@@ -55,39 +54,6 @@ impl PolyjuiceArgs {
             input: Some(input),
         })
     }
-}
-
-pub fn account_script_hash_to_eth_address(
-    account_script_hash: H256,
-    godwoken_rpc_client: &GodwokenRpcClient,
-) -> Result<[u8; 20]> {
-    let script_hash: ckb_types::H256 = {
-        let mut s = [0u8; 32];
-        s.copy_from_slice(account_script_hash.as_slice());
-        s.into()
-    };
-    let account_script = godwoken_rpc_client.get_script(script_hash)?;
-    let eth_address = if let Some(script) = account_script {
-        let args = script.args.as_bytes();
-        if args.len() < 52 {
-            log::error!(
-                "account script hash {} not found corresponding eth address, script args too short",
-                hex(account_script_hash.as_slice())?
-            );
-            [0u8; 20]
-        } else {
-            let mut s = [0u8; 20];
-            s.copy_from_slice(&args[32..]);
-            s
-        }
-    } else {
-        log::error!(
-            "account script hash {} not found corresponding eth address, script not found",
-            hex(account_script_hash.as_slice())?
-        );
-        [0u8; 20]
-    };
-    Ok(eth_address)
 }
 
 #[derive(Debug, Clone)]

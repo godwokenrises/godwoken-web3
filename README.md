@@ -91,7 +91,7 @@ tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"
-compatible_chain_id=<godwoken compatible_chain_id in integer>
+chain_id=<godwoken chain_id in integer>
 EOF
 ```
 
