@@ -23,6 +23,7 @@ export const envConfig = {
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
   tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
+  clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
   pgPoolMax: getOptional("PG_POOL_MAX"),
   gasPriceCacheSeconds: getOptional("GAS_PRICE_CACHE_SECONDS"),
