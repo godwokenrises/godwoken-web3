@@ -42,24 +42,36 @@ export class GodwokenClient {
     return +accountId;
   }
 
-  public async getScriptHashByShortScriptHash(
-    shortScriptHash: HexString
+  public async getRegistryAddressByScriptHash(
+    scriptHash: Hash,
+    registryId: U32
+  ): Promise<HexString | undefined> {
+    const registryAddress = await this.rpcCall(
+      "get_registry_address_by_script_hash",
+      scriptHash,
+      toHex(registryId)
+    );
+    return registryAddress;
+  }
+
+  public async getScriptHashByRegistryAddress(
+    registryAddress: HexString
   ): Promise<Hash | undefined> {
-    const scriptHash: Hash | undefined = await this.rpcCall(
-      "get_script_hash_by_short_script_hash",
-      shortScriptHash
+    const scriptHash = await this.rpcCall(
+      "get_script_hash_by_registry_address",
+      registryAddress
     );
     return scriptHash;
   }
 
   public async getBalance(
-    shortScriptHash: HexString,
+    registryAddress: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      shortScriptHash,
+      registryAddress,
       toHex(sudtId),
       toHex(blockParameter)
     );
