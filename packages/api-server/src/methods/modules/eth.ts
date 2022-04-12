@@ -905,13 +905,19 @@ export class Eth {
 
   async newBlockFilter(args: []): Promise<HexString> {
     const tipBlockNum = await this.getTipNumber();
-    const filter_id = await this.filterManager.install(1, tipBlockNum); // 1 for block filter
+    const filter_id = await this.filterManager.install(
+      FilterFlag.blockFilter,
+      tipBlockNum
+    );
     return filter_id;
   }
 
   async newPendingTransactionFilter(args: []): Promise<HexString> {
     const tipBlockNum = await this.getTipNumber();
-    const filter_id = await this.filterManager.install(2, tipBlockNum); // 2 for pending tx filter
+    const filter_id = await this.filterManager.install(
+      FilterFlag.pendingTransaction,
+      tipBlockNum
+    );
     return filter_id;
   }
 
