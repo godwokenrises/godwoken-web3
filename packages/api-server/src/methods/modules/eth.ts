@@ -72,6 +72,7 @@ import {
 } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");
 
@@ -371,7 +372,7 @@ export class Eth {
       if (shortScriptHash == null) {
         return "0x0";
       }
-      console.log(
+      logger.info(
         `eth_address: ${address}, short_script_hash: ${shortScriptHash}`
       );
       const balance = await this.rpc.getBalance(
@@ -489,7 +490,7 @@ export class Eth {
           throw parseGwRunResultError(err);
         }
 
-        console.log("RunResult:", runResult);
+        logger.debug("RunResult:", runResult);
         return runResult.return_data;
       };
 
@@ -570,9 +571,7 @@ export class Eth {
         runResult.logs
       ) as PolyjuiceSystemLog;
 
-      console.log(polyjuiceSystemLog);
-
-      console.log(
+      logger.debug(
         "eth_estimateGas RunResult:",
         runResult,
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
@@ -764,9 +763,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -883,9 +882,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -1151,9 +1150,9 @@ export class Eth {
       const data = args[0];
       const rawTx = await generateRawTransaction(data, this.rpc);
       const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
-      console.log("sendRawTransaction gw hash:", gwTxHash);
+      logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
       const ethTxHash = calcEthTxHash(data);
-      console.log("sendRawTransaction eth hash:", ethTxHash);
+      logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
 
       // save the tx hash mapping for instant finality
       const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
@@ -1171,7 +1170,7 @@ export class Eth {
 
       return ethTxHash;
     } catch (error: any) {
-      console.error(error);
+      logger.error(error);
       throw new InvalidParamsError(error.message);
     }
   }
@@ -1359,7 +1358,7 @@ function buildStorageKey(storagePosition: string) {
   if (key.length < 64) {
     key = "0".repeat(64 - key.length) + key;
   }
-  console.log("storage position:", key);
+  logger.debug("storage position:", key);
   return "0x" + key;
 }
 
@@ -1399,7 +1398,7 @@ async function buildEthCallTx(
 
   if (!fromAddress) {
     fromId = +envConfig.defaultFromId;
-    console.log(`use default fromId: ${fromId}`);
+    logger.debug(`use default fromId: ${fromId}`);
   }
 
   if (
@@ -1408,7 +1407,7 @@ async function buildEthCallTx(
     typeof fromAddress === "string"
   ) {
     fromId = await ethAddressToAccountId(fromAddress, rpc);
-    console.log(`fromId: ${fromId}`);
+    logger.debug(`fromId: ${fromId}`);
   }
 
   if (fromId == null) {
@@ -1433,7 +1432,9 @@ async function buildEthCallTx(
     nonce,
     polyjuiceArgs
   );
-  console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
+  logger.debug(
+    `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
+  );
   return rawL2Transaction;
 }
 

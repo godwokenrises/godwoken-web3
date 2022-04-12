@@ -1,5 +1,6 @@
 import { env } from "process";
 import dotenv from "dotenv";
+import { logger } from "./logger";
 
 dotenv.config({ path: "./.env" });
 
@@ -32,6 +33,8 @@ export const envConfig = {
   sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
   godwokenReadonlyJsonRpc: getOptional("GODWOKEN_READONLY_JSON_RPC"),
   enableCacheEthCall: getOptional("ENABLE_CACHE_ETH_CALL"),
+  logLevel: getOptional("LOG_LEVEL"),
+  logFormat: getOptional("LOG_FORMAT"),
 };
 
 function getRequired(name: string): string {
@@ -52,7 +55,7 @@ export function calculateChainId(
   compatibleChainId: number
 ): string {
   const chainId = (BigInt(compatibleChainId) << 32n) + BigInt(creatorId);
-  console.log(
+  logger.info(
     `web3 chain_id: ${chainId}, calculating from compatible_chain_id: ${compatibleChainId}, creator_id: ${creatorId}`
   );
   return chainId.toString(10);

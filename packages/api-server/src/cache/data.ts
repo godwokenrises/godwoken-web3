@@ -1,20 +1,21 @@
 import { createClient } from "redis";
 import { envConfig } from "../base/env-config";
 import crypto from "crypto";
+import { logger } from "../base/logger";
 
 // init publisher redis client
 export const pubClient = createClient({
   url: envConfig.redisUrl,
 });
 pubClient.connect();
-pubClient.on("error", (err) => console.log("Redis Client Error", err));
+pubClient.on("error", (err) => logger.error("Redis Client Error", err));
 
 // init subscriber redis client
 export const subClient = createClient({
   url: envConfig.redisUrl,
 });
 subClient.connect();
-subClient.on("error", (err) => console.log("Redis Client Error", err));
+subClient.on("error", (err) => logger.error("Redis Client Error", err));
 
 export const SUB_TIME_OUT_MS = 2 * 1000; // 2s;
 export const LOCK_KEY_EXPIRED_TIME_OUT_MS = 60 * 1000; // 60s, the max tolerate timeout for execute call
@@ -95,7 +96,7 @@ export class RedisDataCache {
     const dataKey = this.dataKey;
     const value = await pubClient.get(dataKey);
     if (value != null) {
-      console.debug(
+      logger.debug(
         `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
       );
       return value;
@@ -125,7 +126,7 @@ export class RedisDataCache {
       if (value === lockValue) {
         // only lock owner can delete the lock
         const delNumber = await pubClient.del(this.lock.key.name);
-        console.debug(
+        logger.debug(
           `[${this.constructor.name}]: delete key ${this.lock.key.name}, result: ${delNumber}`
         );
       }
@@ -134,7 +135,7 @@ export class RedisDataCache {
     while (true) {
       const value = await pubClient.get(dataKey);
       if (value != null) {
-        console.debug(
+        logger.debug(
           `[${this.constructor.name}]: hit cache via Redis.Get, key: ${dataKey}`
         );
         return value;
@@ -157,7 +158,7 @@ export class RedisDataCache {
             this.lock.subscribe.channel,
             publishResult
           );
-          console.debug(
+          logger.debug(
             `[${this.constructor.name}][success]: publish message ${publishResult} on channel ${this.lock.subscribe.channel}, total subscribers: ${totalSubs}`
           );
           await releaseLock(lockValue);
@@ -171,7 +172,7 @@ export class RedisDataCache {
               this.lock.subscribe.channel,
               publishResult
             );
-            console.debug(
+            logger.debug(
               `[${this.constructor.name}][error]: publish message ${publishResult} on channel ${this.lock.subscribe.channel}, total subscribers: ${totalSubs}`
             );
           }
@@ -183,7 +184,7 @@ export class RedisDataCache {
       // if lock is not acquired
       try {
         const result = await this.subscribe();
-        console.debug(
+        logger.debug(
           `[${this.constructor.name}]: hit cache via Redis.Subscribe, key: ${dataKey}`
         );
         return result;
@@ -193,7 +194,7 @@ export class RedisDataCache {
             "subscribe channel for message time out"
           )
         ) {
-          console.debug(
+          logger.debug(
             `[${this.constructor.name}]: subscribe err:`,
             error.message
           );

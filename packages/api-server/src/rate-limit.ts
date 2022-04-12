@@ -1,6 +1,7 @@
 import { AccessGuard } from "./cache/guard";
 import { LIMIT_EXCEEDED } from "./methods/error-code";
 import { Request, Response, NextFunction } from "express";
+import { logger } from "./base/logger";
 
 export const accessGuard = new AccessGuard();
 accessGuard.connect();
@@ -62,7 +63,7 @@ export async function rateLimit(
         message: message,
       };
 
-      console.debug(
+      logger.debug(
         `Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
       );
 
