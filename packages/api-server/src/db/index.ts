@@ -271,6 +271,14 @@ export class Query {
     return result;
   }
 
+  async getTipLog() {
+    let log = await this.knex<Log>("logs").orderBy("id", "desc").first();
+    if (log != null) {
+      return formatLog(log);
+    }
+    return null;
+  }
+
   private async queryLogsByBlockHash(
     blockHash: HexString,
     address?: HexString | HexString[],
