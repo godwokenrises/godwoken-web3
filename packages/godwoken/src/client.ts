@@ -7,6 +7,7 @@ import {
   L2TransactionReceipt,
   L2TransactionWithStatus,
   RawL2Transaction,
+  RegistryAddress,
   RunResult,
   U128,
   U32,
@@ -45,7 +46,7 @@ export class GodwokenClient {
   public async getRegistryAddressByScriptHash(
     scriptHash: Hash,
     registryId: U32
-  ): Promise<HexString | undefined> {
+  ): Promise<RegistryAddress | undefined> {
     const registryAddress = await this.rpcCall(
       "get_registry_address_by_script_hash",
       scriptHash,

@@ -1,5 +1,9 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
+import {
+  GodwokenClient,
+  RawL2Transaction,
+  L2Transaction,
+} from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
@@ -25,18 +29,6 @@ export interface PolyjuiceTransaction {
   s: HexString;
 }
 
-export interface GodwokenL2Transaction {
-  raw: GodwokenRawL2Transaction;
-  signature: HexString;
-}
-
-export interface GodwokenRawL2Transaction {
-  from_id: HexNumber;
-  to_id: HexNumber;
-  nonce: HexNumber;
-  args: HexString;
-}
-
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -47,7 +39,7 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 export async function generateRawTransaction(
   data: HexString,
   rpc: GodwokenClient
-): Promise<GodwokenL2Transaction> {
+): Promise<L2Transaction> {
   logger.debug("convert-tx, origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
   logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
@@ -135,7 +127,7 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
 async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient
-) {
+): Promise<L2Transaction> {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
   const r = "0x" + rA.slice(2).padStart(64, "0");
   const s = "0x" + sA.slice(2).padStart(64, "0");
@@ -215,14 +207,15 @@ async function parseRawTransactionData(
     args_48_52.slice(2) +
     args_data.slice(2);
 
-  const godwokenRawL2Tx: GodwokenRawL2Transaction = {
+  const godwokenRawL2Tx: RawL2Transaction = {
+    chain_id: "0x" + BigInt(envConfig.chainId).toString(16),
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,
     args,
   };
 
-  const godwokenL2Tx: GodwokenL2Transaction = {
+  const godwokenL2Tx: L2Transaction = {
     raw: godwokenRawL2Tx,
     signature,
   };

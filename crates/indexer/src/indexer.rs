@@ -11,7 +11,7 @@ use crate::{
 use anyhow::{anyhow, Result};
 use ckb_hash::blake2b_256;
 use ckb_types::H256;
-use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
+use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, registry_address::RegistryAddress};
 use gw_types::{
     bytes::Bytes,
     packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
@@ -265,10 +265,19 @@ impl Web3Indexer {
 
                 // read logs
                 let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+                let tx_hash_hex = hex(tx_hash.as_bytes())
+                    .unwrap_or_else(|_| "convert tx hash to hex format failed".to_string());
                 let tx_receipt: gw_types::packed::TxReceipt = self
                     .godwoken_rpc_client
                     .get_transaction_receipt(&tx_hash)?
-                    .ok_or_else(|| anyhow!("tx receipt not found"))?
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "tx receipt not found by tx_hash: {} of block: {}, index: {}",
+                            tx_hash_hex,
+                            block_number,
+                            tx_index
+                        )
+                    })?
                     .into();
                 let log_item_vec = tx_receipt.logs();
 
@@ -456,25 +465,22 @@ impl Web3Indexer {
             gas_limit += web3_tx_with_logs.tx.gas_limit;
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
-        let block_producer_registry_address =
-            gw_common::registry_address::RegistryAddress::from_slice(
-                l2_block.raw().block_producer().as_slice(),
-            );
+        let block_producer: Bytes = l2_block.raw().block_producer().unpack();
+        let block_producer_registry_address = RegistryAddress::from_slice(&block_producer);
 
         // If registry_address is None, set miner address to zero-address
-        let miner_address = if let Some(registry_address) = block_producer_registry_address {
+        let mut miner_address = [0u8; 20];
+        if let Some(registry_address) = block_producer_registry_address {
             let address = registry_address.address;
-            if address.len() != 20 {
+            if address.is_empty() {
+                log::warn!("Block producer address is empty");
+            } else if address.len() != 20 {
                 log::error!("Block producer address len not equal to 20: {:?}", address);
-                [0u8; 20]
             } else {
-                let mut s = [0u8; 20];
-                s.copy_from_slice(address.as_slice());
-                s
+                miner_address.copy_from_slice(address.as_slice());
             }
         } else {
             log::warn!("Block producer address is None");
-            [0u8; 20]
         };
 
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();

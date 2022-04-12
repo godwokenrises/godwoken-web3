@@ -66,10 +66,7 @@ import {
 } from "../../cache/constant";
 import { isErc20Transfer } from "../../erc20-decoder";
 import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
-import {
-  ethAddressToAccountId,
-  ethAddressToShortScriptHash,
-} from "../../base/address";
+import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { logger } from "../../base/logger";
@@ -367,16 +364,11 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const shortScriptHash: Hash | undefined =
-        await ethAddressToShortScriptHash(address, this.rpc);
-      if (shortScriptHash == null) {
-        return "0x0";
-      }
-      logger.info(
-        `eth_address: ${address}, short_script_hash: ${shortScriptHash}`
+      const registryAddress: EthRegistryAddress = new EthRegistryAddress(
+        address
       );
       const balance = await this.rpc.getBalance(
-        shortScriptHash,
+        registryAddress.serialize(),
         +CKB_SUDT_ID,
         blockNumber
       );
@@ -1331,12 +1323,14 @@ function buildPolyjuiceArgs(
 }
 
 function buildRawL2Transaction(
+  chainId: bigint,
   fromId: number,
   toId: number,
   nonce: number,
   args: string
 ) {
   const rawL2Transaction = {
+    chain_id: "0x" + chainId.toString(16),
     from_id: "0x" + BigInt(fromId).toString(16),
     to_id: "0x" + BigInt(toId).toString(16),
     nonce: "0x" + BigInt(nonce).toString(16),
@@ -1371,7 +1365,10 @@ async function ethCallTx(
     throw new Web3Error("not supported to address!");
   }
 
-  const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
+  const rawL2Transaction: RawL2Transaction = await buildEthCallTx(
+    txCallObj,
+    rpc
+  );
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
     blockNumber
@@ -1423,6 +1420,7 @@ async function buildEthCallTx(
     data
   );
   const rawL2Transaction = buildRawL2Transaction(
+    BigInt(envConfig.chainId),
     fromId,
     toId,
     nonce,
