@@ -898,17 +898,21 @@ export class Eth {
 
   /* #region filter-related api methods */
   async newFilter(args: [FilterObject]): Promise<HexString> {
-    const filter_id = await this.filterManager.install(args[0]);
+    const tipLog: Log | null = await this.query.getTipLog();
+    let initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
+    const filter_id = await this.filterManager.install(args[0], initialLogId);
     return filter_id;
   }
 
   async newBlockFilter(args: []): Promise<HexString> {
-    const filter_id = await this.filterManager.install(1); // 1 for block filter
+    const tipBlockNum = await this.getTipNumber();
+    const filter_id = await this.filterManager.install(1, tipBlockNum); // 1 for block filter
     return filter_id;
   }
 
   async newPendingTransactionFilter(args: []): Promise<HexString> {
-    const filter_id = await this.filterManager.install(2); // 2 for pending tx filter
+    const tipBlockNum = await this.getTipNumber();
+    const filter_id = await this.filterManager.install(2, tipBlockNum); // 2 for pending tx filter
     return filter_id;
   }
 

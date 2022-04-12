@@ -37,12 +37,15 @@ export class FilterManager {
     }
   }
 
-  async install(filter: FilterType): Promise<HexString> {
+  async install(
+    filter: FilterType,
+    initialPollIdx: bigint
+  ): Promise<HexString> {
     verifyFilterType(filter);
     const id = newId();
     const filterCache: FilterCache = {
       filter: filter,
-      lastPoll: BigInt(0), // initial lastPoll should be 0
+      lastPoll: initialPollIdx,
     };
     await this.store.insert(id, serializeFilterCache(filterCache));
     return id;
