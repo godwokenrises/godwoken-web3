@@ -520,15 +520,16 @@ export function filterLogsByTopics(
   if (filterTopics.length === 0) {
     return logs;
   }
+  // match anything with required length
   if (filterTopics.every((t) => t === null)) {
-    return logs;
+    return logs.filter((log) => log.topics.length >= filterTopics.length);
   }
 
   let result: Log[] = [];
   for (let log of logs) {
     let topics = log.topics;
     let length = topics.length;
-    let match = true;
+    let match = length >= filterTopics.length;
     for (let i of [...Array(length).keys()]) {
       if (
         filterTopics[i] &&
