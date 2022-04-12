@@ -3,6 +3,7 @@ import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
 import { COMPATIBLE_DOCS_URL } from "../methods/constant";
 import { envConfig } from "./env-config";
+import { logger } from "./logger";
 import { Uint32 } from "./types/uint";
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
@@ -48,7 +49,7 @@ export async function ethAddressToScriptHash(
   const CACHE_KEY_PREFIX = "ethAddressToScriptHash";
   let result = await scriptHashCache.get(`${CACHE_KEY_PREFIX}:${ethAddress}`);
   if (result != null) {
-    console.debug(
+    logger.debug(
       `[ethAddressToScriptHash] using cache: ${ethAddress} -> ${result}`
     );
     return result;
@@ -74,7 +75,7 @@ export async function ethAddressToScriptHash(
 
     // add cache
     if (scriptHash != null) {
-      console.debug(
+      logger.debug(
         `[ethAddressToScriptHash] update cache: ${ethAddress} -> ${scriptHash}`
       );
       scriptHashCache.insert(`${CACHE_KEY_PREFIX}:${ethAddress}`, scriptHash);

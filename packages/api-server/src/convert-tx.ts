@@ -8,6 +8,7 @@ import {
   ethEoaAddressToScriptHash,
 } from "./base/address";
 import { envConfig } from "./base/env-config";
+import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 
 export const DEPLOY_TO_ADDRESS = "0x";
@@ -36,16 +37,6 @@ export interface GodwokenRawL2Transaction {
   args: HexString;
 }
 
-function logger(level: string, ...messages: any[]) {
-  console.log(`[${level}] `, ...messages);
-}
-
-function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === "true") {
-    logger("debug", "@convert-tx:", ...messages);
-  }
-}
-
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -57,9 +48,9 @@ export async function generateRawTransaction(
   data: HexString,
   rpc: GodwokenClient
 ): Promise<GodwokenL2Transaction> {
-  debugLogger("origin data:", data);
+  logger.debug("convert-tx, origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
-  debugLogger("decoded polyjuice tx:", polyjuiceTx);
+  logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
   const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
@@ -290,7 +281,7 @@ function recoverPublicKey(signature: HexString, message: HexString) {
   );
   const publicKeyHex = "0x" + Buffer.from(publicKey).toString("hex");
 
-  debugLogger("recovered public key:", publicKeyHex);
+  logger.debug("recovered public key:", publicKeyHex);
 
   return publicKeyHex;
 }

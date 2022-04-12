@@ -1,6 +1,7 @@
 import cluster from "cluster";
 import { cpus } from "os";
 import { envConfig } from "../base/env-config";
+import { logger } from "../base/logger";
 import { BlockEmitter } from "../block-emitter";
 import { initSentry } from "../sentry";
 
@@ -9,7 +10,7 @@ const clusterCount = +(envConfig.clusterCount || 0);
 const numOfCluster = clusterCount || numCPUs;
 
 if (cluster.isMaster) {
-  console.log(`Master ${process.pid} is running`);
+  logger.info(`Master ${process.pid} is running`);
 
   initSentry();
 
@@ -22,10 +23,10 @@ if (cluster.isMaster) {
   blockEmitter.startForever();
 
   cluster.on("exit", (worker, _code, _signal) => {
-    console.log(`worker ${worker.process.pid} died`);
+    logger.info(`worker ${worker.process.pid} died`);
   });
 } else {
   require("./www");
 
-  console.log(`Worker ${process.pid} started`);
+  logger.info(`Worker ${process.pid} started`);
 }
