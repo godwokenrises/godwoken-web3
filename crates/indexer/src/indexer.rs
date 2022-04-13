@@ -265,14 +265,15 @@ impl Web3Indexer {
 
                 // read logs
                 let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
-                let tx_hash_hex = hex(tx_hash.as_bytes())
-                    .unwrap_or_else(|_| "convert tx hash to hex format failed".to_string());
+                let tx_hash_hex = hex(tx_hash.as_bytes()).unwrap_or_else(|_| {
+                    format!("convert tx hash: {:?} to hex format failed", tx_hash)
+                });
                 let tx_receipt: gw_types::packed::TxReceipt = self
                     .godwoken_rpc_client
                     .get_transaction_receipt(&tx_hash)?
                     .ok_or_else(|| {
                         anyhow!(
-                            "tx receipt not found by tx_hash: {} of block: {}, index: {}",
+                            "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
                             tx_hash_hex,
                             block_number,
                             tx_index
@@ -388,9 +389,7 @@ impl Web3Indexer {
                     SUDTArgsUnion::SUDTTransfer(sudt_transfer) => {
                         // Since we can transfer to any non-exists account, we can not check the script.code_hash.
                         let to_address_registry_address =
-                            gw_common::registry_address::RegistryAddress::from_slice(
-                                sudt_transfer.to_address().as_slice(),
-                            );
+                            RegistryAddress::from_slice(sudt_transfer.to_address().as_slice());
 
                         let mut to_address = [0u8; 20];
                         if let Some(registry_address) = to_address_registry_address {
