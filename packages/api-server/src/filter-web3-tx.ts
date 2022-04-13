@@ -48,14 +48,9 @@ export async function filterWeb3Transaction(
     return undefined;
   }
 
-  // skip tx with non eth_account_lock or non tron_account_lock from_id
+  // skip tx with non eth_account_lock from_id
   if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
-    if (envConfig.tronAccountLockHash == null) {
-      return undefined;
-    }
-    if (fromScript.code_hash !== envConfig.tronAccountLockHash) {
-      return undefined;
-    }
+    return undefined;
   }
 
   const fromScriptArgs: HexString = fromScript.args;

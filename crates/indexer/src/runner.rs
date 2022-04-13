@@ -20,7 +20,6 @@ impl Runner {
             config.polyjuice_type_script_hash,
             config.rollup_type_hash,
             config.eth_account_lock_hash,
-            config.tron_account_lock_hash,
             config.godwoken_rpc_url.as_str(),
             config.chain_id,
         );

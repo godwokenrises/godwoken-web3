@@ -10,7 +10,6 @@ pub struct IndexerConfig {
     pub polyjuice_type_script_hash: H256,
     pub rollup_type_hash: H256,
     pub eth_account_lock_hash: H256,
-    pub tron_account_lock_hash: Option<H256>,
     pub godwoken_rpc_url: String,
     pub ws_rpc_url: String,
     pub pg_url: String,
@@ -38,11 +37,6 @@ impl Display for IndexerConfig {
             "eth_account_lock_hash: 0x{}, ",
             self.eth_account_lock_hash
         )?;
-        if let Some(t) = &self.tron_account_lock_hash {
-            write!(f, "tron_account_lock_hash: 0x{}, ", t)?;
-        } else {
-            write!(f, "tron_account_lock_hash: null, ")?;
-        }
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
         write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;

@@ -21,7 +21,6 @@ POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
 ETH_ADDRESS_REGISTRY_ACCOUNT_ID=<required, eth address registry account id>
 
-TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
@@ -87,7 +86,6 @@ l2_sudt_type_script_hash=<l2 sudt validator script type hash>
 polyjuice_type_script_hash=<godwoken polyjuice validator type hash>
 rollup_type_hash=<godwoken rollup type hash>
 eth_account_lock_hash=<eth account lock script hash>
-tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"

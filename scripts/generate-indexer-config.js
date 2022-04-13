@@ -13,7 +13,6 @@ let config = {
   polyjuice_type_script_hash: process.env.POLYJUICE_VALIDATOR_TYPE_HASH,
   rollup_type_hash: process.env.ROLLUP_TYPE_HASH,
   eth_account_lock_hash: process.env.ETH_ACCOUNT_LOCK_HASH,
-  tron_account_lock_hash: process.env.TRON_ACCOUNT_LOCK_HASH,
   godwoken_rpc_url: process.env.GODWOKEN_JSON_RPC,
   pg_url: process.env.DATABASE_URL,
   chain_id: process.env.CHAIN_ID,

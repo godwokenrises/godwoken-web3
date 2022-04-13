@@ -38,15 +38,11 @@ impl Web3Indexer {
         polyjuice_type_script_hash: H256,
         rollup_type_hash: H256,
         eth_account_lock_hash: H256,
-        tron_account_lock_hash: Option<H256>,
         gw_rpc_url: &str,
         chain_id: u64,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
-        if let Some(code_hash) = tron_account_lock_hash {
-            allowed_eoa_hashes.insert(code_hash);
-        };
         let godwoken_rpc_client = GodwokenRpcClient::new(gw_rpc_url);
 
         Web3Indexer {
