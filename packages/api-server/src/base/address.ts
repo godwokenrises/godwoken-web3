@@ -41,7 +41,7 @@ export class EthRegistryAddress {
       hexWithoutPrefix.slice(8, 16)
     ).getValue();
     const address: HexString = hexWithoutPrefix.slice(16);
-    if (addressByteSize != 20 || address.length != 40) {
+    if (addressByteSize !== 20 || address.length !== 40) {
       throw new Error(`Eth address deserialize error: ${hex}`);
     }
     return new EthRegistryAddress("0x" + address);
