@@ -347,26 +347,42 @@ export class Gw {
 
   /**
    *
-   * @param args [short_script_hash]
+   * @param args [scriptHash(Hash), registryId(HexNumber)]
    * @returns
    */
-  async get_script_hash_by_short_script_hash(args: any[]) {
+  async get_registry_address_by_script_hash(args: any[]) {
     try {
-      const shortScriptHash = args[0];
-      const key = `${GW_RPC_KEY}_addr_${shortScriptHash}`;
+      const result = await this.rpc.gw_get_registry_address_by_script_hash(
+        ...args
+      );
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  /**
+   *
+   * @param args [registryAddress(HexString)]
+   * @returns
+   */
+  async get_script_hash_by_registry_address(args: any[]) {
+    try {
+      const registryAddress: string = args[0];
+      const key = `${GW_RPC_KEY}_addr_${registryAddress}`;
       const value = await this.gwCache.get(key);
       if (value != null) {
         logger.debug(
-          `using cache : shortScriptHash(${shortScriptHash}) -> scriptHash(${value})`
+          `using cache : registryAddress(${registryAddress}) -> scriptHash(${value})`
         );
         return value;
       }
 
       const result =
-        await this.readonlyRpc.gw_get_script_hash_by_short_script_hash(...args);
+        await this.readonlyRpc.gw_get_script_hash_by_registry_address(...args);
       if (result != null) {
         logger.debug(
-          `update cache: shortScriptHash(${shortScriptHash}) -> scriptHash(${result})`
+          `update cache: registryAddress(${registryAddress}) -> scriptHash(${result})`
         );
         this.gwCache.insert(key, result);
       }
