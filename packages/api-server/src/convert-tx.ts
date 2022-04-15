@@ -9,7 +9,7 @@ import {
 } from "./base/address";
 import { envConfig } from "./base/env-config";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
-import { padErrorContext, verifyGasLimit } from "./methods/validator";
+import { verifyGasLimit } from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -150,8 +150,7 @@ async function parseRawTransactionData(
 
   const gasLimitErr = verifyGasLimit(gasLimit, 0);
   if (gasLimitErr) {
-    throw padErrorContext(
-      gasLimitErr,
+    throw gasLimitErr.padErrorContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
     );
   }

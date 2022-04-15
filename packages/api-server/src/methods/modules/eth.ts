@@ -8,12 +8,7 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import {
-  middleware,
-  padErrorContext,
-  validators,
-  verifyGasLimit,
-} from "../validator";
+import { middleware, validators, verifyGasLimit } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -1404,7 +1399,7 @@ async function buildEthCallTx(
 
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
-    throw padErrorContext(gasLimitErr, buildEthCallTx.name);
+    throw gasLimitErr.padErrorContext(buildEthCallTx.name);
   }
 
   if (!fromAddress) {
