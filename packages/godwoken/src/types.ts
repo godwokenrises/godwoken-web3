@@ -57,6 +57,6 @@ export interface AccountMerkleState {
 }
 
 export interface RegistryAddress {
-  registry_id: HexNumber;
+  registry_id: HexU32;
   address: HexString;
 }

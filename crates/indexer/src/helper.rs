@@ -83,11 +83,14 @@ pub enum GwLog {
     },
 }
 
+// data format should be from_registry_address + to_registry_address + amount
+// registry address format: 4 bytes registry id(u32) in little endian, 4 bytes address byte size(u32) in little endian, and 0 or 20 bytes address
+// registry address can be 8-bytes(empty address) or 28-bytes(eth address)
+// amount is a u128 number in little endian format
+// so data can be (8 + 8 + 16) or (8 + 28 + 16) or (28 + 8 + 16) or (28 + 28 + 16) bytes
 fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, RegistryAddress, u128)> {
     let mut start = 0;
-    let mut end = 0;
-
-    end += {
+    let mut end = start + {
         let from_address_byte_size = u32::from_le_bytes(data[4..8].try_into()?);
         if from_address_byte_size == 0 {
             8
@@ -104,7 +107,7 @@ fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, Registry
     };
 
     start = end;
-    end += {
+    end = start + {
         let to_address_byte_size = u32::from_le_bytes(data[start + 4..start + 8].try_into()?);
         if to_address_byte_size == 0 {
             8

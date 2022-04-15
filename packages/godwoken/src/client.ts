@@ -56,23 +56,23 @@ export class GodwokenClient {
   }
 
   public async getScriptHashByRegistryAddress(
-    registryAddress: HexString
+    serializedRegistryAddress: HexString
   ): Promise<Hash | undefined> {
     const scriptHash = await this.rpcCall(
       "get_script_hash_by_registry_address",
-      registryAddress
+      serializedRegistryAddress
     );
     return scriptHash;
   }
 
   public async getBalance(
-    registryAddress: HexString,
+    serializedRegistryAddress: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      registryAddress,
+      serializedRegistryAddress,
       toHex(sudtId),
       toHex(blockParameter)
     );
