@@ -14,6 +14,7 @@ import {
 import { envConfig } from "./base/env-config";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
+import { verifyGasLimit } from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -72,7 +73,7 @@ function decodeRawTransactionData(dataParams: HexString) {
   return tx;
 }
 
-function numberToRlpEncode(num: HexString) {
+function numberToRlpEncode(num: HexString): HexString {
   if (num === "0x0" || num === "0x") {
     return "0x";
   }
@@ -129,6 +130,14 @@ async function parseRawTransactionData(
   rpc: GodwokenClient
 ): Promise<L2Transaction> {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+
+  const gasLimitErr = verifyGasLimit(gasLimit, 0);
+  if (gasLimitErr) {
+    throw gasLimitErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+    );
+  }
+
   const r = "0x" + rA.slice(2).padStart(64, "0");
   const s = "0x" + sA.slice(2).padStart(64, "0");
 
@@ -149,7 +158,9 @@ async function parseRawTransactionData(
   );
 
   if (fromId == null) {
-    throw new Error("from id not found!");
+    throw new Error(
+      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    );
   }
 
   // header

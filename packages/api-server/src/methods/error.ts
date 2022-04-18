@@ -32,6 +32,17 @@ export class InvalidParamsError extends RpcError {
   constructor(message: string) {
     super(INVALID_PARAMS, message);
   }
+
+  padContext(context: string): InvalidParamsError {
+    const msgs = this.message.split(/(invalid argument .: )/);
+    // [ '', 'invalid argument <number>: ', 'message' ]
+    if (msgs.length !== 3) {
+      return this;
+    }
+    const newMsg = `${msgs[1]}${context} -> ${msgs[2]}`;
+    this.message = newMsg;
+    return this;
+  }
 }
 
 export class InternalError extends RpcError {
