@@ -31,7 +31,7 @@ test("eth_getBlockByHash", async (t) => {
   const res: JSONResponse = await client.request(t.title, [block.hash, true]);
   t.falsy(res.error);
   t.is(res.result.number, block.number);
-  t.is(JSON.stringify(res.result), JSON.stringify(block));
+  t.deepEqual(res.result, block);
 });
 
 test("eth_getBlockTransactionCountByNumber", async (t) => {
@@ -60,7 +60,7 @@ test("eth_getTransactionByBlockNumberAndIndex", async (t) => {
     "0x0",
   ]);
   t.falsy(res.error);
-  t.is(JSON.stringify(res.result), JSON.stringify(block.transactions[0]));
+  t.deepEqual(res.result, block.transactions[0]);
 });
 
 test("eth_getTransactionByBlockHashAndIndex", async (t) => {
@@ -72,7 +72,7 @@ test("eth_getTransactionByBlockHashAndIndex", async (t) => {
 
   const res: JSONResponse = await client.request(t.title, [block.hash, "0x0"]);
   t.falsy(res.error);
-  t.is(JSON.stringify(res.result), JSON.stringify(block.transactions[0]));
+  t.deepEqual(res.result, block.transactions[0]);
 });
 
 test("eth_getTransactionByHash", async (t) => {
@@ -86,7 +86,7 @@ test("eth_getTransactionByHash", async (t) => {
     (block.transactions[0] as EthTransaction).hash,
   ]);
   t.falsy(res.error);
-  t.is(JSON.stringify(res.result), JSON.stringify(block.transactions[0]));
+  t.deepEqual(res.result, block.transactions[0]);
 });
 
 test("eth_getTransactionReceipt", async (t) => {
@@ -121,7 +121,7 @@ test("eth_hashrate", async (t) => {
 test("eth_accounts", async (t) => {
   const res: JSONResponse = await client.request(t.title, []);
   t.falsy(res.error);
-  t.is(JSON.stringify(res.result), JSON.stringify([]));
+  t.deepEqual(res.result, []);
 });
 
 test("eth_syncing", async (t) => {
@@ -148,7 +148,7 @@ async function findNonEmptyBlock(): Promise<EthBlock | undefined> {
     number++;
   }
 
-  console.warn("There is not non-empty block.");
+  console.warn("There is no non-empty block.");
   return undefined;
 }
 

@@ -15,5 +15,5 @@ test("net_peerCount", async (t) => {
 test("net_listening", async (t) => {
   let res: JSONResponse = await client.request(t.title, []);
   t.falsy(res.error);
-  t.is(res.result, true);
+  t.true(res.result);
 });

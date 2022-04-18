@@ -1,4 +1,4 @@
-const jayson = require("jayson/promise");
+import jayson from "jayson/promise";
 
 export const client = jayson.Client.http({
   port: process.env.PORT || "8024",
