@@ -245,6 +245,8 @@ resource:
 - gw_execute_raw_l2transaction
 - gw_submit_l2transaction
 - gw_submit_withdrawal_request
+- gw_get_registry_address_by_script_hash
+- gw_get_script_hash_by_registry_address
 
 ### poly
 - poly_getChainInfo
@@ -468,4 +470,26 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x1"}
 
+```
+
+### gw_get_registry_address_by_script_hash
+```
+// Params: script_hash, registry_id
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_registry_address_by_script_hash", "params": ["0x2d7c7ce67585244086cc01d64845e305f58fac17ff023e130dc572aad4cbd520", "0x2"], "id"
+: 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":{"registry_id":"0x2","address":"0x599f0453dbe60439c58feb4c6f8ed428fc6b7ae3"}}
+```
+
+### gw_get_script_hash_by_registry_address
+```
+// Params: registry_address(registry id in uint32 little endian + address byte length in uint32 little endian + address)
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_script_hash_by_registry_address", "params": ["0x0200000014000000599f0453dbe60439c58feb4c6f8ed428fc6b7ae3"], "id"
+: 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x2d7c7ce67585244086cc01d64845e305f58fac17ff023e130dc572aad4cbd520"}
 ```
