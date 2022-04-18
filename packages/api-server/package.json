@@ -8,7 +8,7 @@
     "start:pm2": "NODE_ENV=production pm2 start ./bin/cluster --no-daemon --name gw-web3 --max-memory-restart 1G",
     "test": "ava",
     "fmt": "prettier --write \"{migrations,tests}/**/*.{js,ts,tsx}\" src/* package.json",
-    "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
+    "lint": "eslint -c ../../.eslintrc.js \"{src,tests}/**/*.ts\"",
     "reset_database": "NODE_ENV=test knex migrate:down && knex migrate:up && knex seed:run",
     "knex": "knex",
     "migrate:make": "knex migrate:make",
@@ -22,6 +22,10 @@
     ],
     "require": [
       "ts-node/register"
+    ],
+    "files": [
+      "tests/**/*",
+      "!tests/www.ts"
     ]
   },
   "dependencies": {
@@ -63,7 +67,7 @@
     "@types/levelup": "^4.3.3",
     "@types/newrelic": "^7.0.2",
     "@types/secp256k1": "^4.0.2",
-    "ava": "^3.15.0",
+    "ava": "^4.1.0",
     "concurrently": "^6.0.0",
     "nodemon": "^2.0.7",
     "ts-node": "^9.1.1",
