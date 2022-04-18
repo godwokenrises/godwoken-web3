@@ -197,7 +197,7 @@ export function verifyAddress(
 ): InvalidParamsError | undefined {
   const err = verifyHexString(address, index);
   if (err) {
-    return err.padErrorContext("address");
+    return err.padContext("address");
   }
 
   if (address.substring(2).length !== 40) {
@@ -218,7 +218,7 @@ export function verifyBlockHash(
 ): InvalidParamsError | undefined {
   const err = verifyHexString(blockHash, index);
   if (err) {
-    return err.padErrorContext("blockHash");
+    return err.padContext("blockHash");
   }
 
   if (blockHash.substring(2).length !== 64) {
@@ -239,7 +239,7 @@ export function verifyTxHash(
 ): InvalidParamsError | undefined {
   const err = verifyHexString(txHash, index);
   if (err) {
-    return err.padErrorContext("txHash");
+    return err.padContext("txHash");
   }
 
   if (txHash.substring(2).length !== 64) {
@@ -268,7 +268,7 @@ export function verifyBlockParameter(
 
   const err = verifyHexNumber(blockParameter, index);
   if (err) {
-    return err.padErrorContext("blockParameter block number");
+    return err.padContext("blockParameter block number");
   }
 
   return undefined;
@@ -293,7 +293,7 @@ export function verifyOptEthCallObject(
   if (to != null) {
     const toErr = verifyAddress(to, index);
     if (toErr) {
-      return toErr.padErrorContext("callObj to address");
+      return toErr.padContext("callObj to address");
     }
   }
 
@@ -301,7 +301,7 @@ export function verifyOptEthCallObject(
   if (from != null) {
     const fromErr = verifyAddress(from, index);
     if (fromErr) {
-      return fromErr.padErrorContext("callObj from address");
+      return fromErr.padContext("callObj from address");
     }
   }
 
@@ -309,7 +309,7 @@ export function verifyOptEthCallObject(
   if (gasPrice != null) {
     const gasErr = verifyHexNumber(gasPrice, index);
     if (gasErr) {
-      return gasErr.padErrorContext("callObj gasPrice");
+      return gasErr.padContext("callObj gasPrice");
     }
   }
 
@@ -317,7 +317,7 @@ export function verifyOptEthCallObject(
   if (gasLimit != null) {
     const gasLimitErr = verifyGasLimit(gasLimit, index);
     if (gasLimitErr) {
-      return gasLimitErr.padErrorContext("callObj");
+      return gasLimitErr.padContext("callObj");
     }
   }
 
@@ -325,7 +325,7 @@ export function verifyOptEthCallObject(
   if (value != null) {
     const valueErr = verifyHexNumber(value, index);
     if (valueErr) {
-      return valueErr.padErrorContext("callObj value");
+      return valueErr.padContext("callObj value");
     }
   }
 
@@ -333,7 +333,7 @@ export function verifyOptEthCallObject(
   if (data != null) {
     const dataErr = verifyHexString(data, index);
     if (dataErr) {
-      return dataErr.padErrorContext("callObj data");
+      return dataErr.padContext("callObj data");
     }
   }
 
@@ -346,7 +346,7 @@ export function verifyEthCallObject(
 ): InvalidParamsError | undefined {
   const err = verifyOptEthCallObject(callObj, index);
   if (err) {
-    return err.padErrorContext("eth_call");
+    return err.padContext("eth_call");
   }
 
   // to is required
@@ -363,7 +363,7 @@ export function verifyEstimateGasCallObject(
 ): InvalidParamsError | undefined {
   const err = verifyOptEthCallObject(callObj, index);
   if (err) {
-    return err.padErrorContext("eth_estimateGas");
+    return err.padContext("eth_estimateGas");
   }
 
   return undefined;
@@ -375,7 +375,7 @@ export function verifyStorageKey(
 ): InvalidParamsError | undefined {
   const err = verifyHexString(key, index);
   if (err) {
-    return err.padErrorContext("storageKey");
+    return err.padContext("storageKey");
   }
   return undefined;
 }
@@ -386,7 +386,7 @@ export function verifyFilterTopicString(
 ): InvalidParamsError | undefined {
   const err = verifyHexString(topic, index);
   if (err) {
-    return err.padErrorContext("topic string");
+    return err.padContext("topic string");
   }
 
   if (topic.substring(2).length !== 64) {
@@ -414,7 +414,7 @@ export function verifyFilterTopic(
     for (const t of topic) {
       const err = verifyFilterTopicString(t, index);
       if (err) {
-        return err.padErrorContext("topicString[] array");
+        return err.padContext("topicString[] array");
       }
     }
   }
@@ -439,7 +439,7 @@ export function verifyNewFilterObj(
   if (fromBlock != null) {
     const fromBlockErr = verifyBlockParameter(fromBlock, index);
     if (fromBlockErr) {
-      return fromBlockErr.padErrorContext("filter fromBlock");
+      return fromBlockErr.padContext("filter fromBlock");
     }
   }
 
@@ -447,7 +447,7 @@ export function verifyNewFilterObj(
   if (toBlock != null) {
     const toBlockErr = verifyBlockParameter(toBlock, index);
     if (toBlockErr) {
-      return toBlockErr.padErrorContext("filter toBlock");
+      return toBlockErr.padContext("filter toBlock");
     }
   }
 
@@ -457,13 +457,13 @@ export function verifyNewFilterObj(
       for (const addr of address) {
         const addressErr = verifyAddress(addr, index);
         if (addressErr) {
-          return addressErr.padErrorContext("filter address[] Array");
+          return addressErr.padContext("filter address[] Array");
         }
       }
     } else {
       const addressErr = verifyAddress(address, index);
       if (addressErr) {
-        return addressErr.padErrorContext("filter address");
+        return addressErr.padContext("filter address");
       }
     }
   }
@@ -476,7 +476,7 @@ export function verifyNewFilterObj(
     for (const topic of topics) {
       const topicErr = verifyFilterTopic(topic, index);
       if (topicErr) {
-        return topicErr.padErrorContext("filter topic[] Array");
+        return topicErr.padContext("filter topic[] Array");
       }
     }
   }
@@ -490,7 +490,7 @@ export function verifyGasLimit(
 ): InvalidParamsError | undefined {
   const gasLimitErr = verifyHexNumber(gasLimit, index);
   if (gasLimitErr) {
-    return gasLimitErr.padErrorContext("gasLimit");
+    return gasLimitErr.padContext("gasLimit");
   }
 
   if (BigInt(gasLimit) > BigInt(POLY_MAX_BLOCK_GAS_LIMIT)) {

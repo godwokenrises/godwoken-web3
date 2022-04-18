@@ -150,7 +150,7 @@ async function parseRawTransactionData(
 
   const gasLimitErr = verifyGasLimit(gasLimit, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padErrorContext(
+    throw gasLimitErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
     );
   }
@@ -175,7 +175,9 @@ async function parseRawTransactionData(
   );
 
   if (fromId == null) {
-    throw new Error(`from id not found! fromEthAddress: ${fromEthAddress}`);
+    throw new Error(
+      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    );
   }
 
   // header

@@ -1399,7 +1399,7 @@ async function buildEthCallTx(
 
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padErrorContext(buildEthCallTx.name);
+    throw gasLimitErr.padContext(buildEthCallTx.name);
   }
 
   if (!fromAddress) {
@@ -1413,7 +1413,9 @@ async function buildEthCallTx(
   }
 
   if (fromId == null) {
-    throw new Error(`from id not found! fromAddress: ${fromAddress}`);
+    throw new Error(
+      `from id not found by from address: ${fromAddress}, have you deposited?`
+    );
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);

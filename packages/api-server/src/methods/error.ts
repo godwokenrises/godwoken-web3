@@ -33,13 +33,11 @@ export class InvalidParamsError extends RpcError {
     super(INVALID_PARAMS, message);
   }
 
-  padErrorContext(context: string): InvalidParamsError {
+  padContext(context: string): InvalidParamsError {
     const msgs = this.message.split(/(invalid argument .: )/);
     // [ '', 'invalid argument <number>: ', 'message' ]
     if (msgs.length !== 3) {
-      throw new Error(
-        `parse InvalidParamsError message failed: ${this.message}, ${msgs}`
-      );
+      return this;
     }
     const newMsg = `${msgs[1]}${context} -> ${msgs[2]}`;
     this.message = newMsg;
