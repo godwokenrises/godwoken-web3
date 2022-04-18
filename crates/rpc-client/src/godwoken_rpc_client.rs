@@ -33,8 +33,8 @@ impl GodwokenRpcClient {
             .map(|opt| opt.map(Into::into))
     }
 
-    pub fn get_balance(&self, short_script_hash: JsonBytes, sudt_id: u32) -> Result<u128> {
-        let params = serde_json::to_value((short_script_hash, AccountID::from(sudt_id)))?;
+    pub fn get_balance(&self, registry_address: JsonBytes, sudt_id: u32) -> Result<u128> {
+        let params = serde_json::to_value((registry_address, AccountID::from(sudt_id)))?;
         self.rpc::<Uint128>("get_balance", params).map(Into::into)
     }
 
@@ -63,16 +63,6 @@ impl GodwokenRpcClient {
     pub fn get_script(&self, script_hash: H256) -> Result<Option<Script>> {
         let params = serde_json::to_value((script_hash,))?;
         self.rpc::<Option<Script>>("get_script", params)
-            .map(|opt| opt.map(Into::into))
-    }
-
-    pub fn get_script_hash_by_short_script_hash(
-        &self,
-        short_script_hash: JsonBytes,
-    ) -> Result<Option<H256>> {
-        let params = serde_json::to_value((short_script_hash,))?;
-
-        self.rpc::<Option<H256>>("get_script_hash_by_short_script_hash", params)
             .map(|opt| opt.map(Into::into))
     }
 

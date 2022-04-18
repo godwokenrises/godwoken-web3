@@ -14,14 +14,13 @@ GODWOKEN_READONLY_JSON_RPC=<optional, default equals to GODWOKEN_JSON_RPC>
 ETH_ACCOUNT_LOCK_HASH=<eth account lock script hash>
 ROLLUP_TYPE_HASH=<godwoken rollup type hash>
 ROLLUP_CONFIG_HASH=<godwoken rollup config hash>
-COMPATIBLE_CHAIN_ID=<godwoken compatible chain id in integer>
+CHAIN_ID=<godwoken chain id in integer>
 CREATOR_ACCOUNT_ID=<your creator account id in integer>
 DEFAULT_FROM_ID=<default from eth address's godwoken account id>
 POLYJUICE_VALIDATOR_TYPE_HASH=<godwoken polyjuice validator type hash>
 L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH=<l2 sudt validator script type hash>
 ETH_ADDRESS_REGISTRY_ACCOUNT_ID=<required, eth address registry account id>
 
-TRON_ACCOUNT_LOCK_HASH=<tron account lock script hash, optional>
 SENTRY_DNS=<sentry dns, optional>
 SENTRY_ENVIRONMENT=<sentry environment, optional, default to `development`>,
 NEW_RELIC_LICENSE_KEY=<new relic license key, optional>
@@ -87,11 +86,10 @@ l2_sudt_type_script_hash=<l2 sudt validator script type hash>
 polyjuice_type_script_hash=<godwoken polyjuice validator type hash>
 rollup_type_hash=<godwoken rollup type hash>
 eth_account_lock_hash=<eth account lock script hash>
-tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"
-compatible_chain_id=<godwoken compatible_chain_id in integer>
+chain_id=<godwoken chain_id in integer>
 EOF
 ```
 

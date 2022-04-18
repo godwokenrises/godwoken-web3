@@ -1,10 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    helper::{
-        account_script_hash_to_eth_address, hex, parse_log, GwLog, PolyjuiceArgs,
-        GW_LOG_POLYJUICE_SYSTEM,
-    },
+    helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
     pool::POOL,
     types::{
         Block as Web3Block, Log as Web3Log, Transaction as Web3Transaction,
@@ -14,7 +11,7 @@ use crate::{
 use anyhow::{anyhow, Result};
 use ckb_hash::blake2b_256;
 use ckb_types::H256;
-use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
+use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, registry_address::RegistryAddress};
 use gw_types::{
     bytes::Bytes,
     packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
@@ -32,7 +29,7 @@ pub struct Web3Indexer {
     rollup_type_hash: H256,
     allowed_eoa_hashes: HashSet<H256>,
     godwoken_rpc_client: GodwokenRpcClient,
-    compatible_chain_id: u64,
+    chain_id: u64,
 }
 
 impl Web3Indexer {
@@ -41,15 +38,11 @@ impl Web3Indexer {
         polyjuice_type_script_hash: H256,
         rollup_type_hash: H256,
         eth_account_lock_hash: H256,
-        tron_account_lock_hash: Option<H256>,
         gw_rpc_url: &str,
-        compatible_chain_id: u64,
+        chain_id: u64,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
-        if let Some(code_hash) = tron_account_lock_hash {
-            allowed_eoa_hashes.insert(code_hash);
-        };
         let godwoken_rpc_client = GodwokenRpcClient::new(gw_rpc_url);
 
         Web3Indexer {
@@ -58,7 +51,7 @@ impl Web3Indexer {
             rollup_type_hash,
             allowed_eoa_hashes,
             godwoken_rpc_client,
-            compatible_chain_id,
+            chain_id,
         }
     }
 
@@ -246,7 +239,7 @@ impl Web3Indexer {
                 let l2_tx_args = l2_transaction.raw().args();
                 let polyjuice_args = PolyjuiceArgs::decode(l2_tx_args.raw_data().as_ref())?;
                 // to_address is null if it's a contract deployment transaction
-                let (to_address, polyjuice_chain_id) = if polyjuice_args.is_create {
+                let (to_address, _polyjuice_chain_id) = if polyjuice_args.is_create {
                     (None, to_id)
                 } else {
                     let args: gw_types::bytes::Bytes = to_script.args().unpack();
@@ -262,17 +255,26 @@ impl Web3Indexer {
                     };
                     (Some(address), polyjuice_chain_id)
                 };
-                // calculate chain_id
-                let chain_id: u64 = (self.compatible_chain_id << 32) | (polyjuice_chain_id as u64);
+                let chain_id: u64 = self.chain_id;
                 let nonce: u32 = l2_transaction.raw().nonce().unpack();
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
                 // read logs
                 let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+                let tx_hash_hex = hex(tx_hash.as_bytes()).unwrap_or_else(|_| {
+                    format!("convert tx hash: {:?} to hex format failed", tx_hash)
+                });
                 let tx_receipt: gw_types::packed::TxReceipt = self
                     .godwoken_rpc_client
                     .get_transaction_receipt(&tx_hash)?
-                    .ok_or_else(|| anyhow!("tx receipt not found"))?
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
+                            tx_hash_hex,
+                            block_number,
+                            tx_index
+                        )
+                    })?
                     .into();
                 let log_item_vec = tx_receipt.logs();
 
@@ -382,15 +384,22 @@ impl Web3Indexer {
                 match sudt_args.to_enum() {
                     SUDTArgsUnion::SUDTTransfer(sudt_transfer) => {
                         // Since we can transfer to any non-exists account, we can not check the script.code_hash.
-                        let to_address_data: Bytes = sudt_transfer.to().unpack();
-                        if to_address_data.len() != 20 {
+                        let to_address_registry_address =
+                            RegistryAddress::from_slice(sudt_transfer.to_address().as_slice());
+
+                        let mut to_address = [0u8; 20];
+                        if let Some(registry_address) = to_address_registry_address {
+                            let address = registry_address.address;
+                            if address.len() != 20 {
+                                continue;
+                            }
+                            to_address.copy_from_slice(address.as_slice());
+                        } else {
                             continue;
                         }
-                        let mut to_address = [0u8; 20];
-                        to_address.copy_from_slice(to_address_data.as_ref());
 
                         let amount: u128 = sudt_transfer.amount().unpack();
-                        let fee: u64 = sudt_transfer.fee().unpack();
+                        let fee: u64 = sudt_transfer.fee().amount().unpack();
                         let value = amount;
 
                         // Represent SUDTTransfer fee in web3 style, set gas_price as 1 temporary.
@@ -451,21 +460,24 @@ impl Web3Indexer {
             gas_limit += web3_tx_with_logs.tx.gas_limit;
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
-        let block_producer_id: u32 = l2_block.raw().block_producer_id().unpack();
+        let block_producer: Bytes = l2_block.raw().block_producer().unpack();
+        let block_producer_registry_address = RegistryAddress::from_slice(&block_producer);
 
-        // If block producer id == 0 (meta contract id), log a warning message.
-        // If block producer id != 0, and eth address not found, log an error message.
-        let miner_address = if block_producer_id == 0 {
-            log::warn!("Block producer id equals to 0");
-            [0u8; 20]
+        // If registry_address is None, set miner address to zero-address
+        let mut miner_address = [0u8; 20];
+        if let Some(registry_address) = block_producer_registry_address {
+            let address = registry_address.address;
+            if address.is_empty() {
+                log::warn!("Block producer address is empty");
+            } else if address.len() != 20 {
+                log::error!("Block producer address len not equal to 20: {:?}", address);
+            } else {
+                miner_address.copy_from_slice(address.as_slice());
+            }
         } else {
-            let block_producer_script_hash =
-                get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
-            account_script_hash_to_eth_address(
-                block_producer_script_hash,
-                &self.godwoken_rpc_client,
-            )?
+            log::warn!("Block producer address is None");
         };
+
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();
         let timestamp =
             NaiveDateTime::from_timestamp((epoch_time_as_millis / MILLIS_PER_SEC) as i64, 0);

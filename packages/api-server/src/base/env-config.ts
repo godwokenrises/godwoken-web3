@@ -1,6 +1,5 @@
 import { env } from "process";
 import dotenv from "dotenv";
-import { logger } from "./logger";
 
 dotenv.config({ path: "./.env" });
 
@@ -10,11 +9,7 @@ export const envConfig = {
   rollupTypeHash: getRequired("ROLLUP_TYPE_HASH"),
   godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
   creatorAccountId: getRequired("CREATOR_ACCOUNT_ID"),
-  compatibleChainId: getRequired("COMPATIBLE_CHAIN_ID"),
-  chainId: calculateChainId(
-    +getRequired("CREATOR_ACCOUNT_ID"),
-    +getRequired("COMPATIBLE_CHAIN_ID")
-  ),
+  chainId: getRequired("CHAIN_ID"),
   defaultFromId: getRequired("DEFAULT_FROM_ID"),
   l2SudtValidatorScriptTypeHash: getRequired(
     "L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH"
@@ -22,7 +17,6 @@ export const envConfig = {
   ethAddressRegistryAccountId: getRequired("ETH_ADDRESS_REGISTRY_ACCOUNT_ID"),
   polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
   rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
-  tronAccountLockHash: getOptional("TRON_ACCOUNT_LOCK_HASH"),
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
@@ -48,15 +42,4 @@ function getRequired(name: string): string {
 
 function getOptional(name: string): string | undefined {
   return env[name];
-}
-
-export function calculateChainId(
-  creatorId: number,
-  compatibleChainId: number
-): string {
-  const chainId = (BigInt(compatibleChainId) << 32n) + BigInt(creatorId);
-  logger.info(
-    `web3 chain_id: ${chainId}, calculating from compatible_chain_id: ${compatibleChainId}, creator_id: ${creatorId}`
-  );
-  return chainId.toString(10);
 }

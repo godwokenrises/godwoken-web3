@@ -4,6 +4,7 @@
   "private": true,
   "main": "lib/index.js",
   "scripts": {
+    "regenerate-schemas": "cd scripts && ./regenerate-schemas.sh && cd -;",
     "fmt": "prettier --write \"src/**/*.ts\" package.json",
     "lint": "eslint -c ../../.eslintrc.js \"src/**/*.ts\"",
     "build": "tsc"

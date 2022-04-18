@@ -23,6 +23,7 @@ import {
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
 import { logger } from "./base/logger";
+import { EthRegistryAddress } from "./base/address";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -47,14 +48,9 @@ export async function filterWeb3Transaction(
     return undefined;
   }
 
-  // skip tx with non eth_account_lock or non tron_account_lock from_id
+  // skip tx with non eth_account_lock from_id
   if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
-    if (envConfig.tronAccountLockHash == null) {
-      return undefined;
-    }
-    if (fromScript.code_hash !== envConfig.tronAccountLockHash) {
-      return undefined;
-    }
+    return undefined;
   }
 
   const fromScriptArgs: HexString = fromScript.args;
@@ -190,15 +186,20 @@ export async function filterWeb3Transaction(
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {
       const sudtTransfer: schemas.SUDTTransfer = sudtArgs.value();
-      const toAddress = new Reader(sudtTransfer.getTo().raw()).serializeJson();
+      const toAddressRegistryAddress = new Reader(
+        sudtTransfer.getToAddress().raw()
+      ).serializeJson();
+      const toAddress = EthRegistryAddress.Deserialize(
+        toAddressRegistryAddress
+      ).address;
       if (toAddress.length !== 42) {
         return undefined;
       }
       const amount = Uint128.fromLittleEndian(
         new Reader(sudtTransfer.getAmount().raw()).serializeJson()
       );
-      const fee = Uint128.fromLittleEndian(
-        new Reader(sudtTransfer.getFee().raw()).serializeJson()
+      const fee = new Uint128(
+        sudtTransfer.getFee().getAmount().toLittleEndianBigUint64()
       );
       const value: Uint128 = amount;
       const gasPrice: Uint128 = new Uint128(1n);

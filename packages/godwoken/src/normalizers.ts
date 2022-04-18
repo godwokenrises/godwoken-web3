@@ -66,18 +66,12 @@ function toNormalize(normalize: Function) {
   };
 }
 
-export function NormalizeFee(fee: object, { debugPath = "fee" } = {}) {
-  return normalizeObject(debugPath, fee, {
-    sudt_id: normalizeHexNumber(4),
-    amount: normalizeHexNumber(16),
-  });
-}
-
 export function NormalizeRawL2Transaction(
   rawL2Transaction: RawL2Transaction,
   { debugPath = "raw_l2_transaction" } = {}
 ) {
   return normalizeObject(debugPath, rawL2Transaction, {
+    chain_id: normalizeHexNumber(8),
     from_id: normalizeHexNumber(4),
     to_id: normalizeHexNumber(4),
     nonce: normalizeHexNumber(4),
