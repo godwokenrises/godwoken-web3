@@ -1,18 +1,4 @@
 import { AbiItems } from "@polyjuice-provider/base";
-import { Set } from "immutable";
-import fs from "fs";
-import path from "path";
-
-const dir = "../allowed-addresses.json";
-
-let allowedAddresses = Set();
-if (fs.existsSync(path.resolve(__dirname, dir))) {
-  // should be an array
-  const addresses: string[] = require("../allowed-addresses.json");
-  allowedAddresses = Set(addresses.map((addr) => addr.toLowerCase()));
-}
-
-export { allowedAddresses };
 
 export const SUDT_ERC20_PROXY_ABI: AbiItems = [
   {
