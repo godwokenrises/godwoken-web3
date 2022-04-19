@@ -65,7 +65,7 @@ import {
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../../cache/constant";
-import { isErc20Transfer } from "../../erc20-decoder";
+import { isErc20Transfer } from "../../erc20";
 import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";

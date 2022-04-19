@@ -1,6 +1,7 @@
-import { AbiItems } from "@polyjuice-provider/base";
+import { HexString } from "@ckb-lumos/base";
+import InputDataDecoder from "ethereum-input-data-decoder";
 
-export const SUDT_ERC20_PROXY_ABI: AbiItems = [
+export const SUDT_ERC20_PROXY_ABI: any = [
   {
     inputs: [
       { internalType: "string", name: "name_", type: "string" },
@@ -155,3 +156,14 @@ export const SUDT_ERC20_PROXY_ABI: AbiItems = [
     type: "function",
   },
 ];
+
+export const decoder = new InputDataDecoder(SUDT_ERC20_PROXY_ABI);
+
+export function isErc20Transfer(encodedTxCallObjInputData: HexString): boolean {
+  try {
+    const inputData = decoder.decodeData(encodedTxCallObjInputData);
+    return inputData?.method === "transfer";
+  } catch {
+    return false;
+  }
+}
