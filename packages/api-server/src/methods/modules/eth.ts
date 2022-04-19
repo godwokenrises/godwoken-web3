@@ -57,7 +57,6 @@ import {
   FailedReason,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
-import { allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
 import { failedReasonByErrorReceipt, parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
@@ -474,12 +473,7 @@ export class Eth {
       const executeCallResult = async () => {
         let runResult: RunResult | undefined;
         try {
-          runResult = await ethCallTx(
-            txCallObj,
-            this.rpc,
-            this.ethWallet,
-            blockNumber
-          );
+          runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
         } catch (err) {
           throw parseGwRunResultError(err);
         }
@@ -554,7 +548,6 @@ export class Eth {
         runResult = await ethCallTx(
           txCallObj as TransactionCallObject,
           this.rpc,
-          this.ethWallet,
           undefined
         );
       } catch (error) {
@@ -1367,20 +1360,9 @@ function buildStorageKey(storagePosition: string) {
 async function ethCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient,
-  isEthWallet: boolean,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const toAddress = txCallObj.to;
-
-  // if eth wallet mode, and `toAddress` not in allow list, reject.
-  if (isEthWallet && !allowedAddresses.has(toAddress.toLowerCase())) {
-    throw new Web3Error("not supported to address!");
-  }
-
-  const rawL2Transaction: RawL2Transaction = await buildEthCallTx(
-    txCallObj,
-    rpc
-  );
+  const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
     blockNumber

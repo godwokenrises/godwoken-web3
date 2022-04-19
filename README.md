@@ -44,17 +44,6 @@ $ DATABASE_URL=<your database url> make migrate
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```
 
-ERC20 address allowlist
-
-```bash
-$ cat > ./packages/api-server/allowed-addresses.json <<EOF
-[
-  "<Your address 1>",
-  "<Your address 2>"
-]
-EOF
-```
-
 rate limit config
 
 ```bash
