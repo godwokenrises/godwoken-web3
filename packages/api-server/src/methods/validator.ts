@@ -154,10 +154,6 @@ export function verifyHexNumber(
     return invalidParamsError(index, `hexNumber without 0x prefix`);
   }
 
-  if (hexNumber.startsWith("0x0") && hexNumber !== "0x0") {
-    return invalidParamsError(index, `hexNumber with leading zero digits`);
-  }
-
   if (!validateHexNumber(hexNumber)) {
     return invalidParamsError(index, `invalid hexNumber token`);
   }
