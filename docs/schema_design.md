@@ -73,15 +73,6 @@ CREATE INDEX ON logs (block_hash);
 CREATE INDEX ON logs (address);
 CREATE INDEX ON logs (block_number);
 
-CREATE TABLE accounts (
-    id SERIAL PRIMARY KEY,
-    eth_address bytea NOT NULL,
-    gw_short_script_hash bytea NOT NULL
-);
-
-CREATE UNIQUE INDEX accounts_eth_address_unique ON accounts (eth_address);
-CREATE INDEX accounts_gw_short_script_hash_index ON accounts (gw_short_script_hash);
-
 CREATE TABLE error_transactions (
     id BIGSERIAL PRIMARY KEY,
     hash TEXT UNIQUE NOT NULL,
@@ -154,10 +145,6 @@ CREATE INDEX ON error_transactions (hash);
   - topic[0]: Event的签名，`keccak(EVENT_NAME+"("+EVENT_ARGS.map(canonical_type_of).join(",")+")")` ，对于anonymous event不生成该topic
   - topic[1] ~ topic[3]: 被indexed字段修饰的Event参数
 - data：non-indexed的Event参数
-
-### accounts
-- eth_address: eth address
-- gw_short_script_hash: godwoken short script hash
 
 ## error_transactions
 - id: id, primary key,
