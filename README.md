@@ -40,13 +40,6 @@ $ yarn
 # For api-server & indexer
 $ DATABASE_URL=<your database url> make migrate
 
-# Migrate accounts data from hashmap db to sql if need
-# relative hashmap db path is relative to packages/api-server
-# and will use packages/api-server/lib/hashmap-db as default.
-$ yarn run migrate-accounts <your hashmap db path>
-For example:
-$ yarn run migrate-accounts ./hashmap-db
-
 # Only for test purpose
 $ yarn workspace @godwoken-web3/api-server reset_database
 ```
