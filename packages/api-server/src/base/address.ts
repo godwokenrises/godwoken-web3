@@ -1,8 +1,10 @@
-import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
-import { GodwokenClient, RawL2Transaction } from "@godwoken-web3/godwoken";
+import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
+import { COMPATIBLE_DOCS_URL } from "../methods/constant";
 import { envConfig } from "./env-config";
 import { gwConfig } from "./gw-config";
+import { logger } from "./logger";
 import { Uint32 } from "./types/uint";
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
@@ -11,32 +13,39 @@ const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
 const scriptHashCache = new Store(envConfig.redisUrl, false);
 scriptHashCache.init();
 
-class EthToGwArgsBuilder {
-  private method: number;
-  private ethAddress: HexString;
+// Only support eth address now!
+export class EthRegistryAddress {
+  private registryId: number = +gwConfig.accounts?.ethAddrReg.id!;
+  private addressByteSize: number = 20;
+  public readonly address: HexString;
 
-  constructor(method: number, ethAddress: HexString) {
-    if (ethAddress.length !== 42) {
-      throw new Error("Eth address must be 20 bytes length");
+  constructor(address: HexString) {
+    if (!address.startsWith("0x") || address.length != 42) {
+      throw new Error(`Eth address format error: ${address}`);
     }
-
-    if (!ethAddress.startsWith("0x")) {
-      throw new Error("Eth address must starts with 0x prefix");
-    }
-
-    if (ethAddress === ZERO_ETH_ADDRESS) {
-      throw new Error(
-        `zero address ${ZERO_ETH_ADDRESS} has no valid script hash!`
-      );
-    }
-
-    this.method = method;
-    this.ethAddress = ethAddress;
+    this.address = address.toLowerCase();
   }
 
-  public build(): HexString {
-    const methodLe: HexString = new Uint32(this.method).toLittleEndian();
-    return methodLe + this.ethAddress.slice(2);
+  public serialize(): HexString {
+    return (
+      "0x" +
+      new Uint32(this.registryId).toLittleEndian().slice(2) +
+      new Uint32(this.addressByteSize).toLittleEndian().slice(2) +
+      this.address.slice(2)
+    );
+  }
+
+  public static Deserialize(hex: HexString): EthRegistryAddress {
+    const hexWithoutPrefix = hex.slice(2);
+    // const registryId: number = Uint32.fromLittleEndian(hexWithoutPrefix.slice(0, 8)).getValue();
+    const addressByteSize: number = Uint32.fromLittleEndian(
+      hexWithoutPrefix.slice(8, 16)
+    ).getValue();
+    const address: HexString = hexWithoutPrefix.slice(16);
+    if (addressByteSize !== 20 || address.length !== 40) {
+      throw new Error(`Eth address deserialize error: ${hex}`);
+    }
+    return new EthRegistryAddress("0x" + address);
   }
 }
 
@@ -48,56 +57,29 @@ export async function ethAddressToScriptHash(
   const CACHE_KEY_PREFIX = "ethAddressToScriptHash";
   let result = await scriptHashCache.get(`${CACHE_KEY_PREFIX}:${ethAddress}`);
   if (result != null) {
-    console.debug(
+    logger.debug(
       `[ethAddressToScriptHash] using cache: ${ethAddress} -> ${result}`
     );
     return result;
   }
 
-  const fromId: HexNumber = gwConfig.accounts?.defaultFrom.id!;
-  const nonce: number = await godwokenClient.getNonce(parseInt(fromId));
-  const args: HexString = new EthToGwArgsBuilder(0, ethAddress).build();
-
-  const rawL2Tx: RawL2Transaction = {
-    from_id: fromId,
-    to_id: gwConfig.accounts?.ethAddrReg.id!,
-    nonce: "0x" + nonce.toString(16),
-    args,
-  };
-
-  let scriptHash: Hash | undefined;
-  try {
-    const runResult = await godwokenClient.executeForGetAccountScriptHash(
-      rawL2Tx
-    );
-    scriptHash = runResult.return_data;
-
-    // add cache
-    if (scriptHash != null) {
-      console.debug(
-        `[ethAddressToScriptHash] update cache: ${ethAddress} -> ${scriptHash}`
-      );
-      scriptHashCache.insert(`${CACHE_KEY_PREFIX}:${ethAddress}`, scriptHash);
-    }
-  } catch (err: any) {
-    // Account not found.
-    return undefined;
-  }
-  return scriptHash;
-}
-
-export async function ethAddressToShortScriptHash(
-  ethAddress: HexString,
-  godwokenClient: GodwokenClient
-): Promise<HexString | undefined> {
-  const scriptHash: Hash | undefined = await ethAddressToScriptHash(
-    ethAddress,
-    godwokenClient
+  const registryAddress: EthRegistryAddress = new EthRegistryAddress(
+    ethAddress
   );
-  if (scriptHash == null) {
-    return undefined;
+  const scriptHash: Hash | undefined =
+    await godwokenClient.getScriptHashByRegistryAddress(
+      registryAddress.serialize()
+    );
+
+  // add cache
+  if (scriptHash != null) {
+    logger.debug(
+      `[ethAddressToScriptHash] update cache: ${ethAddress} -> ${scriptHash}`
+    );
+    scriptHashCache.insert(`${CACHE_KEY_PREFIX}:${ethAddress}`, scriptHash);
   }
-  return scriptHash.slice(0, 42);
+
+  return scriptHash;
 }
 
 export async function ethAddressToAccountId(
@@ -110,7 +92,7 @@ export async function ethAddressToAccountId(
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
     throw new Error(
-      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id!`
+      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id! more info: ${COMPATIBLE_DOCS_URL}`
     );
   }
 

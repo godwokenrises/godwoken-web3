@@ -24,6 +24,8 @@ CLUSTER_COUNT=<cluster count, optional, default to num of cpus>
 GAS_PRICE_CACHE_SECONDS=<seconds, optional, default to 0, and 0 means no cache>
 EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, default to 0>
 ENABLE_CACHE_ETH_CALL=<optional, enable eth_call cache, default to false>
+LOG_LEVEL=<optional, allowed value: `debug` / `info` / `warn` / `error`, default to `debug` in development, and default to `info` in production>
+LOG_FORMAT=<optional, allowed value: `json`>
 EOF
 
 $ yarn
@@ -31,26 +33,8 @@ $ yarn
 # For api-server & indexer
 $ DATABASE_URL=<your database url> make migrate
 
-# Migrate accounts data from hashmap db to sql if need
-# relative hashmap db path is relative to packages/api-server
-# and will use packages/api-server/lib/hashmap-db as default.
-$ yarn run migrate-accounts <your hashmap db path>
-For example:
-$ yarn run migrate-accounts ./hashmap-db
-
 # Only for test purpose
 $ yarn workspace @godwoken-web3/api-server reset_database
-```
-
-ERC20 address allowlist
-
-```bash
-$ cat > ./packages/api-server/allowed-addresses.json <<EOF
-[
-  "<Your address 1>",
-  "<Your address 2>"
-]
-EOF
 ```
 
 rate limit config
@@ -77,11 +61,10 @@ l2_sudt_type_script_hash=<l2 sudt validator script type hash>
 polyjuice_type_script_hash=<godwoken polyjuice validator type hash>
 rollup_type_hash=<godwoken rollup type hash>
 eth_account_lock_hash=<eth account lock script hash>
-tron_account_lock_hash=<tron account lock script hash, optional>
 godwoken_rpc_url=<godwoken rpc>
 ws_rpc_url=<godwoken websocket rpc>
 pg_url="postgres://username:password@localhost:5432/your_db"
-compatible_chain_id=<godwoken compatible_chain_id in integer>
+chain_id=<godwoken chain_id in integer>
 EOF
 ```
 
@@ -237,6 +220,8 @@ resource:
 - gw_execute_raw_l2transaction
 - gw_submit_l2transaction
 - gw_submit_withdrawal_request
+- gw_get_registry_address_by_script_hash
+- gw_get_script_hash_by_registry_address
 
 ### poly
 - poly_getChainInfo
@@ -460,4 +445,26 @@ curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jso
 // Response
 {"jsonrpc":"2.0","id":1,"result":"0x1"}
 
+```
+
+### gw_get_registry_address_by_script_hash
+```
+// Params: script_hash, registry_id
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_registry_address_by_script_hash", "params": ["0x2d7c7ce67585244086cc01d64845e305f58fac17ff023e130dc572aad4cbd520", "0x2"], "id"
+: 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":{"registry_id":"0x2","address":"0x599f0453dbe60439c58feb4c6f8ed428fc6b7ae3"}}
+```
+
+### gw_get_script_hash_by_registry_address
+```
+// Params: registry_address(registry id in uint32 little endian + address byte length in uint32 little endian + address)
+// Request
+curl http://localhost:3000 -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method":"gw_get_script_hash_by_registry_address", "params": ["0x0200000014000000599f0453dbe60439c58feb4c6f8ed428fc6b7ae3"], "id"
+: 1}'
+
+// Response
+{"jsonrpc":"2.0","id":1,"result":"0x2d7c7ce67585244086cc01d64845e305f58fac17ff023e130dc572aad4cbd520"}
 ```

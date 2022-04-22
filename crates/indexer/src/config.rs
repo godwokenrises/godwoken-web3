@@ -10,11 +10,10 @@ pub struct IndexerConfig {
     pub polyjuice_type_script_hash: H256,
     pub rollup_type_hash: H256,
     pub eth_account_lock_hash: H256,
-    pub tron_account_lock_hash: Option<H256>,
     pub godwoken_rpc_url: String,
     pub ws_rpc_url: String,
     pub pg_url: String,
-    pub compatible_chain_id: u64,
+    pub chain_id: u64,
     pub sentry_dsn: Option<String>,
     pub sentry_environment: Option<String>,
 }
@@ -38,15 +37,10 @@ impl Display for IndexerConfig {
             "eth_account_lock_hash: 0x{}, ",
             self.eth_account_lock_hash
         )?;
-        if let Some(t) = &self.tron_account_lock_hash {
-            write!(f, "tron_account_lock_hash: 0x{}, ", t)?;
-        } else {
-            write!(f, "tron_account_lock_hash: null, ")?;
-        }
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
         write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;
-        write!(f, "compatible_chain_id: {}", self.compatible_chain_id)?;
+        write!(f, "chain_id: {}", self.chain_id)?;
         if let Some(t) = &self.sentry_dsn {
             write!(f, "sentry_dsn: {}, ", t)?;
         } else {

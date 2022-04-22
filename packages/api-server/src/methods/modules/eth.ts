@@ -8,7 +8,7 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators } from "../validator";
+import { middleware, validators, verifyGasLimit } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -21,6 +21,8 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
   QUERY_OFFSET_REACHED_END,
+  POLY_MAX_BLOCK_GAS_LIMIT,
+  POLY_MIN_GAS_PRICE,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -45,7 +47,6 @@ import {
   HeaderNotFoundError,
   InvalidParamsError,
   MethodNotSupportError,
-  RpcError,
   Web3Error,
 } from "../error";
 import {
@@ -56,25 +57,21 @@ import {
   FailedReason,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
-import { allowedAddresses } from "../../erc20";
 import { FilterManager } from "../../cache";
-import { parseGwError } from "../gw-error";
-import { evmcCodeTypeMapping } from "../gw-error";
+import { failedReasonByErrorReceipt, parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
   CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../../cache/constant";
-import { isErc20Transfer } from "../../erc20-decoder";
+import { isErc20Transfer } from "../../erc20";
 import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
-import {
-  ethAddressToAccountId,
-  ethAddressToShortScriptHash,
-} from "../../base/address";
+import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { gwConfig } from "../../base/gw-config";
+import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");
 
@@ -369,16 +366,11 @@ export class Eth {
       const blockParameter = args[1];
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
-      const shortScriptHash: Hash | undefined =
-        await ethAddressToShortScriptHash(address, this.rpc);
-      if (shortScriptHash == null) {
-        return "0x0";
-      }
-      console.log(
-        `eth_address: ${address}, short_script_hash: ${shortScriptHash}`
+      const registryAddress: EthRegistryAddress = new EthRegistryAddress(
+        address
       );
       const balance = await this.rpc.getBalance(
-        shortScriptHash,
+        registryAddress.serialize(),
         +CKB_SUDT_ID,
         blockNumber
       );
@@ -480,42 +472,14 @@ export class Eth {
         await this.parseBlockParameter(blockParameter);
 
       const executeCallResult = async () => {
-        let runResult;
+        let runResult: RunResult | undefined;
         try {
-          runResult = await ethCallTx(
-            txCallObj,
-            this.rpc,
-            this.ethWallet,
-            blockNumber
-          );
+          runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
         } catch (err) {
-          const gwErr = parseGwError(err);
-          const failedReason: any = {};
-          if (gwErr.statusCode != null) {
-            failedReason.status_code = "0x" + gwErr.statusCode.toString(16);
-            failedReason.status_type =
-              evmcCodeTypeMapping[gwErr.statusCode.toString()];
-          }
-          if (gwErr.statusReason != null) {
-            failedReason.message = gwErr.statusReason;
-          }
-          let errorData: any = undefined;
-          if (Object.keys(failedReason).length !== 0) {
-            errorData = { failed_reason: failedReason };
-          }
-
-          let errorMessage = gwErr.message;
-          if (gwErr.statusReason != null && failedReason.status_type != null) {
-            // REVERT => revert
-            // compatible with https://github.com/EthWorks/Waffle/blob/ethereum-waffle%403.4.0/waffle-jest/src/matchers/toBeReverted.ts#L12
-            errorMessage = `${failedReason.status_type.toLowerCase()}: ${
-              gwErr.statusReason
-            }`;
-          }
-          throw new RpcError(gwErr.code, errorMessage, errorData);
+          throw parseGwRunResultError(err);
         }
 
-        console.log("RunResult:", runResult);
+        logger.debug("RunResult:", runResult);
         return runResult.return_data;
       };
 
@@ -580,31 +544,22 @@ export class Eth {
         }
       }
 
-      let runResult;
+      let runResult: RunResult | undefined;
       try {
         runResult = await ethCallTx(
           txCallObj as TransactionCallObject,
           this.rpc,
-          this.ethWallet,
           undefined
         );
-      } catch (err) {
-        const gwErr = parseGwError(err);
-        const gasUsed = gwErr.polyjuiceSystemLog?.gasUsed;
-        if (gasUsed != null) {
-          const gasUsedHex = "0x" + (gasUsed + extraGas).toString(16);
-          return gasUsedHex;
-        }
-        throw err;
+      } catch (error) {
+        throw parseGwRunResultError(error);
       }
 
       const polyjuiceSystemLog = extractPolyjuiceSystemLog(
         runResult.logs
       ) as PolyjuiceSystemLog;
 
-      console.log(polyjuiceSystemLog);
-
-      console.log(
+      logger.debug(
         "eth_estimateGas RunResult:",
         runResult,
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
@@ -620,7 +575,7 @@ export class Eth {
 
       return result;
     } catch (error: any) {
-      throw new Web3Error(error.message);
+      throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
     }
   }
 
@@ -796,9 +751,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -886,11 +841,8 @@ export class Eth {
         blockHash,
         ethTxHash
       );
-      const failedReason: FailedReason = {
-        status_code: "0x" + errorReceipt.status_code.toString(16),
-        status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
-        message: errorReceipt.status_reason,
-      };
+      const failedReason: FailedReason =
+        failedReasonByErrorReceipt(errorReceipt);
       receipt.failed_reason = failedReason;
       return receipt;
     }
@@ -918,9 +870,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -933,17 +885,27 @@ export class Eth {
 
   /* #region filter-related api methods */
   async newFilter(args: [FilterObject]): Promise<HexString> {
-    const filter_id = await this.filterManager.install(args[0]);
+    const tipLog: Log | null = await this.query.getTipLog();
+    let initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
+    const filter_id = await this.filterManager.install(args[0], initialLogId);
     return filter_id;
   }
 
   async newBlockFilter(args: []): Promise<HexString> {
-    const filter_id = await this.filterManager.install(1); // 1 for block filter
+    const tipBlockNum = await this.getTipNumber();
+    const filter_id = await this.filterManager.install(
+      FilterFlag.blockFilter,
+      tipBlockNum
+    );
     return filter_id;
   }
 
   async newPendingTransactionFilter(args: []): Promise<HexString> {
-    const filter_id = await this.filterManager.install(2); // 2 for pending tx filter
+    const tipBlockNum = await this.getTipNumber();
+    const filter_id = await this.filterManager.install(
+      FilterFlag.pendingTransaction,
+      tipBlockNum
+    );
     return filter_id;
   }
 
@@ -1182,9 +1144,9 @@ export class Eth {
       const data = args[0];
       const rawTx = await generateRawTransaction(data, this.rpc);
       const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
-      console.log("sendRawTransaction gw hash:", gwTxHash);
+      logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
       const ethTxHash = calcEthTxHash(data);
-      console.log("sendRawTransaction eth hash:", ethTxHash);
+      logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
 
       // save the tx hash mapping for instant finality
       const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
@@ -1202,7 +1164,7 @@ export class Eth {
 
       return ethTxHash;
     } catch (error: any) {
-      console.error(error);
+      logger.error(error);
       throw new InvalidParamsError(error.message);
     }
   }
@@ -1367,12 +1329,14 @@ function buildPolyjuiceArgs(
 }
 
 function buildRawL2Transaction(
+  chainId: bigint,
   fromId: number,
   toId: number,
   nonce: number,
   args: string
 ) {
   const rawL2Transaction = {
+    chain_id: "0x" + chainId.toString(16),
     from_id: "0x" + BigInt(fromId).toString(16),
     to_id: "0x" + BigInt(toId).toString(16),
     nonce: "0x" + BigInt(nonce).toString(16),
@@ -1390,23 +1354,15 @@ function buildStorageKey(storagePosition: string) {
   if (key.length < 64) {
     key = "0".repeat(64 - key.length) + key;
   }
-  console.log("storage position:", key);
+  logger.debug("storage position:", key);
   return "0x" + key;
 }
 
 async function ethCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient,
-  isEthWallet: boolean,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const toAddress = txCallObj.to;
-
-  // if eth wallet mode, and `toAddress` not in allow list, reject.
-  if (isEthWallet && !allowedAddresses.has(toAddress.toLowerCase())) {
-    throw new Web3Error("not supported to address!");
-  }
-
   const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
@@ -1422,33 +1378,38 @@ async function buildEthCallTx(
 ): Promise<RawL2Transaction> {
   const fromAddress = txCallObj.from;
   const toAddress = txCallObj.to;
-  const gas = txCallObj.gas || "0x1000000";
-  const gasPrice = txCallObj.gasPrice || "0x1";
+  const gas =
+    txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
+  const gasPrice =
+    txCallObj.gasPrice || "0x" + BigInt(POLY_MIN_GAS_PRICE).toString(16);
   const value = txCallObj.value || "0x0";
-  const data = txCallObj.data || "0x0";
+  const data = txCallObj.data || "0x";
   let fromId: number | undefined;
+
+  const gasLimitErr = verifyGasLimit(gas, 0);
+  if (gasLimitErr) {
+    throw gasLimitErr.padContext(buildEthCallTx.name);
+  }
 
   if (!fromAddress) {
     fromId = parseInt(gwConfig.accounts?.defaultFrom.id!, 16);
-    console.log(`use default fromId: ${fromId}`);
+    logger.debug(`use default fromId: ${fromId}`);
   }
 
-  if (
-    fromAddress != null &&
-    fromAddress != undefined &&
-    typeof fromAddress === "string"
-  ) {
+  if (fromAddress != null && typeof fromAddress === "string") {
     fromId = await ethAddressToAccountId(fromAddress, rpc);
-    console.log(`fromId: ${fromId}`);
+    logger.debug(`fromId: ${fromId}`);
   }
 
   if (fromId == null) {
-    throw new Error("from id not found!");
+    throw new Error(
+      `from id not found by from address: ${fromAddress}, have you deposited?`
+    );
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
   if (toId == null) {
-    throw new Error("to id missing!");
+    throw new Error(`to id missing! toAddress: ${toAddress}`);
   }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
@@ -1459,12 +1420,15 @@ async function buildEthCallTx(
     data
   );
   const rawL2Transaction = buildRawL2Transaction(
+    BigInt(gwConfig.web3ChainId!),
     fromId,
     toId,
     nonce,
     polyjuiceArgs
   );
-  console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
+  logger.debug(
+    `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
+  );
   return rawL2Transaction;
 }
 

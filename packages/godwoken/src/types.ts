@@ -24,6 +24,7 @@ export interface RunResult {
 }
 
 export interface RawL2Transaction {
+  chain_id: HexU64;
   from_id: HexU32;
   to_id: HexU32;
   nonce: HexU32;
@@ -115,4 +116,8 @@ export interface NodeInfo {
   rollupCell: RollupCell;
   rollupConfig: RollupConfig;
   version: string;
+}
+export interface RegistryAddress {
+  registry_id: HexU32;
+  address: HexString;
 }

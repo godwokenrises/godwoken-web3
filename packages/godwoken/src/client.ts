@@ -8,6 +8,7 @@ import {
   L2TransactionWithStatus,
   NodeInfo,
   RawL2Transaction,
+  RegistryAddress,
   RunResult,
   U128,
   U32,
@@ -17,6 +18,7 @@ import {
   NormalizeL2Transaction,
   NormalizeRawL2Transaction,
 } from "./normalizers";
+import { logger } from "./logger";
 
 export class GodwokenClient {
   private rpc: RPC;
@@ -42,24 +44,36 @@ export class GodwokenClient {
     return +accountId;
   }
 
-  public async getScriptHashByShortScriptHash(
-    shortScriptHash: HexString
+  public async getRegistryAddressByScriptHash(
+    scriptHash: Hash,
+    registryId: U32
+  ): Promise<RegistryAddress | undefined> {
+    const registryAddress = await this.rpcCall(
+      "get_registry_address_by_script_hash",
+      scriptHash,
+      toHex(registryId)
+    );
+    return registryAddress;
+  }
+
+  public async getScriptHashByRegistryAddress(
+    serializedRegistryAddress: HexString
   ): Promise<Hash | undefined> {
-    const scriptHash: Hash | undefined = await this.rpcCall(
-      "get_script_hash_by_short_script_hash",
-      shortScriptHash
+    const scriptHash = await this.rpcCall(
+      "get_script_hash_by_registry_address",
+      serializedRegistryAddress
     );
     return scriptHash;
   }
 
   public async getBalance(
-    shortScriptHash: HexString,
+    serializedRegistryAddress: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      shortScriptHash,
+      serializedRegistryAddress,
       toHex(sudtId),
       toHex(blockParameter)
     );
@@ -173,7 +187,7 @@ export class GodwokenClient {
       const result = await this.readonlyRpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }
@@ -184,7 +198,7 @@ export class GodwokenClient {
       const result = await this.rpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }

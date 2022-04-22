@@ -1,5 +1,9 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
+import {
+  GodwokenClient,
+  RawL2Transaction,
+  L2Transaction,
+} from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
@@ -8,7 +12,10 @@ import {
   ethEoaAddressToScriptHash,
 } from "./base/address";
 import { gwConfig } from "./base/gw-config";
+import { envConfig } from "./base/env-config";
+import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
+import { verifyGasLimit } from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -24,28 +31,6 @@ export interface PolyjuiceTransaction {
   s: HexString;
 }
 
-export interface GodwokenL2Transaction {
-  raw: GodwokenRawL2Transaction;
-  signature: HexString;
-}
-
-export interface GodwokenRawL2Transaction {
-  from_id: HexNumber;
-  to_id: HexNumber;
-  nonce: HexNumber;
-  args: HexString;
-}
-
-function logger(level: string, ...messages: any[]) {
-  console.log(`[${level}] `, ...messages);
-}
-
-function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === "true") {
-    logger("debug", "@convert-tx:", ...messages);
-  }
-}
-
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -56,10 +41,10 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 export async function generateRawTransaction(
   data: HexString,
   rpc: GodwokenClient
-): Promise<GodwokenL2Transaction> {
-  debugLogger("origin data:", data);
+): Promise<L2Transaction> {
+  logger.debug("convert-tx, origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
-  debugLogger("decoded polyjuice tx:", polyjuiceTx);
+  logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
   const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
@@ -89,7 +74,7 @@ function decodeRawTransactionData(dataParams: HexString) {
   return tx;
 }
 
-function numberToRlpEncode(num: HexString) {
+function numberToRlpEncode(num: HexString): HexString {
   if (num === "0x0" || num === "0x") {
     return "0x";
   }
@@ -100,6 +85,13 @@ function numberToRlpEncode(num: HexString) {
 function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
+
+  if (vInt === 27 || vInt === 28) {
+    throw new Error(
+      `only EIP155 transaction is allowed, illegal transaction recId ${tx.v}. more info: ${COMPATIBLE_DOCS_URL}`
+    );
+  }
+
   if (vInt % 2 === 0) {
     finalVInt = "0x" + BigInt((vInt - 36) / 2).toString(16);
   } else {
@@ -137,8 +129,16 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
 async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient
-) {
+): Promise<L2Transaction> {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+
+  const gasLimitErr = verifyGasLimit(gasLimit, 0);
+  if (gasLimitErr) {
+    throw gasLimitErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+    );
+  }
+
   const r = "0x" + rA.slice(2).padStart(64, "0");
   const s = "0x" + sA.slice(2).padStart(64, "0");
 
@@ -159,7 +159,9 @@ async function parseRawTransactionData(
   );
 
   if (fromId == null) {
-    throw new Error("from id not found!");
+    throw new Error(
+      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    );
   }
 
   // header
@@ -217,14 +219,15 @@ async function parseRawTransactionData(
     args_48_52.slice(2) +
     args_data.slice(2);
 
-  const godwokenRawL2Tx: GodwokenRawL2Transaction = {
+  const godwokenRawL2Tx: RawL2Transaction = {
+    chain_id: "0x" + BigInt(gwConfig.web3ChainId!).toString(16),
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,
     args,
   };
 
-  const godwokenL2Tx: GodwokenL2Transaction = {
+  const godwokenL2Tx: L2Transaction = {
     raw: godwokenRawL2Tx,
     signature,
   };
@@ -283,7 +286,7 @@ function recoverPublicKey(signature: HexString, message: HexString) {
   );
   const publicKeyHex = "0x" + Buffer.from(publicKey).toString("hex");
 
-  debugLogger("recovered public key:", publicKeyHex);
+  logger.debug("recovered public key:", publicKeyHex);
 
   return publicKeyHex;
 }

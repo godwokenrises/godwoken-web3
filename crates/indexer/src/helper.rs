@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Result};
-use gw_common::H256;
+use gw_common::{registry_address::RegistryAddress, H256};
 use gw_types::packed::LogItem;
 use gw_types::prelude::*;
-use gw_web3_rpc_client::godwoken_rpc_client::GodwokenRpcClient;
 use std::{convert::TryInto, usize};
 
 // 128KB
@@ -57,51 +56,18 @@ impl PolyjuiceArgs {
     }
 }
 
-pub fn account_script_hash_to_eth_address(
-    account_script_hash: H256,
-    godwoken_rpc_client: &GodwokenRpcClient,
-) -> Result<[u8; 20]> {
-    let script_hash: ckb_types::H256 = {
-        let mut s = [0u8; 32];
-        s.copy_from_slice(account_script_hash.as_slice());
-        s.into()
-    };
-    let account_script = godwoken_rpc_client.get_script(script_hash)?;
-    let eth_address = if let Some(script) = account_script {
-        let args = script.args.as_bytes();
-        if args.len() < 52 {
-            log::error!(
-                "account script hash {} not found corresponding eth address, script args too short",
-                hex(account_script_hash.as_slice())?
-            );
-            [0u8; 20]
-        } else {
-            let mut s = [0u8; 20];
-            s.copy_from_slice(&args[32..]);
-            s
-        }
-    } else {
-        log::error!(
-            "account script hash {} not found corresponding eth address, script not found",
-            hex(account_script_hash.as_slice())?
-        );
-        [0u8; 20]
-    };
-    Ok(eth_address)
-}
-
 #[derive(Debug, Clone)]
 pub enum GwLog {
     SudtTransfer {
         sudt_id: u32,
-        from_address: [u8; 20],
-        to_address: [u8; 20],
+        from_address: RegistryAddress,
+        to_address: RegistryAddress,
         amount: u128,
     },
     SudtPayFee {
         sudt_id: u32,
-        from_address: [u8; 20],
-        block_producer_address: [u8; 20],
+        from_address: RegistryAddress,
+        block_producer_address: RegistryAddress,
         amount: u128,
     },
     PolyjuiceSystem {
@@ -117,18 +83,50 @@ pub enum GwLog {
     },
 }
 
-fn parse_sudt_log_data(data: &[u8]) -> ([u8; 20], [u8; 20], u128) {
-    assert_eq!(data[0], 20);
-    let mut from_address = [0u8; 20];
-    from_address.copy_from_slice(&data[1..21]);
+// data format should be from_registry_address + to_registry_address + amount
+// registry address format: 4 bytes registry id(u32) in little endian, 4 bytes address byte size(u32) in little endian, and 0 or 20 bytes address
+// registry address can be 8-bytes(empty address) or 28-bytes(eth address)
+// amount is a u128 number in little endian format
+// so data can be (8 + 8 + 16) or (8 + 28 + 16) or (28 + 8 + 16) or (28 + 28 + 16) bytes
+fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, RegistryAddress, u128)> {
+    let mut start = 0;
+    let mut end = start + {
+        let from_address_byte_size = u32::from_le_bytes(data[4..8].try_into()?);
+        if from_address_byte_size == 0 {
+            8
+        } else {
+            28
+        }
+    };
 
-    let mut to_address = [0u8; 20];
-    to_address.copy_from_slice(&data[21..41]);
+    let from_address = match RegistryAddress::from_slice(&data[start..end]) {
+        Some(registry_address) => registry_address,
+        None => {
+            return Err(anyhow!("parse from address error"));
+        }
+    };
+
+    start = end;
+    end = start + {
+        let to_address_byte_size = u32::from_le_bytes(data[start + 4..start + 8].try_into()?);
+        if to_address_byte_size == 0 {
+            8
+        } else {
+            28
+        }
+    };
+
+    let to_address = match RegistryAddress::from_slice(&data[start..end]) {
+        Some(registry_address) => registry_address,
+        None => {
+            return Err(anyhow!("parse to address error"));
+        }
+    };
 
     let mut u128_bytes = [0u8; 16];
-    u128_bytes.copy_from_slice(&data[41..57]);
+    u128_bytes.copy_from_slice(&data[end..(end + 16)]);
     let amount = u128::from_le_bytes(u128_bytes);
-    (from_address, to_address, amount)
+    Ok((from_address, to_address, amount))
 }
 
 pub fn parse_log(item: &LogItem) -> Result<GwLog> {
@@ -138,10 +136,19 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
     match service_flag {
         GW_LOG_SUDT_TRANSFER => {
             let sudt_id: u32 = item.account_id().unpack();
-            if data.len() != (1 + 20 + 20 + 16) {
-                return Err(anyhow!("Invalid data length: {}", data.len()));
+            let data_len = data.len();
+            // 28 + 28 + 16 = 72
+            // 8 + 28 + 16 = 52
+            // 28 + 8 + 16 = 52
+            // 8 + 8 + 16 = 32
+            if data_len != 72 && data_len != 52 && data_len != 32 {
+                return Err(anyhow!(
+                    "Invalid data length: {}, data: {}",
+                    data.len(),
+                    hex(data)?
+                ));
             }
-            let (from_address, to_address, amount) = parse_sudt_log_data(data);
+            let (from_address, to_address, amount) = parse_sudt_log_data(data)?;
             Ok(GwLog::SudtTransfer {
                 sudt_id,
                 from_address,
@@ -151,10 +158,19 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
         }
         GW_LOG_SUDT_PAY_FEE => {
             let sudt_id: u32 = item.account_id().unpack();
-            if data.len() != (1 + 20 + 20 + 16) {
-                return Err(anyhow!("Invalid data length: {}", data.len()));
+            let data_len = data.len();
+            // 28 + 28 + 16 = 72
+            // 8 + 28 + 16 = 52
+            // 28 + 8 + 16 = 52
+            // 8 + 8 + 16 = 32
+            if data_len != 72 && data_len != 52 && data_len != 32 {
+                return Err(anyhow!(
+                    "Invalid data length: {}, data: {}",
+                    data.len(),
+                    hex(data)?
+                ));
             }
-            let (from_address, block_producer_address, amount) = parse_sudt_log_data(data);
+            let (from_address, block_producer_address, amount) = parse_sudt_log_data(data)?;
             Ok(GwLog::SudtPayFee {
                 sudt_id,
                 from_address,
@@ -165,8 +181,9 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
         GW_LOG_POLYJUICE_SYSTEM => {
             if data.len() != (8 + 8 + 20 + 4) {
                 return Err(anyhow!(
-                    "invalid system log raw data length: {}",
-                    data.len()
+                    "invalid system log raw data length: {}, data: {}",
+                    data.len(),
+                    hex(data)?,
                 ));
             }
 

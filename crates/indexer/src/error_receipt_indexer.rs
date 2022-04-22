@@ -27,15 +27,20 @@ impl ErrorReceiptIndexer {
     }
 
     async fn insert_error_tx_receipt(receipt: ErrorTxReceipt) -> Result<()> {
+        let exit_code = receipt.exit_code;
         let record = ErrorReceiptRecord::from(receipt);
         log::debug!("error tx receipt record {:?}", record);
 
+        let mut status_code = record.status_code;
+        if status_code == 0 {
+            status_code = exit_code as u32;
+        }
         sqlx::query("INSERT INTO error_transactions (hash, block_number, cumulative_gas_used, gas_used, status_code, status_reason) VALUES ($1, $2, $3, $4, $5, $6)")
             .bind(hex(record.tx_hash.as_slice())?)
             .bind(Decimal::from(record.block_number))
             .bind(Decimal::from(record.cumulative_gas_used))
             .bind(Decimal::from(record.gas_used))
-            .bind(Decimal::from(record.status_code))
+            .bind(Decimal::from(status_code))
             .bind(record.status_reason)
             .execute(&*POOL)
             .await?;
