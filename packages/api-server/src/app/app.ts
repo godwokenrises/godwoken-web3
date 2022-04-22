@@ -8,6 +8,7 @@ import Sentry from "@sentry/node";
 import { applyRateLimitByIp } from "../rate-limit";
 import { initSentry } from "../sentry";
 import { envConfig } from "../base/env-config";
+import { gwConfig } from "../base/gw-config";
 import { expressLogger, logger } from "../base/logger";
 
 let newrelic: any | undefined = undefined;
@@ -15,6 +16,11 @@ if (envConfig.newRelicLicenseKey) {
   logger.info("new relic init !!!");
   newrelic = require("newrelic");
 }
+
+// init godwoken config
+gwConfig.init(() => {
+  console.log("godwoken config initialized!.");
+});
 
 const app: express.Express = express();
 

@@ -112,7 +112,7 @@ export async function ethAddressToAccountId(
 
 export function ethEoaAddressToScriptHash(address: string) {
   const script: Script = {
-    code_hash: gwConfig.configEoas?.eth.typeHash!,
+    code_hash: gwConfig.eoas?.eth.typeHash!,
     hash_type: "type",
     args: gwConfig.rollupCell?.typeHash! + address.slice(2),
   };

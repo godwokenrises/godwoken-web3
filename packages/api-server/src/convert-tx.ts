@@ -12,7 +12,6 @@ import {
   ethEoaAddressToScriptHash,
 } from "./base/address";
 import { gwConfig } from "./base/gw-config";
-import { envConfig } from "./base/env-config";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 import { verifyGasLimit } from "./methods/validator";

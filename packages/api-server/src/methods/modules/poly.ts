@@ -30,7 +30,7 @@ export class Poly {
   }
 
   async getContractValidatorTypeHash(_args: []): Promise<Hash> {
-    return gwConfig.configBackends?.polyjuice.validatorScriptTypeHash!;
+    return gwConfig.backends?.polyjuice.validatorScriptTypeHash!;
   }
 
   async getRollupTypeHash(_args: []): Promise<Hash> {
@@ -42,7 +42,7 @@ export class Poly {
   }
 
   async getEthAccountLockHash(_args: []): Promise<Hash> {
-    return gwConfig.configEoas?.eth.typeHash!;
+    return gwConfig.eoas?.eth.typeHash!;
   }
 
   async getChainInfo(_args: []): Promise<any> {
@@ -62,9 +62,9 @@ export class Poly {
       configs: {
         rollupCell: gwConfig.rollupCell,
         rollupConfig: gwConfig.rollupConfig,
-        scripts: gwConfig.configGwScripts,
-        eoas: gwConfig.configEoas,
-        backends: gwConfig.configBackends,
+        scripts: gwConfig.gwScripts,
+        eoas: gwConfig.eoas,
+        backends: gwConfig.backends,
         accounts: gwConfig.accounts,
         chainId: gwConfig.web3ChainId,
       },

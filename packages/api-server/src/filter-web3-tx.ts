@@ -49,7 +49,7 @@ export async function filterWeb3Transaction(
   }
 
   // skip tx with non eth_account_lock from_id
-  if (fromScript.code_hash !== gwConfig.configEoas?.eth.typeHash!) {
+  if (fromScript.code_hash !== gwConfig.eoas?.eth.typeHash!) {
     return undefined;
   }
 
@@ -85,8 +85,7 @@ export async function filterWeb3Transaction(
   const nonce: HexU32 = l2Tx.raw.nonce;
 
   if (
-    toScript.code_hash ===
-    gwConfig.configBackends?.polyjuice.validatorScriptTypeHash!
+    toScript.code_hash === gwConfig.backends?.polyjuice.validatorScriptTypeHash!
   ) {
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
@@ -184,7 +183,7 @@ export async function filterWeb3Transaction(
     return [ethTx, receipt];
   } else if (
     toId === +CKB_SUDT_ID &&
-    toScript.code_hash === gwConfig.configGwScripts?.l2Sudt.typeHash!
+    toScript.code_hash === gwConfig.gwScripts?.l2Sudt.typeHash!
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {

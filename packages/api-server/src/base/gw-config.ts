@@ -22,9 +22,9 @@ export class GwConfig {
 
   web3ChainId: HexNumber | undefined;
   accounts: ConfigAccounts | undefined;
-  configEoas: ConfigEoas | undefined;
-  configBackends: ConfigBackends | undefined;
-  configGwScripts: ConfigGwScripts | undefined;
+  eoas: ConfigEoas | undefined;
+  backends: ConfigBackends | undefined;
+  gwScripts: ConfigGwScripts | undefined;
   rollupConfig: RollupConfig | undefined;
   rollupCell: RollupCell | undefined;
 
@@ -37,23 +37,33 @@ export class GwConfig {
     this.rpc = rpcOrUrl;
   }
 
-  async init() {
-    this.nodeInfo ||= await this.rpc.getNodeInfo();
+  init(callback?: (gwConfig: GwConfig) => any): Promise<GwConfig> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.nodeInfo ||= await this.rpc.getNodeInfo();
 
-    const creator = await this.fetchCreatorAccount();
-    const ethAddrReg = await this.fetchEthAddrRegAccount();
-    const defaultFrom = await this.fetchDefaultFromAccount();
+        const creator = await this.fetchCreatorAccount();
+        const ethAddrReg = await this.fetchEthAddrRegAccount();
+        const defaultFrom = await this.fetchDefaultFromAccount();
 
-    this.accounts ||= {
-      creator,
-      ethAddrReg,
-      defaultFrom,
-    };
+        this.accounts ||= {
+          creator,
+          ethAddrReg,
+          defaultFrom,
+        };
 
-    this.configEoas ||= toConfigEoas(this.nodeInfo);
-    this.configGwScripts ||= toConfigGwScripts(this.nodeInfo);
-    this.configBackends ||= toConfigBackends(this.nodeInfo);
-    this.web3ChainId ||= this.nodeInfo.rollupConfig.chainId;
+        this.eoas ||= toConfigEoas(this.nodeInfo);
+        this.gwScripts ||= toConfigGwScripts(this.nodeInfo);
+        this.backends ||= toConfigBackends(this.nodeInfo);
+        this.web3ChainId ||= this.nodeInfo.rollupConfig.chainId;
+        if (callback != null) {
+          callback(this);
+        }
+        return resolve(this);
+      } catch (error: any) {
+        reject(error.message);
+      }
+    });
   }
 
   async fetchCreatorAccount() {
@@ -131,12 +141,12 @@ export class GwConfig {
       this.nodeInfo ||= await this.rpc.getNodeInfo();
     }
 
-    const polyjuiceValidatorTypeHash = this.nodeInfo.backends.filter(
-      (b) => b.type === BackendType.Polyjuice
-    )[0]?.validatorScriptTypeHash;
+    const ethAccountLockTypeHash = this.nodeInfo.eoas.filter(
+      (b) => b.type === EoaType.Eth
+    )[0]?.typeHash;
     const firstEoaAccount = await findFirstEoaAccountId(
       this.rpc,
-      polyjuiceValidatorTypeHash
+      ethAccountLockTypeHash
     );
     if (firstEoaAccount == null) {
       throw new Error("can not find first eoa account.");
@@ -310,10 +320,4 @@ export function serializeScript(script: Script) {
     .serializeJson();
 }
 
-async function initGwConfig(gwConfig: GwConfig) {
-  await gwConfig.init();
-  console.log("initialized new GwConfig instance!");
-}
-
 export const gwConfig = new GwConfig(envConfig.godwokenJsonRpc);
-initGwConfig(gwConfig);
