@@ -41,9 +41,8 @@ export class GwConfig {
     this.nodeInfo ||= await this.rpc.getNodeInfo();
 
     const creator = await this.fetchCreatorAccount();
-    // todo
-    const ethAddrReg = await this.fetchCreatorAccount();
-    const defaultFrom = await this.fetchCreatorAccount();
+    const ethAddrReg = await this.fetchEthAddrRegAccount();
+    const defaultFrom = await this.fetchDefaultFromAccount();
 
     this.accounts ||= {
       creator,
@@ -54,16 +53,7 @@ export class GwConfig {
     this.configEoas ||= toConfigEoas(this.nodeInfo);
     this.configGwScripts ||= toConfigGwScripts(this.nodeInfo);
     this.configBackends ||= toConfigBackends(this.nodeInfo);
-
-    const creatorId = parseInt(
-      this.nodeInfo.rollupConfig.CompatibleChainId,
-      16
-    );
-    const compatibleChainId = parseInt(
-      this.nodeInfo.rollupConfig.CompatibleChainId,
-      16
-    );
-    this.web3ChainId ||= calculateChainId(creatorId, compatibleChainId);
+    this.web3ChainId ||= this.nodeInfo.rollupConfig.chainId;
   }
 
   async fetchCreatorAccount() {
@@ -89,11 +79,70 @@ export class GwConfig {
     const creatorId = await this.rpc.getAccountIdByScriptHash(scriptHash);
     if (creatorId == null) {
       throw new Error(
-        `[${GwConfig.name}] can't find creator account id by script hash ${scriptHash}, script detail: ${script}`
+        `[${
+          GwConfig.name
+        }] can't find creator account id by script hash ${scriptHash}, script detail: ${JSON.stringify(
+          script,
+          null,
+          2
+        )}`
       );
     }
     const creatorIdHex = "0x" + BigInt(creatorId).toString(16);
     return new Account(creatorIdHex, scriptHash);
+  }
+
+  async fetchEthAddrRegAccount() {
+    if (!this.nodeInfo) {
+      this.nodeInfo ||= await this.rpc.getNodeInfo();
+    }
+
+    const registryScriptArgs = this.nodeInfo.rollupCell.typeHash;
+
+    const script: Script = {
+      code_hash: this.nodeInfo.backends.filter(
+        (b) => b.type === BackendType.EthAddrReg
+      )[0]?.validatorScriptTypeHash,
+      hash_type: "type",
+      args: registryScriptArgs,
+    };
+
+    const scriptHash = serializeScript(script);
+
+    const regId = await this.rpc.getAccountIdByScriptHash(scriptHash);
+    if (regId == null) {
+      throw new Error(
+        `[${
+          GwConfig.name
+        }] can't find ethAddrReg account id by script hash ${scriptHash}, script detail: ${JSON.stringify(
+          script,
+          null,
+          2
+        )}`
+      );
+    }
+    const regIdHex = "0x" + BigInt(regId).toString(16);
+    return new Account(regIdHex, scriptHash);
+  }
+
+  // we search the first account id = 2, if it is eoa account, use it, otherwise continue with id + 1;
+  async fetchDefaultFromAccount() {
+    if (!this.nodeInfo) {
+      this.nodeInfo ||= await this.rpc.getNodeInfo();
+    }
+
+    const polyjuiceValidatorTypeHash = this.nodeInfo.backends.filter(
+      (b) => b.type === BackendType.Polyjuice
+    )[0]?.validatorScriptTypeHash;
+    const firstEoaAccount = await findFirstEoaAccountId(
+      this.rpc,
+      polyjuiceValidatorTypeHash
+    );
+    if (firstEoaAccount == null) {
+      throw new Error("can not find first eoa account.");
+    }
+
+    return firstEoaAccount;
   }
 }
 
@@ -214,6 +263,37 @@ export interface ConfigEoas {
   tron: Omit<Eoa, "type">;
 }
 
+const asyncSleep = async (ms = 0) => {
+  return new Promise((r) => setTimeout(() => r("ok"), ms));
+};
+
+export async function findFirstEoaAccountId(
+  rpc: GodwokenClient,
+  polyjuiceValidatorTypeHash: HexString,
+  startAccountId: number = 2,
+  maxTry: number = 20
+) {
+  for (let id = startAccountId; id < maxTry; id++) {
+    const scriptHash = await rpc.getScriptHash(id);
+    if (scriptHash == null) {
+      continue;
+    }
+    const script = await rpc.getScript(scriptHash);
+    if (script == null) {
+      continue;
+    }
+
+    if (script.code_hash === polyjuiceValidatorTypeHash) {
+      const accountIdHex = "0x" + BigInt(id).toString(16);
+      return new Account(accountIdHex, scriptHash);
+    }
+
+    await asyncSleep(500);
+  }
+
+  return null;
+}
+
 export function toConfigEoas(nodeInfo: NodeInfo) {
   const eth = nodeInfo.eoas.filter((e) => e.type === EoaType.Eth)[0];
   const tron = nodeInfo.eoas.filter((e) => e.type === EoaType.Tron)[0];
@@ -228,17 +308,6 @@ export function serializeScript(script: Script) {
   return utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();
-}
-
-export function calculateChainId(
-  creatorId: number,
-  compatibleChainId: number
-): HexNumber {
-  const chainId = (BigInt(compatibleChainId) << 32n) + BigInt(creatorId);
-  console.log(
-    `web3 chain_id: ${chainId}, calculating from compatible_chain_id: ${compatibleChainId}, creator_id: ${creatorId}`
-  );
-  return "0x" + chainId.toString(16);
 }
 
 async function initGwConfig(gwConfig: GwConfig) {

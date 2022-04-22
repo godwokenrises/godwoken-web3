@@ -103,11 +103,11 @@ export interface RollupCell {
 }
 
 export interface RollupConfig {
-  RequiredStakingCapacity: HexNumber;
-  ChallengeMaturityBlocks: HexNumber;
-  FinalityBlocks: HexNumber;
-  RewardBurnRate: HexNumber;
-  CompatibleChainId: HexNumber;
+  requiredStakingCapacity: HexNumber;
+  challengeMaturityBlocks: HexNumber;
+  finalityBlocks: HexNumber;
+  rewardBurnRate: HexNumber;
+  chainId: HexNumber;
 }
 export interface NodeInfo {
   backends: Array<BackendInfo>;
