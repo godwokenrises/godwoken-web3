@@ -1005,7 +1005,7 @@ export class Eth {
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "latest"
+        filter.fromBlock || "earliest"
       );
       const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
         filter.toBlock || "latest"
