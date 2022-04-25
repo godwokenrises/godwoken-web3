@@ -68,11 +68,11 @@ chain_id=<godwoken chain_id in integer>
 EOF
 ```
 
-Or just run script, copy configs from `packages/api-server/.env` file.
+Or just run script, generate configs from `packages/api-server/.env` file and godwoken rpc `gw_get_node_info`.
 
 ```bash
 node scripts/generate-indexer-config.js <websocket rpc url>
-``` 
+```
 
 ### Start Indexer
 
