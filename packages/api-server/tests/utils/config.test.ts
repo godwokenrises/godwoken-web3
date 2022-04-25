@@ -1,7 +1,20 @@
-import { HexString } from "@ckb-lumos/base";
-import { GodwokenClient, NodeInfo } from "@godwoken-web3/godwoken";
+import { HexString, Script } from "@ckb-lumos/base";
+import {
+  BackendType,
+  EoaScriptType,
+  GodwokenClient,
+  GwScriptType,
+  NodeInfo,
+  NodeMode,
+} from "@godwoken-web3/godwoken";
 import test from "ava";
 import { gwConfig } from "../../src/base/gw-config";
+
+const script: Script = {
+  code_hash: "0x",
+  hash_type: "type",
+  args: "0x",
+};
 
 let mockRpc: GodwokenClient = gwConfig.rpc;
 
@@ -10,7 +23,7 @@ mockRpc.getAccountIdByScriptHash = async (scriptHash: HexString) => {
     case "0x5df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921f":
       return 2;
 
-    case "0x7df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921d":
+    case "0x31e7f492d2b22220cad86b7cef30a45ce8df34b00a8ba0d0c5dfd92e7392023a":
       return 4;
 
     case "0xb5f81e2d10af9600194606989583ae8cc3fcb822a24fdea95f42da5ea18606da":
@@ -26,7 +39,7 @@ mockRpc.getAccountIdByScriptHash = async (scriptHash: HexString) => {
 mockRpc.getScriptHash = async (accountId: number) => {
   switch (accountId) {
     case 4:
-      return "0x7df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921d";
+      return "0x31e7f492d2b22220cad86b7cef30a45ce8df34b00a8ba0d0c5dfd92e7392023a";
 
     case 3:
       return "0xb5f81e2d10af9600194606989583ae8cc3fcb822a24fdea95f42da5ea18606da";
@@ -41,12 +54,12 @@ mockRpc.getScriptHash = async (accountId: number) => {
 
 mockRpc.getScript = async (scriptHash: HexString) => {
   switch (scriptHash) {
-    case "0x7df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921d":
+    case "0x31e7f492d2b22220cad86b7cef30a45ce8df34b00a8ba0d0c5dfd92e7392023a":
       return {
         code_hash:
           "0x9b599c7df5d7b813f7f9542a5c8a0c12b65261a081b1dba02c2404802f772a15",
         hash_type: "type",
-        args: "0x4ed4a999f0046230d67503c07f1e64f2b2ad1440f758ebfc97282be40f74673c0000001",
+        args: "0x4ed4a999f0046230d67503c07f1e64f2b2ad1440f758ebfc97282be40f74673c00000010000003",
       };
 
     case "0x5df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921f":
@@ -63,130 +76,132 @@ mockRpc.getScript = async (scriptHash: HexString) => {
 };
 
 mockRpc.getNodeInfo = async () => {
-  return {
+  const nodeInfo: NodeInfo = {
     backends: [
       {
-        validatorScriptHash: "",
-        generatorCodeHash: "",
-        validatorScriptTypeHash:
+        validator_code_hash: "",
+        generator_code_hash: "",
+        validator_script_type_hash:
           "0x32923ebad8e5417ae072decc89774324ec4a623f57af5cee6e2901d29d8e6691",
-        type: "Meta",
+        backend_type: BackendType.Meta,
       },
       {
-        validatorScriptHash: "",
-        generatorCodeHash: "",
-        validatorScriptTypeHash:
+        validator_code_hash: "",
+        generator_code_hash: "",
+        validator_script_type_hash:
           "0x9b599c7df5d7b813f7f9542a5c8a0c12b65261a081b1dba02c2404802f772a15",
-        type: "Polyjuice",
+        backend_type: BackendType.Polyjuice,
       },
       {
-        validatorScriptHash: "",
-        generatorCodeHash: "",
-        validatorScriptTypeHash:
+        validator_code_hash: "",
+        generator_code_hash: "",
+        validator_script_type_hash:
           "0x696447c51fdb84d0e59850b26bc431425a74daaac070f2b14f5602fbb469912a",
-        type: "Sudt",
+        backend_type: BackendType.Sudt,
       },
       {
-        validatorScriptHash: "",
-        generatorCodeHash: "",
-        validatorScriptTypeHash:
+        validator_code_hash: "",
+        generator_code_hash: "",
+        validator_script_type_hash:
           "0x59ecd45fc257a761d992507ef2e1acccf43221567f6cf3b1fc6fb9352a7a0ca3",
-        type: "EthAddrReg",
+        backend_type: BackendType.EthAddrReg,
       },
     ],
-    eoas: [
+    eoa_scripts: [
       {
-        typeHash:
+        type_hash:
           "0x1272c80507fe5e6cf33cf3e5da6a5f02430de40abb14410ea0459361bf74ebe0",
-        type: "Eth",
+        script,
+        eoa_type: EoaScriptType.Eth,
       },
     ],
-    scripts: [
+    gw_scripts: [
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "Deposit",
+        script,
+        script_type: GwScriptType.Deposit,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "Withdraw",
+        script,
+        script_type: GwScriptType.Withdraw,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "StateValidator",
+        script,
+        script_type: GwScriptType.StateValidator,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "StakeLock",
+        script,
+        script_type: GwScriptType.StakeLock,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "CustodianLock",
+        script,
+        script_type: GwScriptType.CustodianLock,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "ChallengeLock",
+        script,
+        script_type: GwScriptType.ChallengeLock,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "L1Sudt",
+        script,
+        script_type: GwScriptType.L1Sudt,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "L2Sudt",
+        script,
+        script_type: GwScriptType.L2Sudt,
       },
       {
-        typeHash:
+        type_hash:
           "0xcddb997266a74a5e940a240d63ef8aa89d116999044e421dc337ead16ea870eb",
-        script: {},
-        type: "OmniLock",
+        script,
+        script_type: GwScriptType.OmniLock,
       },
     ],
-    rollupCell: {
-      typeHash:
+    rollup_cell: {
+      type_hash:
         "0x4ed4a999f0046230d67503c07f1e64f2b2ad1440f758ebfc97282be40f74673c",
-      script: {},
+      script,
     },
-    rollupConfig: {
-      requiredStakingCapacity: "0x2540be400",
-      challengeMaturityBlocks: "0x64",
-      finalityBlocks: "0x3",
-      rewardBurnRate: "0x32",
-      chainId: "0x116e8",
+    rollup_config: {
+      required_staking_capacity: "0x2540be400",
+      challenge_maturity_blocks: "0x64",
+      finality_blocks: "0x3",
+      reward_burn_rate: "0x32",
+      chain_id: "0x116e8",
     },
     version: "v1.1.0",
-  } as NodeInfo;
+    mode: NodeMode.FullNode,
+  };
+  return nodeInfo;
 };
 
 test("init gw config", async (t) => {
-  const config = await gwConfig.init(() =>
-    console.log("gw config initialized!")
-  );
-  t.deepEqual(config.eoas, {
+  const config = await gwConfig.init();
+  t.deepEqual(config.eoaScripts, {
     eth: {
-      type: "Eth",
+      eoaType: EoaScriptType.Eth,
+      script,
       typeHash:
         "0x1272c80507fe5e6cf33cf3e5da6a5f02430de40abb14410ea0459361bf74ebe0",
     },
-    tron: undefined,
   });
-  t.is(config.accounts?.creator.id, "0x4");
+  t.is(config.accounts?.polyjuiceCreator.id, "0x4");
   t.is(config.accounts?.defaultFrom.id, "0x2");
   t.is(config.accounts?.ethAddrReg.id, "0x3");
+  t.is(config.nodeMode, NodeMode.FullNode);
   t.is(config.web3ChainId, "0x116e8");
 });

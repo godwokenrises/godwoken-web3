@@ -49,7 +49,7 @@ export async function filterWeb3Transaction(
   }
 
   // skip tx with non eth_account_lock from_id
-  if (fromScript.code_hash !== gwConfig.eoas?.eth.typeHash!) {
+  if (fromScript.code_hash !== gwConfig.eoaScripts?.eth.typeHash!) {
     return undefined;
   }
 

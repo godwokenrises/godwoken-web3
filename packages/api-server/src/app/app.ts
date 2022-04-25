@@ -17,10 +17,16 @@ if (envConfig.newRelicLicenseKey) {
   newrelic = require("newrelic");
 }
 
+//TODO: maybe config init to cluster master, only run once
 // init godwoken config
-gwConfig.init(() => {
-  console.log("godwoken config initialized!.");
-});
+gwConfig.init(
+  () => {
+    logger.info("godwoken config initialized!");
+  },
+  (error) => {
+    logger.error(error.message);
+  }
+);
 
 const app: express.Express = express();
 

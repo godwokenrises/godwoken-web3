@@ -17,7 +17,7 @@ export class Poly {
 
   async getCreatorId(_args: []): Promise<HexNumber> {
     try {
-      const creatorIdHex = gwConfig.accounts?.creator.id!;
+      const creatorIdHex = gwConfig.accounts?.polyjuiceCreator.id!;
       return creatorIdHex;
     } catch (err: any) {
       throw new Web3Error(err.message);
@@ -42,7 +42,7 @@ export class Poly {
   }
 
   async getEthAccountLockHash(_args: []): Promise<Hash> {
-    return gwConfig.eoas?.eth.typeHash!;
+    return gwConfig.eoaScripts?.eth.typeHash!;
   }
 
   async getChainInfo(_args: []): Promise<any> {
@@ -52,21 +52,21 @@ export class Poly {
   }
 
   async version() {
-    const nodeInfo = await this.rpc.getNodeInfo();
     return {
       versions: {
         web3Version,
         web3IndexerVersion: web3Version, // indexer and api-server should use the same version
-        godwokenVersion: nodeInfo.version,
+        godwokenVersion: gwConfig.nodeVersion,
       },
-      configs: {
+      nodeInfo: {
+        nodeMode: gwConfig.nodeMode,
         rollupCell: gwConfig.rollupCell,
         rollupConfig: gwConfig.rollupConfig,
-        scripts: gwConfig.gwScripts,
-        eoas: gwConfig.eoas,
+        gwScripts: gwConfig.gwScripts,
+        eoaScripts: gwConfig.eoaScripts,
         backends: gwConfig.backends,
         accounts: gwConfig.accounts,
-        chainId: gwConfig.web3ChainId,
+        web3ChainId: gwConfig.web3ChainId,
       },
     };
   }

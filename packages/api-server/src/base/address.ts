@@ -87,7 +87,7 @@ export async function ethAddressToAccountId(
   godwokenClient: GodwokenClient
 ): Promise<number | undefined> {
   if (ethAddress === "0x") {
-    return parseInt(gwConfig.accounts?.creator.id!);
+    return parseInt(gwConfig.accounts?.polyjuiceCreator.id!);
   }
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
@@ -112,7 +112,7 @@ export async function ethAddressToAccountId(
 
 export function ethEoaAddressToScriptHash(address: string) {
   const script: Script = {
-    code_hash: gwConfig.eoas?.eth.typeHash!,
+    code_hash: gwConfig.eoaScripts?.eth.typeHash!,
     hash_type: "type",
     args: gwConfig.rollupCell?.typeHash! + address.slice(2),
   };

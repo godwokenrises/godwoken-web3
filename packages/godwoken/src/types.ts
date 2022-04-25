@@ -56,66 +56,73 @@ export interface AccountMerkleState {
   count: HexU32;
 }
 
-export enum EoaType {
-  Eth = "Eth",
-  Tron = "Tron",
+export enum NodeMode {
+  FullNode = "fullnode",
+  ReadOnly = "readonly",
+  Test = "test",
 }
 
-export interface Eoa {
-  typeHash: HexString;
-  type: EoaType;
+export enum EoaScriptType {
+  Eth = "eth",
+}
+
+export interface EoaScript {
+  type_hash: HexString;
+  script: Script;
+  eoa_type: EoaScriptType;
 }
 
 export enum BackendType {
-  Unknown = "Unknown",
-  Meta = "Meta",
-  Sudt = "Sudt",
-  Polyjuice = "Polyjuice",
-  EthAddrReg = "EthAddrReg",
+  Unknown = "unknown",
+  Meta = "meta",
+  Sudt = "sudt",
+  Polyjuice = "polyjuice",
+  EthAddrReg = "eth_addr_reg",
 }
 export interface BackendInfo {
-  validatorScriptHash: HexString;
-  generatorCodeHash: HexString;
-  validatorScriptTypeHash: HexString;
-  type: BackendType;
+  validator_code_hash: HexString;
+  generator_code_hash: HexString;
+  validator_script_type_hash: HexString;
+  backend_type: BackendType;
 }
 
 export enum GwScriptType {
-  Deposit = "Deposit",
-  Withdraw = "Withdraw",
-  StateValidator = "StateValidator",
-  StakeLock = "StakeLock",
-  CustodianLock = "CustodianLock",
-  ChallengeLock = "ChallengeLock",
-  L1Sudt = "L1Sudt",
-  L2Sudt = "L2Sudt",
-  omniLock = "OmniLock",
+  Deposit = "deposit",
+  Withdraw = "withdraw",
+  StateValidator = "state_validator",
+  StakeLock = "stake_lock",
+  CustodianLock = "custodian_lock",
+  ChallengeLock = "challenge_lock",
+  L1Sudt = "l1_sudt",
+  L2Sudt = "l2_sudt",
+  OmniLock = "omni_lock",
 }
 export interface GwScript {
-  typeHash: HexString;
+  type_hash: HexString;
   script: Script;
-  type: GwScriptType;
+  script_type: GwScriptType;
 }
 
 export interface RollupCell {
-  typeHash: HexString;
+  type_hash: HexString;
   script: Script;
 }
 
 export interface RollupConfig {
-  requiredStakingCapacity: HexNumber;
-  challengeMaturityBlocks: HexNumber;
-  finalityBlocks: HexNumber;
-  rewardBurnRate: HexNumber;
-  chainId: HexNumber;
+  required_staking_capacity: HexNumber;
+  challenge_maturity_blocks: HexNumber;
+  finality_blocks: HexNumber;
+  reward_burn_rate: HexNumber;
+  chain_id: HexNumber;
 }
 export interface NodeInfo {
   backends: Array<BackendInfo>;
-  eoas: Array<Eoa>;
-  scripts: Array<GwScript>;
-  rollupCell: RollupCell;
-  rollupConfig: RollupConfig;
+  eoa_scripts: Array<EoaScript>;
+  gw_scripts: Array<GwScript>;
+  rollup_cell: RollupCell;
+  rollup_config: RollupConfig;
   version: string;
+  mode: NodeMode;
 }
 export interface RegistryAddress {
   registry_id: HexU32;

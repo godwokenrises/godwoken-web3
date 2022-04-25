@@ -189,7 +189,7 @@ async function parseRawTransactionData(
   let toId: HexNumber | undefined;
   if (to === DEPLOY_TO_ADDRESS) {
     args_7 = "0x03";
-    toId = gwConfig.accounts?.creator.id;
+    toId = gwConfig.accounts?.polyjuiceCreator.id;
   } else {
     args_7 = "0x00";
     toId = await getAccountIdByEthAddress(to, rpc);
