@@ -1,5 +1,5 @@
 import { HexNumber } from "@ckb-lumos/base";
-import { gwConfig } from "../../base/gw-config";
+import { gwConfig } from "../../base/index";
 const server = require("../../../bin/www");
 
 export class Net {

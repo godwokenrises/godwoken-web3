@@ -8,13 +8,15 @@ import {
   NodeMode,
 } from "@godwoken-web3/godwoken";
 import test from "ava";
-import { gwConfig } from "../../src/base/gw-config";
+import { GwConfig } from "../../src/base/gw-config";
 
 const script: Script = {
   code_hash: "0x",
   hash_type: "type",
   args: "0x",
 };
+
+const gwConfig = new GwConfig("http://host:8119");
 
 let mockRpc: GodwokenClient = gwConfig.rpc;
 

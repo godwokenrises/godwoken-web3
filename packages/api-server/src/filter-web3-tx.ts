@@ -21,7 +21,7 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
-import { gwConfig } from "./base/gw-config";
+import { gwConfig } from "./base/index";
 import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
 

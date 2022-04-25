@@ -3,7 +3,7 @@ import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
 import { COMPATIBLE_DOCS_URL } from "../methods/constant";
 import { envConfig } from "./env-config";
-import { gwConfig } from "./gw-config";
+import { gwConfig } from "./index";
 import { logger } from "./logger";
 import { Uint32 } from "./types/uint";
 

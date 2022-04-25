@@ -8,7 +8,7 @@ import Sentry from "@sentry/node";
 import { applyRateLimitByIp } from "../rate-limit";
 import { initSentry } from "../sentry";
 import { envConfig } from "../base/env-config";
-import { gwConfig } from "../base/gw-config";
+import { gwConfig } from "../base/index";
 import { expressLogger, logger } from "../base/logger";
 
 let newrelic: any | undefined = undefined;

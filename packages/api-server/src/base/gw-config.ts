@@ -17,7 +17,6 @@ import {
   NodeInfo as GwNodeInfo,
 } from "@godwoken-web3/godwoken";
 import { CKB_SUDT_ID } from "../methods/constant";
-import { envConfig } from "./env-config";
 import { Uint32 } from "./types/uint";
 import { snakeToCamel } from "../util";
 
@@ -350,5 +349,3 @@ export function serializeScript(script: Script) {
 const asyncSleep = async (ms = 0) => {
   return new Promise((r) => setTimeout(() => r("ok"), ms));
 };
-
-export const gwConfig = new GwConfig(envConfig.godwokenJsonRpc);

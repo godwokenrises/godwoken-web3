@@ -70,7 +70,7 @@ import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
-import { gwConfig } from "../../base/gw-config";
+import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");

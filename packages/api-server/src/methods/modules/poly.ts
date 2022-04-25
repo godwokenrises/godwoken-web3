@@ -2,7 +2,7 @@ import { Hash, HexNumber, Address } from "@ckb-lumos/base";
 import { envConfig } from "../../base/env-config";
 import { MethodNotSupportError, Web3Error } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { gwConfig } from "../../base/gw-config";
+import { gwConfig } from "../../base/index";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
