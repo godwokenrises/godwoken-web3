@@ -98,10 +98,6 @@ function parseReturnData(returnData: HexString): string {
     return "";
   }
 
-  if (returnData.length === 10) {
-    return "reverted with custom error";
-  }
-
   const abi = abiCoder as unknown as AbiCoder;
 
   const funcSig = returnData.slice(0, 10);
