@@ -8,6 +8,7 @@ import { RpcError } from "./error";
 import { GW_RPC_REQUEST_ERROR } from "./error-code";
 import { LogItem, PolyjuiceSystemLog } from "./types";
 import { HexNumber, HexString } from "@ckb-lumos/base";
+import { logger } from "../base/logger";
 
 export const evmcCodeTypeMapping: {
   [key: string]: string;
@@ -97,6 +98,10 @@ function parseReturnData(returnData: HexString): string {
     return "";
   }
 
+  if (returnData.length === 10) {
+    return "reverted with custom error";
+  }
+
   const abi = abiCoder as unknown as AbiCoder;
 
   const funcSig = returnData.slice(0, 10);
@@ -110,11 +115,16 @@ function parseReturnData(returnData: HexString): string {
       .map((_, i) => parsedArgs[i]);
     return revertInfo.message(args);
   }
-
-  const reason = abi.decodeParameter(
-    "string",
-    returnData.slice(10)
-  ) as unknown as string;
+  let reason = "";
+  try {
+    reason = abi.decodeParameter(
+      "string",
+      returnData.slice(10)
+    ) as unknown as string;
+  } catch (e) {
+    logger.info(`Parse reason failed with return data: ${returnData}`);
+    reason = "reverted with custom error";
+  }
 
   return reason;
 }
