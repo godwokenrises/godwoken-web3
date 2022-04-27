@@ -2,11 +2,17 @@ import http from "http";
 import https from "https";
 import { RPC as Rpc } from "@ckb-lumos/toolkit";
 
+const maxSockets: number = process.env.MAX_SOCKETS
+  ? +process.env.MAX_SOCKETS
+  : 10;
+
 const httpAgent = new http.Agent({
   keepAlive: true,
+  maxSockets,
 });
 const httpsAgent = new https.Agent({
   keepAlive: true,
+  maxSockets,
 });
 
 export class RPC extends Rpc {
