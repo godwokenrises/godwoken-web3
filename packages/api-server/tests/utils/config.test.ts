@@ -176,7 +176,7 @@ mockRpc.getNodeInfo = async () => {
     rollup_cell: {
       type_hash:
         "0x4ed4a999f0046230d67503c07f1e64f2b2ad1440f758ebfc97282be40f74673c",
-      script,
+      type_script: script,
     },
     rollup_config: {
       required_staking_capacity: "0x2540be400",
