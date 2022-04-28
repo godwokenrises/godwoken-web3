@@ -26,7 +26,7 @@ export interface GwScript {
 
 export interface RollupCell {
   typeHash: HexString;
-  script: Script;
+  typeScript: Script;
 }
 
 export interface RollupConfig {

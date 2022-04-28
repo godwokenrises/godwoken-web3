@@ -105,7 +105,7 @@ export interface GwScript {
 
 export interface RollupCell {
   type_hash: HexString;
-  script: Script;
+  type_script: Script;
 }
 
 export interface RollupConfig {
