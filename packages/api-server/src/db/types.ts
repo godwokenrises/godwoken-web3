@@ -46,7 +46,7 @@ export interface Transaction {
   gas_used?: bigint;
   logs_bloom: HexString;
   contract_address?: HexString;
-  status: boolean;
+  exit_code: number;
 }
 
 export interface Log {
@@ -128,7 +128,8 @@ export function toApiTransactionReceipt(
     logsBloom: transformLogsBloom(t.logs_bloom),
     logs,
     contractAddress: t.contract_address || null,
-    status: t.status ? "0x1" : "0x0",
+    // exit_code = 0 means success, other means failed
+    status: t.exit_code === 0 ? "0x1" : "0x0",
     from: t.from_address,
     to: t.to_address || null,
   };

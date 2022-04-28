@@ -52,6 +52,7 @@ export function formatTransaction(tx: Transaction): Transaction {
     v: BigInt(tx.v),
     cumulative_gas_used: toBigIntOpt(tx.cumulative_gas_used),
     gas_used: toBigIntOpt(tx.gas_used),
+    exit_code: +tx.exit_code,
   };
 }
 
