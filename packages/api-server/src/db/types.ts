@@ -135,50 +135,6 @@ export function toApiTransactionReceipt(
   };
 }
 
-export function errorReceiptToApiTransaction(
-  t: ErrorTransactionReceipt,
-  blockHash: HexString,
-  ethTxHash: HexString
-): EthTransaction {
-  return {
-    hash: ethTxHash,
-    blockHash,
-    blockNumber: new Uint64(t.block_number).toHex(),
-    transactionIndex: "0x0", // dummy
-    from: "0x" + "00".repeat(20), // dummy
-    to: null, // dummy
-    gas: "0x" + t.gas_used.toString(16),
-    gasPrice: "0x1", // dummy
-    input: "0x", // dummy
-    nonce: "0x0", // dummy
-    value: "0x0", // dummy
-    v: "0x0", // dummy
-    r: "0x" + "00".repeat(32), // dummy
-    s: "0x" + "00".repeat(32), // dummy
-  };
-}
-
-export function errorReceiptToApiTransactionReceipt(
-  e: ErrorTransactionReceipt,
-  blockHash: HexString,
-  ethTxHash: HexString
-): EthTransactionReceipt {
-  return {
-    transactionHash: ethTxHash,
-    blockHash,
-    blockNumber: new Uint64(e.block_number).toHex(),
-    transactionIndex: "0x0", // dummy
-    gasUsed: "0x" + e.gas_used.toString(16),
-    cumulativeGasUsed: "0x" + e.cumulative_gas_used.toString(16),
-    logsBloom: transformLogsBloom("0x"),
-    logs: [],
-    contractAddress: null, // dummy
-    status: "0x0", // 0 means failed
-    from: "0x" + "00".repeat(20), // dummy
-    to: null, // dummy
-  };
-}
-
 export function toApiLog(l: Log, ethTxHash: HexString): EthLog {
   const data = l.data === "0x" ? "0x" + "00".repeat(32) : l.data;
   return {
@@ -235,13 +191,3 @@ export type LogQueryOption = {
   address?: HexString;
   topics?: FilterTopic[];
 };
-
-export interface ErrorTransactionReceipt {
-  id: bigint;
-  hash: Hash;
-  block_number: bigint;
-  cumulative_gas_used: bigint;
-  gas_used: bigint;
-  status_code: number;
-  status_reason: string;
-}

@@ -1,5 +1,5 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
-import { Block, Transaction, Log, ErrorTransactionReceipt } from "./types";
+import { Block, Transaction, Log } from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
@@ -11,7 +11,6 @@ import {
   formatBlock,
   formatTransaction,
   formatLog,
-  formatErrorTransactionReceipt,
   buildQueryLogAddress,
   normalizeLogQueryAddress,
   filterLogsByTopics,
@@ -256,23 +255,6 @@ export class Query {
     });
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
-  }
-
-  async getErrorTransactionReceipt(
-    txHash: Hash
-  ): Promise<ErrorTransactionReceipt | undefined> {
-    const receipt = await this.knex<ErrorTransactionReceipt>(
-      "error_transactions"
-    )
-      .where("hash", txHash)
-      .first();
-
-    if (receipt == null) {
-      return undefined;
-    }
-
-    const result = formatErrorTransactionReceipt(receipt);
-    return result;
   }
 
   async getTipLog() {

@@ -3,7 +3,6 @@
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { FailedReason } from "../base/types/api";
 import { COMPATIBLE_DOCS_URL } from "./constant";
-import { ErrorTransactionReceipt } from "../db/types";
 import { RpcError } from "./error";
 import { GW_RPC_REQUEST_ERROR } from "./error-code";
 import { LogItem, PolyjuiceSystemLog } from "./types";
@@ -209,30 +208,6 @@ export function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
     createdAddress: createdAddress,
     statusCode: statusCode,
   };
-}
-
-export function failedReasonByErrorReceipt(
-  errorReceipt: ErrorTransactionReceipt
-): FailedReason {
-  const statusCode: number = errorReceipt.status_code;
-  const gwErrorItem = gwErrorMapping[statusCode.toString()];
-  if (gwErrorItem != null) {
-    const failedReason: FailedReason = {
-      status_code: "0x" + statusCode.toString(16),
-      status_type: gwErrorItem.type,
-      message: gwErrorItem.message,
-    };
-    return failedReason;
-  }
-
-  // if not in gwErrorMapping
-  const failedReason: FailedReason = {
-    status_code: "0x" + statusCode.toString(16),
-    status_type: evmcCodeTypeMapping[errorReceipt.status_code.toString()],
-    message: errorReceipt.status_reason,
-  };
-
-  return failedReason;
 }
 
 export function parseGwRunResultError(err: any): RpcError {
