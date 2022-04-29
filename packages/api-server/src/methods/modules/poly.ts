@@ -26,7 +26,7 @@ export class Poly {
 
   // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
   async getDefaultFromId(_args: []): Promise<Address> {
-    return gwConfig.accounts?.defaultFrom.id!;
+    return gwConfig.accounts.defaultFrom.id;
   }
 
   async getContractValidatorTypeHash(_args: []): Promise<Hash> {
@@ -34,7 +34,7 @@ export class Poly {
   }
 
   async getRollupTypeHash(_args: []): Promise<Hash> {
-    return gwConfig.rollupCell?.typeHash!;
+    return gwConfig.rollupCell.typeHash;
   }
 
   async getRollupConfigHash(_args: []): Promise<Hash> {

@@ -334,7 +334,7 @@ function findGwScript(type: GwScriptType, nodeInfo: NodeInfo): GwScript {
   if (script == null) {
     throw new Error(`[GwConfig => findGwScript] can not find script ${type}`);
   }
-  return script!;
+  return script;
 }
 
 export interface ConfigEoaScripts {

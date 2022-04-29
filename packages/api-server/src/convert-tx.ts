@@ -219,7 +219,7 @@ async function parseRawTransactionData(
     args_data.slice(2);
 
   const godwokenRawL2Tx: RawL2Transaction = {
-    chain_id: "0x" + BigInt(gwConfig.web3ChainId!).toString(16),
+    chain_id: gwConfig.web3ChainId,
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,

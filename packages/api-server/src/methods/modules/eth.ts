@@ -1420,7 +1420,7 @@ async function buildEthCallTx(
     data
   );
   const rawL2Transaction = buildRawL2Transaction(
-    BigInt(gwConfig.web3ChainId!),
+    BigInt(gwConfig.web3ChainId),
     fromId,
     toId,
     nonce,
