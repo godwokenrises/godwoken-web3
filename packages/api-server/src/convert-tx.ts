@@ -11,7 +11,7 @@ import {
   ethAddressToAccountId,
   ethEoaAddressToScriptHash,
 } from "./base/address";
-import { gwConfig } from "./base/index";
+import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 import { verifyGasLimit } from "./methods/validator";
