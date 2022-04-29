@@ -1,6 +1,6 @@
 import { HexNumber } from "@ckb-lumos/base";
+import { isListening } from "../../app/app";
 import { gwConfig } from "../../base/index";
-const server = require("../../../bin/www");
 
 export class Net {
   constructor() {}
@@ -32,6 +32,6 @@ export class Net {
    * boolean as the second argument
    */
   listening(_args: []): boolean {
-    return server.isListening();
+    return isListening();
   }
 }
