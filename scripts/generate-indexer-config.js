@@ -69,7 +69,7 @@ const run = async () => {
     eth_account_lock_hash: nodeInfo.eoa_scripts.find(
       (s) => s.eoa_type === "eth"
     ).type_hash,
-    chain_id: parseInt(nodeInfo.rollup_config.chain_id, 16),
+    chain_id: +nodeInfo.rollup_config.chain_id,
 
     godwoken_rpc_url: process.env.GODWOKEN_JSON_RPC,
     pg_url: process.env.DATABASE_URL,

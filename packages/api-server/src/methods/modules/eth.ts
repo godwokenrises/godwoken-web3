@@ -1392,7 +1392,7 @@ async function buildEthCallTx(
   }
 
   if (!fromAddress) {
-    fromId = parseInt(gwConfig.accounts?.defaultFrom.id!, 16);
+    fromId = +gwConfig.accounts?.defaultFrom.id!;
     logger.debug(`use default fromId: ${fromId}`);
   }
 

@@ -89,9 +89,9 @@ export class GwConfig {
   async fetchCreatorAccount(ethAddrRegId?: HexNumber) {
     this.nodeInfo ||= await this.getNodeInfo();
 
-    const ckbSudtId = new Uint32(parseInt(CKB_SUDT_ID, 16)).toLittleEndian();
+    const ckbSudtId = new Uint32(+CKB_SUDT_ID).toLittleEndian();
     ethAddrRegId ||= new Uint32(
-      parseInt((await this.fetchEthAddrRegAccount()).id, 16)
+      +(await this.fetchEthAddrRegAccount()).id
     ).toLittleEndian();
 
     const creatorScriptArgs =

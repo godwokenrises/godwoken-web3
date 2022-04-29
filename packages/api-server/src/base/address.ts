@@ -87,7 +87,7 @@ export async function ethAddressToAccountId(
   godwokenClient: GodwokenClient
 ): Promise<number | undefined> {
   if (ethAddress === "0x") {
-    return parseInt(gwConfig.accounts?.polyjuiceCreator.id!);
+    return +gwConfig.accounts?.polyjuiceCreator.id!;
   }
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
