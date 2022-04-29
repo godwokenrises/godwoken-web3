@@ -15,7 +15,7 @@ scriptHashCache.init();
 
 // Only support eth address now!
 export class EthRegistryAddress {
-  private registryId: number = +gwConfig.accounts?.ethAddrReg.id!;
+  private registryId: number = +gwConfig.accounts.ethAddrReg.id;
   private addressByteSize: number = 20;
   public readonly address: HexString;
 
@@ -87,7 +87,7 @@ export async function ethAddressToAccountId(
   godwokenClient: GodwokenClient
 ): Promise<number | undefined> {
   if (ethAddress === "0x") {
-    return +gwConfig.accounts?.polyjuiceCreator.id!;
+    return +gwConfig.accounts.polyjuiceCreator.id;
   }
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
@@ -112,9 +112,9 @@ export async function ethAddressToAccountId(
 
 export function ethEoaAddressToScriptHash(address: string) {
   const script: Script = {
-    code_hash: gwConfig.eoaScripts?.eth.typeHash!,
+    code_hash: gwConfig.eoaScripts.eth.typeHash,
     hash_type: "type",
-    args: gwConfig.rollupCell?.typeHash! + address.slice(2),
+    args: gwConfig.rollupCell.typeHash + address.slice(2),
   };
   const scriptHash = utils.computeScriptHash(script);
   return scriptHash;

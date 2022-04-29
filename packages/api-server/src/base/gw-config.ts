@@ -22,17 +22,16 @@ import { snakeToCamel } from "../util";
 
 export class GwConfig {
   rpc: GodwokenClient;
-  private nodeInfo: NodeInfo | undefined;
-
-  web3ChainId: HexNumber | undefined;
-  accounts: ConfigAccounts | undefined;
-  eoaScripts: ConfigEoaScripts | undefined;
-  backends: ConfigBackends | undefined;
-  gwScripts: ConfigGwScripts | undefined;
-  rollupConfig: RollupConfig | undefined;
-  rollupCell: RollupCell | undefined;
-  nodeMode: NodeMode | undefined;
-  nodeVersion: string | undefined;
+  private iNodeInfo: NodeInfo | undefined;
+  private iWeb3ChainId: HexNumber | undefined;
+  private iAccounts: ConfigAccounts | undefined;
+  private iEoaScripts: ConfigEoaScripts | undefined;
+  private iBackends: ConfigBackends | undefined;
+  private iGwScripts: ConfigGwScripts | undefined;
+  private iRollupConfig: RollupConfig | undefined;
+  private iRollupCell: RollupCell | undefined;
+  private iNodeMode: NodeMode | undefined;
+  private iNodeVersion: string | undefined;
 
   constructor(rpcOrUrl: GodwokenClient | string) {
     if (typeof rpcOrUrl === "string") {
@@ -43,52 +42,77 @@ export class GwConfig {
     this.rpc = rpcOrUrl;
   }
 
-  async getNodeInfo() {
+  async init(): Promise<GwConfig> {
+    this.iNodeInfo = await this.getNodeInfoFromRpc();
+
+    const ethAddrReg = await this.fetchEthAddrRegAccount();
+    const creator = await this.fetchCreatorAccount();
+    const defaultFrom = await this.fetchDefaultFromAccount();
+
+    this.iAccounts = {
+      polyjuiceCreator: creator,
+      ethAddrReg,
+      defaultFrom,
+    };
+
+    this.iEoaScripts = toConfigEoaScripts(this.nodeInfo);
+    this.iGwScripts = toConfigGwScripts(this.nodeInfo);
+    this.iBackends = toConfigBackends(this.nodeInfo);
+    this.iWeb3ChainId = this.nodeInfo.rollupConfig.chainId;
+    this.iRollupCell = this.nodeInfo.rollupCell;
+    this.iRollupConfig ||= this.nodeInfo.rollupConfig;
+    this.iNodeMode = this.nodeInfo.mode;
+    this.iNodeVersion = this.nodeInfo.version;
+
+    return this;
+  }
+
+  public get web3ChainId(): HexNumber {
+    return this.iWeb3ChainId!;
+  }
+
+  public get accounts(): ConfigAccounts {
+    return this.iAccounts!;
+  }
+
+  public get backends(): ConfigBackends {
+    return this.iBackends!;
+  }
+
+  public get eoaScripts(): ConfigEoaScripts {
+    return this.iEoaScripts!;
+  }
+
+  public get gwScripts(): ConfigGwScripts {
+    return this.iGwScripts!;
+  }
+
+  public get rollupConfig(): RollupConfig {
+    return this.iRollupConfig!;
+  }
+
+  public get rollupCell(): RollupCell {
+    return this.iRollupCell!;
+  }
+
+  public get nodeMode(): NodeMode {
+    return this.iNodeMode!;
+  }
+
+  public get nodeVersion(): string {
+    return this.iNodeVersion!;
+  }
+
+  private get nodeInfo(): NodeInfo {
+    return this.iNodeInfo!;
+  }
+
+  private async getNodeInfoFromRpc() {
     const nodeInfo = await this.rpc.getNodeInfo();
     return toApiNodeInfo(nodeInfo);
   }
 
-  init(
-    successCallback?: (gwConfig: GwConfig) => any,
-    errCallBack?: (error: any) => any
-  ): Promise<GwConfig> {
-    return new Promise(async (resolve, reject) => {
-      successCallback ||= (_gwConfig: GwConfig) => {};
-      errCallBack ||= (_error: any) => {};
-      try {
-        this.nodeInfo ||= await this.getNodeInfo();
-
-        const ethAddrReg = await this.fetchEthAddrRegAccount();
-        const creator = await this.fetchCreatorAccount();
-        const defaultFrom = await this.fetchDefaultFromAccount();
-
-        this.accounts ||= {
-          polyjuiceCreator: creator,
-          ethAddrReg,
-          defaultFrom,
-        };
-
-        this.eoaScripts ||= toConfigEoaScripts(this.nodeInfo);
-        this.gwScripts ||= toConfigGwScripts(this.nodeInfo);
-        this.backends ||= toConfigBackends(this.nodeInfo);
-        this.web3ChainId ||= this.nodeInfo.rollupConfig.chainId;
-        this.rollupCell ||= this.nodeInfo.rollupCell;
-        this.rollupConfig ||= this.nodeInfo.rollupConfig;
-        this.nodeMode = this.nodeInfo.mode;
-        this.nodeVersion = this.nodeInfo.version;
-
-        successCallback(this);
-        return resolve(this);
-      } catch (error: any) {
-        errCallBack(error);
-        reject(error.message);
-      }
-    });
-  }
-
-  async fetchCreatorAccount(ethAddrRegId?: HexNumber) {
-    this.nodeInfo ||= await this.getNodeInfo();
-
+  private async fetchCreatorAccount(ethAddrRegId?: HexNumber) {
     const ckbSudtId = new Uint32(+CKB_SUDT_ID).toLittleEndian();
     ethAddrRegId ||= new Uint32(
       +(await this.fetchEthAddrRegAccount()).id
@@ -137,15 +161,24 @@ export class GwConfig {
     return new Account(creatorIdHex, scriptHash);
   }
 
-  async fetchEthAddrRegAccount() {
-    this.nodeInfo ||= await this.getNodeInfo();
-
+  private async fetchEthAddrRegAccount() {
     const registryScriptArgs = this.nodeInfo.rollupCell.typeHash;
 
+    const ethAddrRegValidatorTypeHash = this.nodeInfo.backends.find(
+      (b) => b.backendType === BackendType.EthAddrReg
+    )?.validatorScriptTypeHash;
+    if (ethAddrRegValidatorTypeHash == null) {
+      throw new Error(
+        `[GwConfig => fetchEthAddrRegAccount] ethAddrRegValidatorTypeHash is null! ${JSON.stringify(
+          this.nodeInfo.backends,
+          null,
+          2
+        )}`
+      );
+    }
+
     const script: Script = {
-      code_hash: this.nodeInfo.backends.filter(
-        (b) => b.backendType === BackendType.EthAddrReg
-      )[0]?.validatorScriptTypeHash,
+      code_hash: ethAddrRegValidatorTypeHash,
       hash_type: "type",
       args: registryScriptArgs,
     };
@@ -169,16 +202,26 @@ export class GwConfig {
   }
 
   // we search the first account id = 2, if it is eoa account, use it, otherwise continue with id + 1;
-  async fetchDefaultFromAccount() {
-    this.nodeInfo ||= await this.getNodeInfo();
-
+  private async fetchDefaultFromAccount() {
     const ethAccountLockTypeHash = this.nodeInfo.eoaScripts.find(
       (s) => s.eoaType === EoaScriptType.Eth
     )?.typeHash;
+
+    if (ethAccountLockTypeHash == null) {
+      throw new Error(
+        `[GwConfig => fetchDefaultFromAccount] ethAccountLockTypeHash is null! ${JSON.stringify(
+          this.nodeInfo.eoaScripts,
+          null,
+          2
+        )}`
+      );
+    }
+
     const firstEoaAccount = await findFirstEoaAccountId(
       this.rpc,
-      ethAccountLockTypeHash!
+      ethAccountLockTypeHash
     );
+
     if (firstEoaAccount == null) {
       throw new Error("can not find first eoa account.");
     }
@@ -210,7 +253,7 @@ export interface ConfigBackends {
   ethAddrReg: Omit<BackendInfo, "backendType">;
 }
 
-export function toConfigBackends(nodeInfo: NodeInfo) {
+function toConfigBackends(nodeInfo: NodeInfo) {
   const sudt = nodeInfo.backends.filter(
     (b) => b.backendType === BackendType.Sudt
   )[0];
@@ -261,7 +304,7 @@ export interface ConfigGwScripts {
   omniLock: Omit<GwScript, "scriptType">;
 }
 
-export function toConfigGwScripts(nodeInfo: NodeInfo) {
+function toConfigGwScripts(nodeInfo: NodeInfo) {
   const deposit = findGwScript(GwScriptType.Deposit, nodeInfo);
   const withdraw = findGwScript(GwScriptType.Withdraw, nodeInfo);
   const stateValidator = findGwScript(GwScriptType.StateValidator, nodeInfo);
@@ -286,7 +329,7 @@ export function toConfigGwScripts(nodeInfo: NodeInfo) {
   return configGwScripts;
 }
 
-export function findGwScript(type: GwScriptType, nodeInfo: NodeInfo): GwScript {
+function findGwScript(type: GwScriptType, nodeInfo: NodeInfo): GwScript {
   const script = nodeInfo.gwScripts.find((s) => s.scriptType === type);
   if (script == null) {
     throw new Error(`[GwConfig => findGwScript] can not find script ${type}`);
@@ -298,7 +341,7 @@ export interface ConfigEoaScripts {
   eth: Omit<EoaScript, "eoaType">;
 }
 
-export function toConfigEoaScripts(nodeInfo: NodeInfo) {
+function toConfigEoaScripts(nodeInfo: NodeInfo) {
   const eth = nodeInfo.eoaScripts.find((e) => e.eoaType === EoaScriptType.Eth);
   if (eth == null) {
     throw new Error("no Eth eoa script!");
@@ -310,11 +353,11 @@ export function toConfigEoaScripts(nodeInfo: NodeInfo) {
   return configEoas;
 }
 
-export function toApiNodeInfo(nodeInfo: GwNodeInfo): NodeInfo {
+function toApiNodeInfo(nodeInfo: GwNodeInfo): NodeInfo {
   return snakeToCamel(nodeInfo, ["code_hash", "hash_type"]);
 }
 
-export async function findFirstEoaAccountId(
+async function findFirstEoaAccountId(
   rpc: GodwokenClient,
   ethAccountLockTypeHash: HexString,
   startAccountId: number = 2,
@@ -340,7 +383,7 @@ export async function findFirstEoaAccountId(
   return null;
 }
 
-export function serializeScript(script: Script) {
+function serializeScript(script: Script) {
   return utils
     .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
     .serializeJson();

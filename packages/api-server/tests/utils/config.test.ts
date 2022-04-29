@@ -201,9 +201,9 @@ test("init gw config", async (t) => {
         "0x1272c80507fe5e6cf33cf3e5da6a5f02430de40abb14410ea0459361bf74ebe0",
     },
   });
-  t.is(config.accounts?.polyjuiceCreator.id, "0x4");
-  t.is(config.accounts?.defaultFrom.id, "0x2");
-  t.is(config.accounts?.ethAddrReg.id, "0x3");
+  t.is(config.accounts.polyjuiceCreator.id, "0x4");
+  t.is(config.accounts.defaultFrom.id, "0x2");
+  t.is(config.accounts.ethAddrReg.id, "0x3");
   t.is(config.nodeMode, NodeMode.FullNode);
   t.is(config.web3ChainId, "0x116e8");
 });

@@ -17,7 +17,7 @@ export class Poly {
 
   async getCreatorId(_args: []): Promise<HexNumber> {
     try {
-      const creatorIdHex = gwConfig.accounts?.polyjuiceCreator.id!;
+      const creatorIdHex = gwConfig.accounts.polyjuiceCreator.id;
       return creatorIdHex;
     } catch (err: any) {
       throw new Web3Error(err.message);
@@ -30,7 +30,7 @@ export class Poly {
   }
 
   async getContractValidatorTypeHash(_args: []): Promise<Hash> {
-    return gwConfig.backends?.polyjuice.validatorScriptTypeHash!;
+    return gwConfig.backends.polyjuice.validatorScriptTypeHash;
   }
 
   async getRollupTypeHash(_args: []): Promise<Hash> {
@@ -42,7 +42,7 @@ export class Poly {
   }
 
   async getEthAccountLockHash(_args: []): Promise<Hash> {
-    return gwConfig.eoaScripts?.eth.typeHash!;
+    return gwConfig.eoaScripts.eth.typeHash;
   }
 
   async getChainInfo(_args: []): Promise<any> {

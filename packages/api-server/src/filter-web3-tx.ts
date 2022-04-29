@@ -49,14 +49,14 @@ export async function filterWeb3Transaction(
   }
 
   // skip tx with non eth_account_lock from_id
-  if (fromScript.code_hash !== gwConfig.eoaScripts?.eth.typeHash!) {
+  if (fromScript.code_hash !== gwConfig.eoaScripts.eth.typeHash) {
     return undefined;
   }
 
   const fromScriptArgs: HexString = fromScript.args;
   if (
     fromScriptArgs.length !== 106 ||
-    fromScriptArgs.slice(0, 66) !== gwConfig.rollupCell?.typeHash
+    fromScriptArgs.slice(0, 66) !== gwConfig.rollupCell.typeHash
   ) {
     logger.error("Wrong from_address's script args:", fromScriptArgs);
     return undefined;
@@ -85,7 +85,7 @@ export async function filterWeb3Transaction(
   const nonce: HexU32 = l2Tx.raw.nonce;
 
   if (
-    toScript.code_hash === gwConfig.backends?.polyjuice.validatorScriptTypeHash!
+    toScript.code_hash === gwConfig.backends.polyjuice.validatorScriptTypeHash
   ) {
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
@@ -183,7 +183,7 @@ export async function filterWeb3Transaction(
     return [ethTx, receipt];
   } else if (
     toId === +CKB_SUDT_ID &&
-    toScript.code_hash === gwConfig.gwScripts?.l2Sudt.typeHash!
+    toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {
