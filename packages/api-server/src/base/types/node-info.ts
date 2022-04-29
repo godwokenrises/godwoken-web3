@@ -1,4 +1,4 @@
-import { HexNumber, HexString, Script } from "@ckb-lumos/base";
+import { Hash, HexNumber, Script } from "@ckb-lumos/base";
 import {
   EoaScriptType,
   BackendType,
@@ -7,25 +7,25 @@ import {
 } from "@godwoken-web3/godwoken";
 
 export interface EoaScript {
-  typeHash: HexString;
+  typeHash: Hash;
   eoaType: EoaScriptType;
 }
 
 export interface BackendInfo {
-  validatorCodeHash: HexString;
-  generatorCodeHash: HexString;
-  validatorScriptTypeHash: HexString;
+  validatorCodeHash: Hash;
+  generatorCodeHash: Hash;
+  validatorScriptTypeHash: Hash;
   backendType: BackendType;
 }
 
 export interface GwScript {
-  typeHash: HexString;
+  typeHash: Hash;
   script: Script;
   scriptType: GwScriptType;
 }
 
 export interface RollupCell {
-  typeHash: HexString;
+  typeHash: Hash;
   typeScript: Script;
 }
 
