@@ -60,7 +60,7 @@ export class GwConfig {
     this.iBackends = toConfigBackends(this.nodeInfo);
     this.iWeb3ChainId = this.nodeInfo.rollupConfig.chainId;
     this.iRollupCell = this.nodeInfo.rollupCell;
-    this.iRollupConfig ||= this.nodeInfo.rollupConfig;
+    this.iRollupConfig = this.nodeInfo.rollupConfig;
     this.iNodeMode = this.nodeInfo.mode;
     this.iNodeVersion = this.nodeInfo.version;
 
