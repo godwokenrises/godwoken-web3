@@ -8,6 +8,7 @@ import {
 
 export interface EoaScript {
   typeHash: Hash;
+  script: Script;
   eoaType: EoaScriptType;
 }
 

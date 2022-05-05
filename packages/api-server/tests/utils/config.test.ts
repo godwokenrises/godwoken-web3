@@ -195,7 +195,6 @@ test("init gw config", async (t) => {
   const config = await gwConfig.init();
   t.deepEqual(config.eoaScripts, {
     eth: {
-      eoaType: EoaScriptType.Eth,
       script,
       typeHash:
         "0x1272c80507fe5e6cf33cf3e5da6a5f02430de40abb14410ea0459361bf74ebe0",

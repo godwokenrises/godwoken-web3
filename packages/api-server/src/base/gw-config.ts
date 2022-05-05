@@ -326,15 +326,42 @@ function toConfigGwScripts(nodeInfo: NodeInfo) {
   const omniLock = findGwScript(GwScriptType.OmniLock, nodeInfo);
 
   const configGwScripts: ConfigGwScripts = {
-    deposit,
-    withdraw,
-    stateValidator,
-    stakeLock,
-    custodianLock,
-    challengeLock,
-    l1Sudt,
-    l2Sudt,
-    omniLock,
+    deposit: {
+      script: deposit.script,
+      typeHash: deposit.typeHash,
+    },
+    withdraw: {
+      script: withdraw.script,
+      typeHash: withdraw.typeHash,
+    },
+    stateValidator: {
+      script: stateValidator.script,
+      typeHash: stateValidator.typeHash,
+    },
+    stakeLock: {
+      script: stakeLock.script,
+      typeHash: stakeLock.typeHash,
+    },
+    custodianLock: {
+      script: custodianLock.script,
+      typeHash: custodianLock.typeHash,
+    },
+    challengeLock: {
+      script: challengeLock.script,
+      typeHash: challengeLock.typeHash,
+    },
+    l1Sudt: {
+      script: l1Sudt.script,
+      typeHash: l1Sudt.typeHash,
+    },
+    l2Sudt: {
+      script: l2Sudt.script,
+      typeHash: l2Sudt.typeHash,
+    },
+    omniLock: {
+      script: omniLock.script,
+      typeHash: omniLock.typeHash,
+    },
   };
   return configGwScripts;
 }
@@ -358,7 +385,10 @@ function toConfigEoaScripts(nodeInfo: NodeInfo) {
   }
 
   const configEoas: ConfigEoaScripts = {
-    eth,
+    eth: {
+      typeHash: eth.typeHash,
+      script: eth.script,
+    },
   };
   return configEoas;
 }
