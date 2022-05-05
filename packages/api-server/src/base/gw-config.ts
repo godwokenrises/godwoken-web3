@@ -1,5 +1,4 @@
-import { core, utils, HexNumber, Script, HexString } from "@ckb-lumos/base";
-import { normalizers } from "@ckb-lumos/toolkit";
+import { utils, HexNumber, Script, HexString } from "@ckb-lumos/base";
 import {
   BackendInfo,
   EoaScript,
@@ -141,7 +140,7 @@ export class GwConfig {
       args: creatorScriptArgs,
     };
 
-    const scriptHash = serializeScript(script);
+    const scriptHash = utils.computeScriptHash(script);
 
     const creatorId = await this.rpc.getAccountIdByScriptHash(scriptHash);
     if (creatorId == null) {
@@ -181,7 +180,7 @@ export class GwConfig {
       args: registryScriptArgs,
     };
 
-    const scriptHash = serializeScript(script);
+    const scriptHash = utils.computeScriptHash(script);
 
     const regId = await this.rpc.getAccountIdByScriptHash(scriptHash);
     if (regId == null) {
@@ -392,12 +391,6 @@ async function findFirstEoaAccountId(
   }
 
   return null;
-}
-
-function serializeScript(script: Script) {
-  return utils
-    .ckbHash(core.SerializeScript(normalizers.NormalizeScript(script)))
-    .serializeJson();
 }
 
 const asyncSleep = async (ms = 0) => {
