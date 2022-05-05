@@ -23,13 +23,13 @@ let mockRpc: GodwokenClient = gwConfig.rpc;
 mockRpc.getAccountIdByScriptHash = async (scriptHash: HexString) => {
   switch (scriptHash) {
     case "0x5df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921f":
-      return 2;
+      return 3;
 
-    case "0x31e7f492d2b22220cad86b7cef30a45ce8df34b00a8ba0d0c5dfd92e7392023a":
+    case "0x7df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921d":
       return 4;
 
     case "0xb5f81e2d10af9600194606989583ae8cc3fcb822a24fdea95f42da5ea18606da":
-      return 3;
+      return 2;
 
     default:
       throw new Error(
@@ -41,12 +41,12 @@ mockRpc.getAccountIdByScriptHash = async (scriptHash: HexString) => {
 mockRpc.getScriptHash = async (accountId: number) => {
   switch (accountId) {
     case 4:
-      return "0x31e7f492d2b22220cad86b7cef30a45ce8df34b00a8ba0d0c5dfd92e7392023a";
-
-    case 3:
-      return "0xb5f81e2d10af9600194606989583ae8cc3fcb822a24fdea95f42da5ea18606da";
+      return "0x7df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921d";
 
     case 2:
+      return "0xb5f81e2d10af9600194606989583ae8cc3fcb822a24fdea95f42da5ea18606da";
+
+    case 3:
       return "0x5df8df09ec23819836b888f575ca4154a2af1f1d4720bca91a5fc9f5f7d9921f";
 
     default:
@@ -202,8 +202,8 @@ test("init gw config", async (t) => {
     },
   });
   t.is(config.accounts.polyjuiceCreator.id, "0x4");
-  t.is(config.accounts.defaultFrom.id, "0x2");
-  t.is(config.accounts.ethAddrReg.id, "0x3");
+  t.is(config.accounts.defaultFrom.id, "0x3");
+  t.is(config.accounts.ethAddrReg.id, "0x2");
   t.is(config.nodeMode, NodeMode.FullNode);
   t.is(config.web3ChainId, "0x116e8");
 });

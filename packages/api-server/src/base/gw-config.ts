@@ -20,6 +20,9 @@ import { CKB_SUDT_ID } from "../methods/constant";
 import { Uint32 } from "./types/uint";
 import { snakeToCamel } from "../util";
 
+// source: https://github.com/nervosnetwork/godwoken/commit/d6c98d8f8a199b6ec29bc77c5065c1108220bb0a#diff-c56fda2ca3b1366049c88e633389d9b6faa8366151369fd7314c81f6e389e5c7R5
+const BUILTIN_ETH_ADDR_REG_ACCOUNT_ID = 2;
+
 export class GwConfig {
   rpc: GodwokenClient;
   private iNodeInfo: NodeInfo | undefined;
@@ -112,16 +115,11 @@ export class GwConfig {
     return toApiNodeInfo(nodeInfo);
   }
 
-  private async fetchCreatorAccount(ethAddrRegId?: HexNumber) {
+  private async fetchCreatorAccount() {
     const ckbSudtId = new Uint32(+CKB_SUDT_ID).toLittleEndian();
-    ethAddrRegId ||= new Uint32(
-      +(await this.fetchEthAddrRegAccount()).id
-    ).toLittleEndian();
 
     const creatorScriptArgs =
-      this.nodeInfo.rollupCell.typeHash +
-      ckbSudtId.slice(2) +
-      ethAddrRegId.slice(2);
+      this.nodeInfo.rollupCell.typeHash + ckbSudtId.slice(2);
 
     const polyjuiceValidatorTypeHash = this.nodeInfo.backends.find(
       (b) => b.backendType === BackendType.Polyjuice
@@ -197,11 +195,24 @@ export class GwConfig {
         )}`
       );
     }
+
+    if (regId !== BUILTIN_ETH_ADDR_REG_ACCOUNT_ID) {
+      throw new Error(
+        `[${
+          GwConfig.name
+        }] ethAddrReg account id is not equal to builtin id ${BUILTIN_ETH_ADDR_REG_ACCOUNT_ID}, script detail: ${JSON.stringify(
+          script,
+          null,
+          2
+        )}`
+      );
+    }
+
     const regIdHex = "0x" + BigInt(regId).toString(16);
     return new Account(regIdHex, scriptHash);
   }
 
-  // we search the first account id = 2, if it is eoa account, use it, otherwise continue with id + 1;
+  // we search the first account id = 3, if it is eoa account, use it, otherwise continue with id + 1;
   private async fetchDefaultFromAccount() {
     const ethAccountLockTypeHash = this.nodeInfo.eoaScripts.find(
       (s) => s.eoaType === EoaScriptType.Eth
@@ -360,7 +371,7 @@ function toApiNodeInfo(nodeInfo: GwNodeInfo): NodeInfo {
 async function findFirstEoaAccountId(
   rpc: GodwokenClient,
   ethAccountLockTypeHash: HexString,
-  startAccountId: number = 2,
+  startAccountId: number = 3,
   maxTry: number = 20
 ) {
   for (let id = startAccountId; id < maxTry; id++) {
