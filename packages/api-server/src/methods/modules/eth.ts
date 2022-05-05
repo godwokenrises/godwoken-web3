@@ -8,7 +8,12 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators, verifyGasLimit } from "../validator";
+import {
+  middleware,
+  validators,
+  verifyContractCode,
+  verifyGasLimit,
+} from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -1384,6 +1389,13 @@ async function buildEthCallTx(
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
+
+  if (toAddress == "0x") {
+    const dataErr = verifyContractCode(data, 0);
+    if (dataErr) {
+      throw dataErr.padContext(buildEthCallTx.name);
+    }
+  }
 
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
