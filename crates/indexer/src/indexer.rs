@@ -17,6 +17,7 @@ use gw_types::{
     packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
     prelude::Unpack as GwUnpack,
     prelude::*,
+    U256,
 };
 use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
@@ -124,7 +125,7 @@ impl Web3Indexer {
             .bind(web3_tx.transaction_index)
             .bind(hex(&web3_tx.from_address)?)
             .bind(web3_to_address_hex)
-            .bind(Decimal::from(web3_tx.value))
+            .bind(web3_tx.value.to_string())
             .bind(Decimal::from(web3_tx.nonce))
             .bind(Decimal::from(web3_tx.gas_limit))
             .bind(Decimal::from(web3_tx.gas_price))
@@ -319,7 +320,7 @@ impl Web3Indexer {
                     tx_index,
                     from_address,
                     to_address,
-                    polyjuice_args.value,
+                    polyjuice_args.value.into(),
                     nonce,
                     polyjuice_args.gas_limit.into(),
                     polyjuice_args.gas_price,
@@ -398,13 +399,13 @@ impl Web3Indexer {
                             continue;
                         }
 
-                        let amount: u128 = sudt_transfer.amount().unpack();
-                        let fee: u64 = sudt_transfer.fee().amount().unpack();
+                        let amount: U256 = sudt_transfer.amount().unpack();
+                        let fee: u128 = sudt_transfer.fee().amount().unpack();
                         let value = amount;
 
                         // Represent SUDTTransfer fee in web3 style, set gas_price as 1 temporary.
                         let gas_price = 1;
-                        let gas_limit = fee.into();
+                        let gas_limit = fee;
                         cumulative_gas_used += gas_limit;
 
                         let nonce: u32 = l2_transaction.raw().nonce().unpack();
