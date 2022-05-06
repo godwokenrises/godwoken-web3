@@ -37,7 +37,7 @@ import {
 } from "../../db";
 import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
+import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   errorReceiptToApiTransaction,
   errorReceiptToApiTransactionReceipt,
@@ -380,11 +380,11 @@ export class Eth {
       );
 
       if (this.ethWallet) {
-        const balanceHex = new Uint128(balance * 10n ** 10n).toHex();
+        const balanceHex = new Uint256(balance * 10n ** 10n).toHex();
         return balanceHex;
       }
 
-      const balanceHex = new Uint128(balance).toHex();
+      const balanceHex = new Uint256(balance).toHex();
       return balanceHex;
     } catch (error: any) {
       throw new Web3Error(error.message);

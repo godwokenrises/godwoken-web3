@@ -13,7 +13,7 @@ import {
 import { Reader } from "@ckb-lumos/toolkit";
 import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
-import { Uint128, Uint32, Uint64 } from "./base/types/uint";
+import { Uint128, Uint256, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
 import {
   CKB_SUDT_ID,
@@ -195,13 +195,13 @@ export async function filterWeb3Transaction(
       if (toAddress.length !== 42) {
         return undefined;
       }
-      const amount = Uint128.fromLittleEndian(
+      const amount = Uint256.fromLittleEndian(
         new Reader(sudtTransfer.getAmount().raw()).serializeJson()
       );
-      const fee = new Uint128(
-        sudtTransfer.getFee().getAmount().toLittleEndianBigUint64()
+      const fee = Uint128.fromLittleEndian(
+        new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
       );
-      const value: Uint128 = amount;
+      const value: Uint256 = amount;
       const gasPrice: Uint128 = new Uint128(1n);
       const gasLimit: Uint128 = fee;
 

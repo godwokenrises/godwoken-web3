@@ -30,6 +30,10 @@ jobs:
     - run: yarn run build
     - run: yarn workspace @godwoken-web3/api-server run test tests/db/helpers.test.ts
     - run: yarn workspace @godwoken-web3/api-server run test tests/utils/erc20.test.ts
+    - run: yarn workspace @godwoken-web3/api-server run test tests/base/types/uint32.test.ts
+    - run: yarn workspace @godwoken-web3/api-server run test tests/base/types/uint64.test.ts
+    - run: yarn workspace @godwoken-web3/api-server run test tests/base/types/uint128.test.ts
+    - run: yarn workspace @godwoken-web3/api-server run test tests/base/types/uint256.test.ts
     - run: yarn run fmt
     - run: yarn run lint
     - run: git diff --exit-code
