@@ -1,7 +1,7 @@
 import test from "ava";
-import { MAX_FILTER_TOPIC_ARRAY_LENGTH } from "../lib/cache/constant";
-import { FilterManager } from "../lib/cache";
-import { FilterObject } from "../lib/cache/types";
+import { MAX_FILTER_TOPIC_ARRAY_LENGTH } from "../src/cache/constant";
+import { FilterManager } from "../src/cache";
+import { FilterObject } from "../src/cache/types";
 
 const EXPIRED_TIMEOUT_MILLISECONDS = 1000;
 const manager = new FilterManager(true, EXPIRED_TIMEOUT_MILLISECONDS);
