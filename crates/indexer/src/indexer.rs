@@ -20,7 +20,7 @@ use gw_types::{
     U256,
 };
 use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
-use rust_decimal::{prelude::ToPrimitive, Decimal};
+use rust_decimal::{prelude::FromStr, prelude::ToPrimitive, Decimal};
 use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
 
 const MILLIS_PER_SEC: u64 = 1_000;
@@ -113,6 +113,7 @@ impl Web3Indexer {
                 Some(addr) => Some(hex(&addr)?),
                 None => None,
             };
+            let value_decimal = Decimal::from_str(&web3_tx.value.to_string())?;
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
             (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, status) 
@@ -125,7 +126,7 @@ impl Web3Indexer {
             .bind(web3_tx.transaction_index)
             .bind(hex(&web3_tx.from_address)?)
             .bind(web3_to_address_hex)
-            .bind(web3_tx.value.to_string())
+            .bind(value_decimal)
             .bind(Decimal::from(web3_tx.nonce))
             .bind(Decimal::from(web3_tx.gas_limit))
             .bind(Decimal::from(web3_tx.gas_price))
