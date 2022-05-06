@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use gw_common::{registry_address::RegistryAddress, H256};
-use gw_types::packed::LogItem;
 use gw_types::prelude::*;
+use gw_types::{packed::LogItem, U256};
 use std::{convert::TryInto, usize};
 
 // 128KB
@@ -62,13 +62,13 @@ pub enum GwLog {
         sudt_id: u32,
         from_address: RegistryAddress,
         to_address: RegistryAddress,
-        amount: u128,
+        amount: U256,
     },
     SudtPayFee {
         sudt_id: u32,
         from_address: RegistryAddress,
         block_producer_address: RegistryAddress,
-        amount: u128,
+        amount: U256,
     },
     PolyjuiceSystem {
         gas_used: u64,
@@ -86,9 +86,9 @@ pub enum GwLog {
 // data format should be from_registry_address + to_registry_address + amount
 // registry address format: 4 bytes registry id(u32) in little endian, 4 bytes address byte size(u32) in little endian, and 0 or 20 bytes address
 // registry address can be 8-bytes(empty address) or 28-bytes(eth address)
-// amount is a u128 number in little endian format
-// so data can be (8 + 8 + 16) or (8 + 28 + 16) or (28 + 8 + 16) or (28 + 28 + 16) bytes
-fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, RegistryAddress, u128)> {
+// amount is a u256 number in little endian format
+// so data can be (8 + 8 + 32) or (8 + 28 + 32) or (28 + 8 + 32) or (28 + 28 + 32) bytes
+fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, RegistryAddress, U256)> {
     let mut start = 0;
     let mut end = start + {
         let from_address_byte_size = u32::from_le_bytes(data[4..8].try_into()?);
@@ -123,9 +123,9 @@ fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, Registry
         }
     };
 
-    let mut u128_bytes = [0u8; 16];
-    u128_bytes.copy_from_slice(&data[end..(end + 16)]);
-    let amount = u128::from_le_bytes(u128_bytes);
+    let mut u256_bytes = [0u8; 32];
+    u256_bytes.copy_from_slice(&data[end..(end + 32)]);
+    let amount = U256::from_little_endian(&u256_bytes);
     Ok((from_address, to_address, amount))
 }
 
@@ -137,11 +137,11 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
         GW_LOG_SUDT_TRANSFER => {
             let sudt_id: u32 = item.account_id().unpack();
             let data_len = data.len();
-            // 28 + 28 + 16 = 72
-            // 8 + 28 + 16 = 52
-            // 28 + 8 + 16 = 52
-            // 8 + 8 + 16 = 32
-            if data_len != 72 && data_len != 52 && data_len != 32 {
+            // 28 + 28 + 32 = 88
+            // 8 + 28 + 32 = 68
+            // 28 + 8 + 32 = 68
+            // 8 + 8 + 32 = 48
+            if data_len != 88 && data_len != 68 && data_len != 48 {
                 return Err(anyhow!(
                     "Invalid data length: {}, data: {}",
                     data.len(),
@@ -159,11 +159,11 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
         GW_LOG_SUDT_PAY_FEE => {
             let sudt_id: u32 = item.account_id().unpack();
             let data_len = data.len();
-            // 28 + 28 + 16 = 72
-            // 8 + 28 + 16 = 52
-            // 28 + 8 + 16 = 52
-            // 8 + 8 + 16 = 32
-            if data_len != 72 && data_len != 52 && data_len != 32 {
+            // 28 + 28 + 32 = 88
+            // 8 + 28 + 32 = 68
+            // 28 + 8 + 32 = 68
+            // 8 + 8 + 32 = 48
+            if data_len != 88 && data_len != 68 && data_len != 48 {
                 return Err(anyhow!(
                     "Invalid data length: {}, data: {}",
                     data.len(),
