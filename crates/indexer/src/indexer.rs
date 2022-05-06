@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr};
 
 use crate::{
     helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
@@ -20,8 +20,11 @@ use gw_types::{
     U256,
 };
 use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
-use rust_decimal::{prelude::FromStr, prelude::ToPrimitive, Decimal};
-use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
+use rust_decimal::{prelude::ToPrimitive, Decimal};
+use sqlx::types::{
+    chrono::{DateTime, NaiveDateTime, Utc},
+    BigDecimal,
+};
 
 const MILLIS_PER_SEC: u64 = 1_000;
 pub struct Web3Indexer {
@@ -97,8 +100,8 @@ impl Web3Indexer {
             .bind(hex(web3_block.hash.as_slice())?)
             .bind(hex(web3_block.parent_hash.as_slice())?)
             .bind(hex(&web3_block.logs_bloom)?)
-            .bind(Decimal::from(web3_block.gas_limit))
-            .bind(Decimal::from(web3_block.gas_used))
+            .bind(u128_to_big_decimal(&web3_block.gas_limit)?)
+            .bind(u128_to_big_decimal(&web3_block.gas_used)?)
             .bind(web3_block.timestamp)
             .bind(hex(&web3_block.miner)?)
             .bind(Decimal::from(web3_block.size))
@@ -113,7 +116,6 @@ impl Web3Indexer {
                 Some(addr) => Some(hex(&addr)?),
                 None => None,
             };
-            let value_decimal = Decimal::from_str(&web3_tx.value.to_string())?;
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
             (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, status) 
@@ -126,16 +128,16 @@ impl Web3Indexer {
             .bind(web3_tx.transaction_index)
             .bind(hex(&web3_tx.from_address)?)
             .bind(web3_to_address_hex)
-            .bind(value_decimal)
+            .bind(u256_to_big_decimal(&web3_tx.value)?)
             .bind(Decimal::from(web3_tx.nonce))
-            .bind(Decimal::from(web3_tx.gas_limit))
-            .bind(Decimal::from(web3_tx.gas_price))
+            .bind(u128_to_big_decimal(&web3_tx.gas_limit)?)
+            .bind(u128_to_big_decimal(&web3_tx.gas_price)?)
             .bind(hex(&web3_tx.data)?)
             .bind(Decimal::from(web3_tx.v))
             .bind(hex(&web3_tx.r)?)
             .bind(hex(&web3_tx.s)?)
-            .bind(Decimal::from(web3_tx.cumulative_gas_used))
-            .bind(Decimal::from(web3_tx.gas_used))
+            .bind(u128_to_big_decimal(&web3_tx.cumulative_gas_used)?)
+            .bind(u128_to_big_decimal(&web3_tx.gas_used)?)
             .bind(hex(&web3_tx.logs_bloom)?)
             .bind(web3_contract_address_hex)
             .bind(web3_tx.status)
@@ -524,4 +526,14 @@ async fn get_script(
         .map(convertion::to_script);
 
     Ok(script_opt)
+}
+
+fn u128_to_big_decimal(value: &u128) -> Result<BigDecimal> {
+    let result = BigDecimal::from_str(&value.to_string())?;
+    Ok(result)
+}
+
+fn u256_to_big_decimal(value: &U256) -> Result<BigDecimal> {
+    let result = BigDecimal::from_str(&value.to_string())?;
+    Ok(result)
 }
