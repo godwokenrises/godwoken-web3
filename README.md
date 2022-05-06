@@ -33,6 +33,7 @@ EXTRA_ESTIMATE_GAS=<eth_estimateGas will add this number to result, optional, de
 ENABLE_CACHE_ETH_CALL=<optional, enable eth_call cache, default to false>
 LOG_LEVEL=<optional, allowed value: `debug` / `info` / `warn` / `error`, default to `debug` in development, and default to `info` in production>
 LOG_FORMAT=<optional, allowed value: `json`>
+MAX_SOCKETS=<optional, max number of httpAgent sockets per host for web3 connecting to godwoken, default to 10>
 EOF
 
 $ yarn
