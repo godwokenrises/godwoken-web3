@@ -7,9 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gw-types = { git = "https://github.com/classicalliu/godwoken.git", rev = "1b4c3a72386308148eeaf252dee3f65bbbde3ec5" }
-gw-common = { git = "https://github.com/classicalliu/godwoken.git", rev = "1b4c3a72386308148eeaf252dee3f65bbbde3ec5" }
-gw-jsonrpc-types = { git = "https://github.com/classicalliu/godwoken.git", rev = "1b4c3a72386308148eeaf252dee3f65bbbde3ec5" }
+gw-types = { git = "https://github.com/jjyr/godwoken.git", rev = "f01923a39d0947d386dda191ba63cdccf830c2b5" }
+gw-common = { git = "https://github.com/jjyr/godwoken.git", rev = "f01923a39d0947d386dda191ba63cdccf830c2b5" }
+gw-jsonrpc-types = { git = "https://github.com/jjyr/godwoken.git", rev = "f01923a39d0947d386dda191ba63cdccf830c2b5" }
 ckb-hash = "0.100.0"
 ckb-types = "0.100.0"
 anyhow = "1.0"
