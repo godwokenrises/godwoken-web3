@@ -11,6 +11,12 @@ export const jaysonMiddleware = (
   res: Response,
   next: NextFunction
 ) => {
+  // we use jayson, and {params: null} will be treated as illegal while undefined will not.
+  // because this line of code https://github.com/tedeh/jayson/blob/master/lib/utils.js#L331
+  if (req.body && req.body.params === null) {
+    req.body.params = undefined;
+  }
+
   if (req.url.endsWith("/eth-wallet")) {
     const middleware =
       ethWalletServer.middleware() as createServer.NextHandleFunction;

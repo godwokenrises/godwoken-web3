@@ -31,7 +31,10 @@ function getMethods(argsList: ModConstructorArgs = {}) {
       .filter((methodName: string) => methodName !== "constructor")
       .forEach((methodName: string) => {
         const concatedMethodName = `${modName.toLowerCase()}_${methodName}`;
-        methods[concatedMethodName] = async (args: any[], cb: Callback) => {
+        methods[concatedMethodName] = async (
+          args: any[] | undefined,
+          cb: Callback
+        ) => {
           try {
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);

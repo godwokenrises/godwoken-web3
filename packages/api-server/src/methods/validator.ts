@@ -16,7 +16,32 @@ export function middleware(
   requiredParamsCount: number,
   validators: any[] = []
 ): any {
-  return async function (params: any[] = []): Promise<any> {
+  return async function (params: any[] | undefined): Promise<any> {
+    const executeMethod = async () => {
+      try {
+        return await method(params);
+      } catch (err: any) {
+        logger.error(
+          `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
+        );
+        throw new RpcError(err.code, err.message, err.data);
+      }
+    };
+
+    if (params == null) {
+      if (requiredParamsCount !== 0) {
+        throw new InvalidParamsError(
+          `params is null while required arguments ${requiredParamsCount}`
+        );
+      }
+
+      return executeMethod();
+    }
+
+    if (!Array.isArray(params)) {
+      throw new InvalidParamsError(`params should an array`);
+    }
+
     if (params.length < requiredParamsCount) {
       throw new InvalidParamsError(
         `missing value for required argument ${params.length}`
@@ -34,14 +59,7 @@ export function middleware(
       }
     }
 
-    try {
-      return await method(params);
-    } catch (err: any) {
-      logger.error(
-        `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
-      );
-      throw new RpcError(err.code, err.message, err.data);
-    }
+    return executeMethod();
   };
 }
 
