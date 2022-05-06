@@ -2,11 +2,11 @@ name: Docker Build Push (Indexer)
 
 on:
   push:
-    branches: [main, hot-fix, compatibility-breaking-changes, fix-login, refactor-sudt-with-registry-address]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login, refactor-sudt-with-registry-address, failed-transactions]
     # Publish semver tags as releases.
     tags: ["v*.*.*"]
   pull_request:
-    branches: [main, hot-fix, compatibility-breaking-changes, fix-login, refactor-sudt-with-registry-address]
+    branches: [main, hot-fix, compatibility-breaking-changes, fix-login, refactor-sudt-with-registry-address, failed-transactions]
 
 env:
   # Use docker.io for Docker Hub if empty
