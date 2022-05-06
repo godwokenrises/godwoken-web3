@@ -1,7 +1,7 @@
 import jayson from "jayson/promise";
 
 export const client = jayson.Client.http({
-  port: process.env.PORT || "8024",
+  port: process.env.PORT == null ? "8024" : process.env.PORT,
 });
 
 export interface JSONResponse {
