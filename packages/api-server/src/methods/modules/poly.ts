@@ -1,4 +1,4 @@
-import { Hash, HexNumber, Address } from "@ckb-lumos/base";
+import { Hash, HexNumber } from "@ckb-lumos/base";
 import { envConfig } from "../../base/env-config";
 import { MethodNotSupportError, Web3Error } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
@@ -25,7 +25,7 @@ export class Poly {
   }
 
   // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
-  async getDefaultFromId(_args: []): Promise<Address> {
+  async getDefaultFromId(_args: []): Promise<HexNumber> {
     return gwConfig.accounts.defaultFrom.id;
   }
 
