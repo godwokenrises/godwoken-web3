@@ -75,6 +75,7 @@ import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");
@@ -237,7 +238,7 @@ export class Eth {
   }
 
   chainId(args: []): HexNumber {
-    return "0x" + BigInt(envConfig.chainId).toString(16);
+    return gwConfig.web3ChainId!;
   }
 
   /**
@@ -1403,7 +1404,7 @@ async function buildEthCallTx(
   }
 
   if (!fromAddress) {
-    fromId = +envConfig.defaultFromId;
+    fromId = +gwConfig.accounts.defaultFrom.id;
     logger.debug(`use default fromId: ${fromId}`);
   }
 
@@ -1431,7 +1432,7 @@ async function buildEthCallTx(
     data
   );
   const rawL2Transaction = buildRawL2Transaction(
-    BigInt(envConfig.chainId),
+    BigInt(gwConfig.web3ChainId),
     fromId,
     toId,
     nonce,

@@ -11,7 +11,7 @@ import {
   ethAddressToAccountId,
   ethEoaAddressToScriptHash,
 } from "./base/address";
-import { envConfig } from "./base/env-config";
+import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 import { verifyGasLimit } from "./methods/validator";
@@ -189,7 +189,7 @@ async function parseRawTransactionData(
   let toId: HexNumber | undefined;
   if (to === DEPLOY_TO_ADDRESS) {
     args_7 = "0x03";
-    toId = "0x" + BigInt(envConfig.creatorAccountId).toString(16);
+    toId = gwConfig.accounts.polyjuiceCreator.id;
   } else {
     args_7 = "0x00";
     toId = await getAccountIdByEthAddress(to, rpc);
@@ -219,7 +219,7 @@ async function parseRawTransactionData(
     args_data.slice(2);
 
   const godwokenRawL2Tx: RawL2Transaction = {
-    chain_id: "0x" + BigInt(envConfig.chainId).toString(16),
+    chain_id: gwConfig.web3ChainId,
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,

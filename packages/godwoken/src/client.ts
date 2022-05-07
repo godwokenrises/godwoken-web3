@@ -6,6 +6,7 @@ import {
   L2Transaction,
   L2TransactionReceipt,
   L2TransactionWithStatus,
+  NodeInfo,
   RawL2Transaction,
   RegistryAddress,
   RunResult,
@@ -168,7 +169,7 @@ export class GodwokenClient {
     return await this.rpcCall("get_transaction_receipt", hash);
   }
 
-  public async getNodeInfo() {
+  public async getNodeInfo(): Promise<NodeInfo> {
     return await this.rpcCall("get_node_info");
   }
 
