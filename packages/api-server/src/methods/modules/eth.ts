@@ -8,7 +8,12 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators, verifyGasLimit } from "../validator";
+import {
+  middleware,
+  validators,
+  verifyContractCode,
+  verifyGasLimit,
+} from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -32,7 +37,7 @@ import {
 } from "../../db";
 import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
+import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   errorReceiptToApiTransaction,
   errorReceiptToApiTransactionReceipt,
@@ -376,11 +381,11 @@ export class Eth {
       );
 
       if (this.ethWallet) {
-        const balanceHex = new Uint128(balance * 10n ** 10n).toHex();
+        const balanceHex = new Uint256(balance * 10n ** 10n).toHex();
         return balanceHex;
       }
 
-      const balanceHex = new Uint128(balance).toHex();
+      const balanceHex = new Uint256(balance).toHex();
       return balanceHex;
     } catch (error: any) {
       throw new Web3Error(error.message);
@@ -1006,7 +1011,7 @@ export class Eth {
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "latest"
+        filter.fromBlock || "earliest"
       );
       const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
         filter.toBlock || "latest"
@@ -1385,6 +1390,13 @@ async function buildEthCallTx(
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
+
+  if (toAddress == "0x") {
+    const dataErr = verifyContractCode(data, 0);
+    if (dataErr) {
+      throw dataErr.padContext(buildEthCallTx.name);
+    }
+  }
 
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {

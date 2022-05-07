@@ -295,7 +295,7 @@ export class Query {
       .modify(buildQueryLogAddress, address)
       .where("block_hash", blockHash)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "desc")
+      .orderBy("id", "asc")
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER);
     logs = logs.map((log) => formatLog(log));
@@ -316,7 +316,7 @@ export class Query {
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "desc")
+      .orderBy("id", "asc")
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER);
     logs = logs.map((log) => formatLog(log));
