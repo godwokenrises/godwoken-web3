@@ -70,7 +70,7 @@ app.use(
     }
 
     // log request method / body
-    if (process.env.WEB3_LOG_REQUEST_BODY) {
+    if (envConfig.logRequestBody) {
       logger.debug("request.body:", req.body);
     }
 

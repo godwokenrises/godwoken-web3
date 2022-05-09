@@ -18,6 +18,8 @@ export const envConfig = {
   enableCacheEthCall: getOptional("ENABLE_CACHE_ETH_CALL"),
   logLevel: getOptional("LOG_LEVEL"),
   logFormat: getOptional("LOG_FORMAT"),
+  logRequestBody: getOptional("WEB3_LOG_REQUEST_BODY"),
+  port: getOptional("PORT"),
 };
 
 function getRequired(name: string): string {

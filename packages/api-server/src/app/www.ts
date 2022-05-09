@@ -3,9 +3,10 @@
  */
 
 import { startServer } from "./app";
+import { envConfig } from "../base/env-config";
 
 /**
  * Get port from environment and store in Express.
  */
-const port: number = +(process.env.PORT || "3000");
+const port: number = +(envConfig.port || "8024");
 startServer(port);
