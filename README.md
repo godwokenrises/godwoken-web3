@@ -139,3 +139,8 @@ resource:
 
 - docker image: https://hub.docker.com/repository/docker/nervos/godwoken-web3-prebuilds
 - code is located in `/godwoken-web3` with node_modules already installed and typescript compiled to js code.
+
+
+### RPC Docs
+
+Get RPC docs at [RPCs doc](docs/apis.md)
