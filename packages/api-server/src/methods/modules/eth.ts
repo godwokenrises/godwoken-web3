@@ -1307,7 +1307,7 @@ function buildPolyjuiceArgs(
     "L".charCodeAt(0),
     "Y".charCodeAt(0),
   ]);
-  const callKind = toId === +(process.env.CREATOR_ACCOUNT_ID as string) ? 3 : 0;
+  const callKind = toId === +gwConfig.accounts.polyjuiceCreator.id ? 3 : 0;
   const gasLimitBuf = Buffer.alloc(8);
   gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
