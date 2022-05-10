@@ -1,0 +1,50 @@
+name: Unit Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Environment variables propagated to godwoken-kicker
+  MANUAL_BUILD_WEB3: "true"
+  MANUAL_BUILD_WEB3_INDEXER: "true"
+  WEB3_GIT_URL: "https://github.com/${{ github.repository }}"
+  WEB3_GIT_CHECKOUT: "${{ github.sha }}"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+
+    # Godwoken-Kicker
+    - uses: actions/checkout@v3
+      with:
+        repository: RetricSu/godwoken-kicker
+        ref: 'compatibility-changes'
+    - name: Kicker init
+      run: ./kicker init
+    - name: Kicker start
+      run: ./kicker start
+    - name: Kicker ps
+      run: sleep 60 && ./kicker ps && ./kicker logs web3
+    - name: Store kicker network information as environment variables
+      run: |
+        cat docker/layer2/config/web3-config.env | grep -v '^#'           >> $GITHUB_ENV
+        echo "DATABASE_URL=postgres://user:password@127.0.0.1:5432/lumos" >> $GITHUB_ENV
+        echo "REDIS_URL=redis://127.0.0.1:6379"                           >> $GITHUB_ENV
+
+    # Godwoken-Web3
+    - uses: actions/checkout@v3
+      with:
+        path: godwoken-web3
+    - name: Yarn run test
+      working-directory: godwoken-web3
+      run: yarn && yarn run build && yarn run test
+
+    - name: Kicker logs if failure
+      if: ${{ failure() }}
+      run: ./kicker ps && ./kicker logs

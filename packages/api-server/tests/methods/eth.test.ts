@@ -1,6 +1,6 @@
 import test from "ava";
 import { JSONResponse, client } from "../www";
-import { EthBlock, EthTransaction } from "../../lib/base/types/api";
+import { EthBlock, EthTransaction } from "../../src/base/types/api";
 
 test.before(async (t) => {
   const block: EthBlock =

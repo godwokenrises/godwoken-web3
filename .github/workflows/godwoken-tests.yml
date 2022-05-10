@@ -1,0 +1,16 @@
+name: Godwoken Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  godwoken-tests:
+    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
+    with:
+      web3_ref: "${{ github.sha }}"
+      kicker_ref: "compatibility-changes"
