@@ -36,6 +36,8 @@
 * `poly_getCreatorId()`
 * result: [`Uint64`](#type-uint64)
 
+Returns polyjuice creator account id
+
 ##### Examples
 
 Request
@@ -62,6 +64,8 @@ Response
 #### Method `poly_getDefaultFromId`
 * `poly_getDefaultFromId()`
 * result: [`Uint32`](#type-uint32)
+
+Returns Web3 default from id for `eth_call` and `eth_estimateGas`
 
 ##### Examples
 
@@ -90,6 +94,8 @@ Response
 * `poly_getContractValidatorTypeHash()`
 * result: [`H256`](#type-h256)
 
+Returns Polyjuice contract validator script hash
+
 ##### Examples
 
 Request
@@ -116,6 +122,8 @@ Response
 #### Method `poly_getRollupTypeHash`
 * `poly_getRollupTypeHash()`
 * result: [`H256`](#type-h256)
+
+Returns Godwoken rollup script hash
 
 ##### Examples
 
@@ -144,6 +152,8 @@ Response
 * `poly_getEthAccountLockHash()`
 * result: [`H256`](#type-h256)
 
+Returns ETH account lock script hash
+
 ##### Examples
 
 Request
@@ -170,6 +180,8 @@ Response
 #### Method `poly_version`
 * `poly_version()`
 * result: [`PolyVersionInfo`](#type-polyversioninfo)
+
+Returns node info for Godwoken & Polyjuice & Web3
 
 ##### Examples
 
@@ -333,7 +345,7 @@ Response
           "scriptHash": "0xffe2e575a9c327f160e09d142bf21bcedbf79f23d585be3b87dacde843e171a4"
         }
       },
-      "web3ChainId": "0x116e8"
+      "chainId": "0x116e8"
     }
   }
 }
@@ -421,45 +433,11 @@ In JSONRPC, it is encoded as a 0x-prefixed hex string.
 
 ### Type `Script`
 
-Describes the lock script and type script for a cell.
-
-#### Examples
-
-
-```
-{
-  "code_hash": "0x28e83a1277d48add8e72fadaa9248559e1b632bab2bd60b27955ebc4c03800a5",
-  "hash_type": "data",
-  "args": "0x"
-}
-```
-
-
-#### Fields
-
-`Script` is a JSON object with the following fields.
-
-*   `code_hash`: [`H256`](#type-h256) - The hash used to match the script code.
-
-*   `hash_type`: [`ScriptHashType`](#type-scripthashtype) - Specifies how to use the `code_hash` to match the script code.
-
-*   `args`: [`JsonBytes`](#type-jsonbytes) - Arguments for script.
-
+More info [CKB RPC](https://github.com/nervosnetwork/ckb/blob/develop/rpc/README.md#type-script)
 
 ### Type `ScriptHashType`
 
-Specifies how the script `code_hash` is used to match the script code and how to run the code.
-
-Allowed kinds: "data", "type" and "data1".
-
-Refer to the section [Code Locating](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md#code-locating) and [Upgradable Script](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md#upgradable-script) in the RFC *CKB Transaction Structure*.
-
-`ScriptHashType` is equivalent to `"data" | "type" | "data1"`.
-
-*   Type "data" matches script code via cell data hash, and run the script code in v0 CKB VM.
-*   Type "type" matches script code via cell type script hash.
-*   Type "data" matches script code via cell data hash, and run the script code in v1 CKB VM.
-
+More info [CKB RPC](https://github.com/nervosnetwork/ckb/blob/develop/rpc/README.md#type-scripthashtype)
 
 ### Type `JsonBytes`
 
@@ -510,7 +488,7 @@ Version info of Godwoken & Web3 & Web3 Indexer.
 
 *   `typeHash`: [`H256`](#type-h256) - Hash of typeScript
 
-*   `typeScript`: [`Script`](#type-script) - Deploy info of rollup cell
+*   `typeScript`: [`Script`](#type-script) - Rollup script info
 
 
 ### Type `RollupConfig`
@@ -519,13 +497,13 @@ Version info of Godwoken & Web3 & Web3 Indexer.
 
 `RollupConfig` is a JSON object with the following fields.
 
-*   `requiredStakingCapacity`: [`Uint64`](#type-uint64) - Stacking capacity
+*   `requiredStakingCapacity`: [`Uint64`](#type-uint64) - The minimal capacity required for staking to be the chain generator
 
 *   `challengeMaturityBlocks`: [`Uint64`](#type-uint64) - Challenge maturity blocks
 
 *   `finalityBlocks`: [`Uint64`](#type-uint64) - Finality Blocks
 
-*   `chainId`: [`Uint64`](#type-uint64) - Chain ID
+*   `chainId`: [`Uint64`](#type-uint64) - Chain ID, more info: [EIP155](https://eips.ethereum.org/EIPS/eip-155)
 
 
 
@@ -551,7 +529,7 @@ Info of Godwoken & Web3 node.
 
 *   `accounts`: [`Accounts`](#type-accounts) 
 
-*   `web3ChainId`: [`Uint64`](#type-uint64) - Chain ID of web3
+*   `chainId`: [`Uint64`](#type-uint64) - Chain ID, more info: [EIP155](https://eips.ethereum.org/EIPS/eip-155)
 
 
 ### Type `GwScripts`
@@ -562,9 +540,9 @@ Godwoken scripts deploy info
 
 `GwScripts` is a JSON object with the following fields.
 
-*   `deposit`: [`ScriptInfo`](#type-scriptinfo) - Deposit script
+*   `deposit`: [`ScriptInfo`](#type-scriptinfo) - Deposit lock script
 
-*   `withdraw`: [`ScriptInfo`](#type-scriptinfo) - Withdrawal script
+*   `withdraw`: [`ScriptInfo`](#type-scriptinfo) - Withdrawal lock script
 
 *   `stateValidator`: [`ScriptInfo`](#type-scriptinfo) - State validator script
 
@@ -585,7 +563,7 @@ Godwoken scripts deploy info
 
 ### Type `EoaScripts`
 
-Supported eoa scripts
+Supported lock scripts for EOA accounts
 
 #### Fields
 
@@ -598,7 +576,7 @@ Supported eoa scripts
 
 #### Fields
 
-`EoaScripts` is a JSON object with the following fields.
+`Backends` is a JSON object with the following fields.
 
 *   `sudt`: [`BackendInfo`](#type-backendinfo) - Sudt contract backend info
 
@@ -610,6 +588,8 @@ Supported eoa scripts
 
 
 ### Type `AccountInfo`
+
+Some helpful system accounts.
 
 #### Fields
 
@@ -630,7 +610,7 @@ Describes the accounts web3 used.
 
 *   `polyjuiceCreator`: [`AccountInfo`](#type-accountinfo) - Polyjuice creator account
 
-*   `ethAddrReg`: [`AccountInfo`](#type-accountinfo) - Godwoken buildin eth account
+*   `ethAddrReg`: [`AccountInfo`](#type-accountinfo) - Godwoken builtin eth address mapping registry account
 
 *   `defaultFrom`: [`AccountInfo`](#type-accountinfo) - Default from account used in `eth_call` and `eth_estimateGas`
 

@@ -66,7 +66,7 @@ export class Poly {
         eoaScripts: gwConfig.eoaScripts,
         backends: gwConfig.backends,
         accounts: gwConfig.accounts,
-        web3ChainId: gwConfig.web3ChainId,
+        chainId: gwConfig.web3ChainId,
       },
     };
   }
