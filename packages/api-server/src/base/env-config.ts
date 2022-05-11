@@ -5,18 +5,7 @@ dotenv.config({ path: "./.env" });
 
 export const envConfig = {
   databaseUrl: getRequired("DATABASE_URL"),
-  ethAccountLockHash: getRequired("ETH_ACCOUNT_LOCK_HASH"),
-  rollupTypeHash: getRequired("ROLLUP_TYPE_HASH"),
   godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
-  creatorAccountId: getRequired("CREATOR_ACCOUNT_ID"),
-  chainId: getRequired("CHAIN_ID"),
-  defaultFromId: getRequired("DEFAULT_FROM_ID"),
-  l2SudtValidatorScriptTypeHash: getRequired(
-    "L2_SUDT_VALIDATOR_SCRIPT_TYPE_HASH"
-  ),
-  ethAddressRegistryAccountId: getRequired("ETH_ADDRESS_REGISTRY_ACCOUNT_ID"),
-  polyjuiceValidatorTypeHash: getOptional("POLYJUICE_VALIDATOR_TYPE_HASH"),
-  rollupConfigHash: getOptional("ROLLUP_CONFIG_HASH"),
   newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
@@ -29,6 +18,8 @@ export const envConfig = {
   enableCacheEthCall: getOptional("ENABLE_CACHE_ETH_CALL"),
   logLevel: getOptional("LOG_LEVEL"),
   logFormat: getOptional("LOG_FORMAT"),
+  logRequestBody: getOptional("WEB3_LOG_REQUEST_BODY"),
+  port: getOptional("PORT"),
 };
 
 function getRequired(name: string): string {

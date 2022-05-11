@@ -6,7 +6,13 @@ import {
   EthTransaction,
   EthTransactionReceipt,
 } from "../base/types/api";
-import { Uint64, Uint32, Uint128, toHexNumber } from "../base/types/uint";
+import {
+  Uint64,
+  Uint32,
+  Uint128,
+  toHexNumber,
+  Uint256,
+} from "../base/types/uint";
 import { FilterTopic } from "../cache/types";
 import {
   POLY_BLOCK_DIFFICULTY,
@@ -107,7 +113,7 @@ export function toApiTransaction(t: Transaction): EthTransaction {
     gasPrice: new Uint128(t.gas_price || 0n).toHex(), // TODO: check default value
     input: t.input || "0x", // TODO: check default value
     nonce: new Uint64(t.nonce || 0n).toHex(), // TODO: check default value
-    value: new Uint128(t.value).toHex(),
+    value: new Uint256(t.value).toHex(),
     v: new Uint64(t.v).toHex(),
     r: t.r,
     s: t.s,

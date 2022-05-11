@@ -297,6 +297,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "bigdecimal"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1e50562e37200edf7c6c43e54a08e64a5553bfb59d9c297d5572512aa517256"
+dependencies = [
+ "num-bigint 0.3.3",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "bit-vec"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1160,13 +1171,12 @@ dependencies = [
 [[package]]
 name = "gw-common"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=f01923a39d0947d386dda191ba63cdccf830c2b5#f01923a39d0947d386dda191ba63cdccf830c2b5"
+source = "git+https://github.com/jjyr/godwoken.git?rev=8c312b74c7fbc5f1aff83efeb7e5fda31d53806c#8c312b74c7fbc5f1aff83efeb7e5fda31d53806c"
 dependencies = [
  "cfg-if 0.1.10",
  "gw-hash",
  "gw-types",
  "merkle-cbt",
- "primitive-types",
  "sparse-merkle-tree",
  "thiserror",
 ]
@@ -1174,7 +1184,7 @@ dependencies = [
 [[package]]
 name = "gw-hash"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=f01923a39d0947d386dda191ba63cdccf830c2b5#f01923a39d0947d386dda191ba63cdccf830c2b5"
+source = "git+https://github.com/jjyr/godwoken.git?rev=8c312b74c7fbc5f1aff83efeb7e5fda31d53806c#8c312b74c7fbc5f1aff83efeb7e5fda31d53806c"
 dependencies = [
  "blake2b-ref",
 ]
@@ -1182,7 +1192,7 @@ dependencies = [
 [[package]]
 name = "gw-jsonrpc-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=f01923a39d0947d386dda191ba63cdccf830c2b5#f01923a39d0947d386dda191ba63cdccf830c2b5"
+source = "git+https://github.com/jjyr/godwoken.git?rev=8c312b74c7fbc5f1aff83efeb7e5fda31d53806c#8c312b74c7fbc5f1aff83efeb7e5fda31d53806c"
 dependencies = [
  "anyhow",
  "ckb-fixed-hash",
@@ -1196,13 +1206,14 @@ dependencies = [
 [[package]]
 name = "gw-types"
 version = "0.1.0"
-source = "git+https://github.com/jjyr/godwoken.git?rev=f01923a39d0947d386dda191ba63cdccf830c2b5#f01923a39d0947d386dda191ba63cdccf830c2b5"
+source = "git+https://github.com/jjyr/godwoken.git?rev=8c312b74c7fbc5f1aff83efeb7e5fda31d53806c#8c312b74c7fbc5f1aff83efeb7e5fda31d53806c"
 dependencies = [
  "cfg-if 0.1.10",
  "ckb-fixed-hash",
  "ckb-types",
  "gw-hash",
  "molecule",
+ "primitive-types",
  "sparse-merkle-tree",
 ]
 
@@ -2901,6 +2912,7 @@ dependencies = [
  "ahash",
  "atoi",
  "base64 0.13.0",
+ "bigdecimal",
  "bitflags",
  "byteorder",
  "bytes 1.1.0",

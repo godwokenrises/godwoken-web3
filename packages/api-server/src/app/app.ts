@@ -8,7 +8,9 @@ import Sentry from "@sentry/node";
 import { applyRateLimitByIp } from "../rate-limit";
 import { initSentry } from "../sentry";
 import { envConfig } from "../base/env-config";
+import { gwConfig } from "../base/index";
 import { expressLogger, logger } from "../base/logger";
+import { Server } from "http";
 
 let newrelic: any | undefined = undefined;
 if (envConfig.newRelicLicenseKey) {
@@ -68,7 +70,7 @@ app.use(
     }
 
     // log request method / body
-    if (process.env.WEB3_LOG_REQUEST_BODY) {
+    if (envConfig.logRequestBody) {
       logger.debug("request.body:", req.body);
     }
 
@@ -132,4 +134,29 @@ app.use(function (
   res.render("error");
 });
 
-export { app };
+let server: Server | undefined;
+
+async function startServer(port: number): Promise<void> {
+  try {
+    await gwConfig.init();
+    logger.info("godwoken config initialized!");
+  } catch (err) {
+    logger.error("godwoken config initialize failed:", err);
+    process.exit(1);
+  }
+  server = app.listen(port, () => {
+    const addr = (server as Server).address();
+    const bind =
+      typeof addr === "string" ? "pipe " + addr : "port " + addr!.port;
+    logger.info("godwoken-web3-api:server Listening on " + bind);
+  });
+}
+
+function isListening() {
+  if (server == null) {
+    return false;
+  }
+  return server.listening;
+}
+
+export { startServer, isListening };

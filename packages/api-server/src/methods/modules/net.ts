@@ -1,6 +1,6 @@
 import { HexNumber } from "@ckb-lumos/base";
-import { envConfig } from "../../base/env-config";
-const server = require("../../../bin/www");
+import { isListening } from "../../app/app";
+import { gwConfig } from "../../base/index";
 
 export class Net {
   constructor() {}
@@ -11,8 +11,8 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * net version as the second argument
    */
-  version(args: []): HexNumber {
-    return "0x" + BigInt(envConfig.chainId).toString(16);
+  version(_args: []): HexNumber {
+    return gwConfig.web3ChainId!;
   }
 
   /**
@@ -21,7 +21,7 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * current peer nodes number as the second argument
    */
-  peerCount(args: []): HexNumber {
+  peerCount(_args: []): HexNumber {
     return "0x0";
   }
 
@@ -31,7 +31,7 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * boolean as the second argument
    */
-  listening(args: []): boolean {
-    return server.isListening();
+  listening(_args: []): boolean {
+    return isListening();
   }
 }

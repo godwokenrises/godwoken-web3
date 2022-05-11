@@ -429,7 +429,7 @@
         },
         {
           "name": "fee",
-          "type": "Uint64"
+          "type": "Uint128"
         }
       ]
     },
@@ -615,7 +615,7 @@
         },
         {
           "name": "amount",
-          "type": "Uint64"
+          "type": "Uint128"
         }
       ]
     },
@@ -661,7 +661,7 @@
         },
         {
           "name": "amount",
-          "type": "Uint128"
+          "type": "Uint256"
         },
         {
           "name": "fee",

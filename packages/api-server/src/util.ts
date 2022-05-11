@@ -40,22 +40,46 @@ export function toSnake(s: string) {
   return s.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
-export function snakeToCamel(t: object) {
-  // db schema: snake_name => json rpc: camelName
+// convert object key snake_name => camelName
+export function snakeToCamel(
+  t: object,
+  excludeKeys: string[] = [],
+  depthLimit: number = 10 // prevent memory leak for recursive
+) {
+  if (depthLimit === 0) {
+    throw new Error("[snakeToCamel] recursive depth reached max limit.");
+  }
+
   let camel: any = {};
-  Object.keys(t).map((key) => {
-    //@ts-ignore
-    camel[toCamel(key)] = t[key];
+  Object.entries(t).map(([key, value]) => {
+    let newValue =
+      typeof value === "object"
+        ? snakeToCamel(value, excludeKeys, depthLimit - 1)
+        : value;
+    const newKey = excludeKeys.includes(key) ? key : toCamel(key);
+    camel[newKey] = Array.isArray(value) ? Object.values(newValue) : newValue;
   });
   return camel;
 }
 
-export function camelToSnake(t: object) {
-  // json rpc: camelName => db schema: snake_name
+// convert object key camelName => snake_name
+export function camelToSnake(
+  t: object,
+  excludeKeys: string[] = [],
+  depthLimit: number = 10 // prevent memory leak for recursive
+) {
+  if (depthLimit === 0) {
+    throw new Error("[camelToSnake] recursive depth reached max limit.");
+  }
+
   let snake: any = {};
-  Object.keys(t).map((key) => {
-    //@ts-ignore
-    snake[toSnake(key)] = t[key];
+  Object.entries(t).map(([key, value]) => {
+    let newValue =
+      typeof value === "object"
+        ? camelToSnake(value, excludeKeys, depthLimit - 1)
+        : value;
+    const newKey = excludeKeys.includes(key) ? key : toSnake(key);
+    snake[newKey] = Array.isArray(value) ? Object.values(newValue) : newValue;
   });
   return snake;
 }

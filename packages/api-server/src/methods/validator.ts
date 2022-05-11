@@ -2,7 +2,10 @@ import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
-import { POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
+import {
+  POLY_MAX_BLOCK_GAS_LIMIT,
+  POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE,
+} from "./constant";
 import { HexString } from "@ckb-lumos/base";
 
 /**
@@ -495,6 +498,26 @@ export function verifyGasLimit(
       `gas limit ${gasLimit} exceeds block gas limit of ${POLY_MAX_BLOCK_GAS_LIMIT}`
     );
   }
+  return undefined;
+}
+
+export function verifyContractCode(
+  code: HexString,
+  index: number
+): InvalidParamsError | undefined {
+  const err = verifyHexString(code, index);
+  if (err) {
+    return err.padContext("verifyContractCode");
+  }
+
+  const codeSizeInByte = code.slice(2).length / 2;
+  if (codeSizeInByte > POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE) {
+    return invalidParamsError(
+      index,
+      `max code size exceeded, limit: ${POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE} bytes, got ${codeSizeInByte} bytes`
+    );
+  }
+
   return undefined;
 }
 //******* end of standalone verify function ********/

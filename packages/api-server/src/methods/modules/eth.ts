@@ -8,7 +8,12 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators, verifyGasLimit } from "../validator";
+import {
+  middleware,
+  validators,
+  verifyContractCode,
+  verifyGasLimit,
+} from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -32,7 +37,7 @@ import {
 } from "../../db";
 import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { Uint128, Uint32, Uint64 } from "../../base/types/uint";
+import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   Log,
   LogQueryOption,
@@ -67,6 +72,7 @@ import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");
@@ -229,7 +235,7 @@ export class Eth {
   }
 
   chainId(args: []): HexNumber {
-    return "0x" + BigInt(envConfig.chainId).toString(16);
+    return gwConfig.web3ChainId!;
   }
 
   /**
@@ -372,11 +378,11 @@ export class Eth {
       );
 
       if (this.ethWallet) {
-        const balanceHex = new Uint128(balance * 10n ** 10n).toHex();
+        const balanceHex = new Uint256(balance * 10n ** 10n).toHex();
         return balanceHex;
       }
 
-      const balanceHex = new Uint128(balance).toHex();
+      const balanceHex = new Uint256(balance).toHex();
       return balanceHex;
     } catch (error: any) {
       throw new Web3Error(error.message);
@@ -965,7 +971,7 @@ export class Eth {
       }
 
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "latest"
+        filter.fromBlock || "earliest"
       );
       const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
         filter.toBlock || "latest"
@@ -1261,7 +1267,7 @@ function buildPolyjuiceArgs(
     "L".charCodeAt(0),
     "Y".charCodeAt(0),
   ]);
-  const callKind = toId === +(process.env.CREATOR_ACCOUNT_ID as string) ? 3 : 0;
+  const callKind = toId === +gwConfig.accounts.polyjuiceCreator.id ? 3 : 0;
   const gasLimitBuf = Buffer.alloc(8);
   gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
@@ -1345,13 +1351,20 @@ async function buildEthCallTx(
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
 
+  if (toAddress == "0x") {
+    const dataErr = verifyContractCode(data, 0);
+    if (dataErr) {
+      throw dataErr.padContext(buildEthCallTx.name);
+    }
+  }
+
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(buildEthCallTx.name);
   }
 
   if (!fromAddress) {
-    fromId = +envConfig.defaultFromId;
+    fromId = +gwConfig.accounts.defaultFrom.id;
     logger.debug(`use default fromId: ${fromId}`);
   }
 
@@ -1379,7 +1392,7 @@ async function buildEthCallTx(
     data
   );
   const rawL2Transaction = buildRawL2Transaction(
-    BigInt(envConfig.chainId),
+    BigInt(gwConfig.web3ChainId),
     fromId,
     toId,
     nonce,

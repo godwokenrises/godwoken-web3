@@ -11,9 +11,8 @@ import {
   U64,
 } from "@godwoken-web3/godwoken";
 import { Reader } from "@ckb-lumos/toolkit";
-import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
-import { Uint128, Uint32, Uint64 } from "./base/types/uint";
+import { Uint128, Uint256, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
 import {
   CKB_SUDT_ID,
@@ -22,6 +21,7 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
+import { gwConfig } from "./base/index";
 import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
 
@@ -49,14 +49,14 @@ export async function filterWeb3Transaction(
   }
 
   // skip tx with non eth_account_lock from_id
-  if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
+  if (fromScript.code_hash !== gwConfig.eoaScripts.eth.typeHash) {
     return undefined;
   }
 
   const fromScriptArgs: HexString = fromScript.args;
   if (
     fromScriptArgs.length !== 106 ||
-    fromScriptArgs.slice(0, 66) !== envConfig.rollupTypeHash
+    fromScriptArgs.slice(0, 66) !== gwConfig.rollupCell.typeHash
   ) {
     logger.error("Wrong from_address's script args:", fromScriptArgs);
     return undefined;
@@ -84,7 +84,9 @@ export async function filterWeb3Transaction(
 
   const nonce: HexU32 = l2Tx.raw.nonce;
 
-  if (toScript.code_hash === envConfig.polyjuiceValidatorTypeHash) {
+  if (
+    toScript.code_hash === gwConfig.backends.polyjuice.validatorScriptTypeHash
+  ) {
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
 
@@ -181,7 +183,7 @@ export async function filterWeb3Transaction(
     return [ethTx, receipt];
   } else if (
     toId === +CKB_SUDT_ID &&
-    toScript.code_hash === envConfig.l2SudtValidatorScriptTypeHash
+    toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {
@@ -195,13 +197,13 @@ export async function filterWeb3Transaction(
       if (toAddress.length !== 42) {
         return undefined;
       }
-      const amount = Uint128.fromLittleEndian(
+      const amount = Uint256.fromLittleEndian(
         new Reader(sudtTransfer.getAmount().raw()).serializeJson()
       );
-      const fee = new Uint128(
-        sudtTransfer.getFee().getAmount().toLittleEndianBigUint64()
+      const fee = Uint128.fromLittleEndian(
+        new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
       );
-      const value: Uint128 = amount;
+      const value: Uint256 = amount;
       const gasPrice: Uint128 = new Uint128(1n);
       const gasLimit: Uint128 = fee;
 
