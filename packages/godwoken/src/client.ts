@@ -37,10 +37,13 @@ export class GodwokenClient {
   public async getAccountIdByScriptHash(
     scriptHash: Hash
   ): Promise<U32 | undefined> {
-    const accountId: HexNumber = await this.rpcCall(
+    const accountId: HexNumber | undefined = await this.rpcCall(
       "get_account_id_by_script_hash",
       scriptHash
     );
+    if (accountId == null) {
+      return undefined;
+    }
     return +accountId;
   }
 
