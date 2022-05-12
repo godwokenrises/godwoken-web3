@@ -58,7 +58,7 @@ import {
   EthTransaction,
   EthTransactionReceipt,
 } from "../../base/types/api";
-import { filterWeb3Transaction } from "../../filter-web3-tx";
+import { filterEthTransaction } from "../../filter-web3-tx";
 import { FilterManager } from "../../cache";
 import { parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
@@ -722,29 +722,23 @@ export class Eth {
     if (godwokenTxWithStatus == null) {
       return null;
     }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
     const tipBlock = await this.query.getTipBlock();
     if (tipBlock == null) {
       throw new Error("tip block not found!");
     }
-    let ethTxInfo = undefined;
+    let ethTx: EthTransaction | undefined;
     try {
-      ethTxInfo = await filterWeb3Transaction(
+      ethTx = await filterEthTransaction(
         ethTxHash,
         this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
+        godwokenTxWithStatus.transaction
       );
     } catch (err) {
       logger.error("filterWeb3Transaction:", err);
       logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
-    if (ethTxInfo != null) {
-      const ethTx = ethTxInfo[0];
+    if (ethTx != null) {
       return ethTx;
     }
 
@@ -810,39 +804,6 @@ export class Eth {
       const apiLogs = logs.map((log) => toApiLog(log, ethTxHash));
       const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
       return transactionReceipt;
-    }
-
-    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus == null) {
-      return null;
-    }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-    if (godwokenTxReceipt == null) {
-      return null;
-    }
-    const tipBlock = await this.query.getTipBlock();
-    if (tipBlock == null) {
-      throw new Error(`tip block not found`);
-    }
-    let ethTxInfo = undefined;
-    try {
-      ethTxInfo = await filterWeb3Transaction(
-        ethTxHash,
-        this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
-      );
-    } catch (err) {
-      logger.error("filterWeb3Transaction:", err);
-      logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
-      throw err;
-    }
-    if (ethTxInfo != null) {
-      const ethTxReceipt = ethTxInfo[1]!;
-      return ethTxReceipt;
     }
 
     return null;
@@ -1147,10 +1108,9 @@ export class Eth {
   ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return undefined;
+        return await this.getTipNumber();
       case "earliest":
         return 0n;
-      // It's supposed to be filtered in the validator, so throw an error if matched
       case "pending":
         // null means pending in godwoken
         return undefined;
