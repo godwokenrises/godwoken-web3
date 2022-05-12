@@ -7,6 +7,7 @@ import {
   POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE,
 } from "./constant";
 import { HexString } from "@ckb-lumos/base";
+import { checkRuntimeBytecodeSize } from "../evm";
 
 /**
  * middleware for parameters validation
@@ -501,20 +502,48 @@ export function verifyGasLimit(
   return undefined;
 }
 
-export function verifyContractCode(
-  code: HexString,
+// TODO: maybe check the contract code integrity as well.
+// eg: executing the code in evm before pass to polyjuice
+export function verifyCreateContractCode(
+  createByteCode: HexString,
   index: number
 ): InvalidParamsError | undefined {
-  const err = verifyHexString(code, index);
+  const err = verifyHexString(createByteCode, index);
   if (err) {
     return err.padContext("verifyContractCode");
   }
 
-  const codeSizeInByte = code.slice(2).length / 2;
-  if (codeSizeInByte > POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE) {
+  const createByteCodeSize = createByteCode.slice(2).length / 2;
+  if (createByteCodeSize > POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE) {
+    const [isExceed, runtimeByteCodeSize] = checkRuntimeBytecodeSize(
+      createByteCode,
+      POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE
+    );
+    if (isExceed) {
+      return invalidParamsError(
+        index,
+        `max code size exceeded, limit: ${POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE} bytes, got ${runtimeByteCodeSize} bytes`
+      );
+    }
+  }
+
+  return undefined;
+}
+
+export function verifyRuntimeContractCode(
+  runtimeByteCode: HexString,
+  index: number
+): InvalidParamsError | undefined {
+  const err = verifyHexString(runtimeByteCode, index);
+  if (err) {
+    return err.padContext("verifyContractCode");
+  }
+
+  const byteCodeSize = runtimeByteCode.slice(2).length / 2;
+  if (byteCodeSize > POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE) {
     return invalidParamsError(
       index,
-      `max code size exceeded, limit: ${POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE} bytes, got ${codeSizeInByte} bytes`
+      `max code size exceeded, limit: ${POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE} bytes, got ${byteCodeSize} bytes`
     );
   }
 

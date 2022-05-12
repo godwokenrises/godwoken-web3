@@ -11,7 +11,7 @@ import {
 import {
   middleware,
   validators,
-  verifyContractCode,
+  verifyCreateContractCode,
   verifyGasLimit,
 } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
@@ -1392,7 +1392,7 @@ async function buildEthCallTx(
   let fromId: number | undefined;
 
   if (toAddress == "0x") {
-    const dataErr = verifyContractCode(data, 0);
+    const dataErr = verifyCreateContractCode(data, 0);
     if (dataErr) {
       throw dataErr.padContext(buildEthCallTx.name);
     }
