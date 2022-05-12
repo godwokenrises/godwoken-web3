@@ -3,8 +3,8 @@ import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
 import {
-  POLY_MAX_BLOCK_GAS_LIMIT,
   POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE,
+  RPC_MAX_GAS_LIMIT,
 } from "./constant";
 import { HexString } from "@ckb-lumos/base";
 
@@ -492,10 +492,10 @@ export function verifyGasLimit(
     return gasLimitErr.padContext("gasLimit");
   }
 
-  if (BigInt(gasLimit) > BigInt(POLY_MAX_BLOCK_GAS_LIMIT)) {
+  if (BigInt(gasLimit) > BigInt(RPC_MAX_GAS_LIMIT)) {
     return invalidParamsError(
       index,
-      `gas limit ${gasLimit} exceeds block gas limit of ${POLY_MAX_BLOCK_GAS_LIMIT}`
+      `gas limit ${gasLimit} exceeds rpc gas limit of ${RPC_MAX_GAS_LIMIT}`
     );
   }
   return undefined;

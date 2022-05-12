@@ -4,6 +4,8 @@ export const POLY_MAX_TRANSACTION_GAS_LIMIT = 12500000;
 export const POLY_MIN_GAS_PRICE = 0;
 export const POLY_BLOCK_DIFFICULTY = BigInt("2500000000000000");
 
+export const RPC_MAX_GAS_LIMIT = 50000000;
+
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-170.md
 export const POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE = 24576;
 
