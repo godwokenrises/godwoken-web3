@@ -1423,7 +1423,7 @@ async function buildEthCallTx(
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
   if (toId == null) {
     throw new Error(
-      `to id missing, toAddress: ${toAddress}. is your toAddress a valid contract account? more info: ${COMPATIBLE_DOCS_URL}`
+      `To id of address: ${toAddress} is missing. Is your to address a valid contract account? More info: ${COMPATIBLE_DOCS_URL}`
     );
   }
   const nonce = 0;
