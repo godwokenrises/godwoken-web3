@@ -282,6 +282,11 @@ impl Web3Indexer {
                     .into();
                 let log_item_vec = tx_receipt.logs();
 
+                let tx_hash_gw: gw_common::H256 = {
+                    let a: [u8; 32] = tx_hash.into();
+                    gw_common::H256::from(a)
+                };
+
                 // read polyjuice system log
                 let polyjuice_system_log = parse_log(
                     log_item_vec
@@ -290,6 +295,7 @@ impl Web3Indexer {
                         .find(|item| u8::from(item.service_flag()) == GW_LOG_POLYJUICE_SYSTEM)
                         .as_ref()
                         .ok_or_else(|| anyhow!("no system logs"))?,
+                    &tx_hash_gw,
                 )?;
 
                 let (contract_address, tx_gas_used) = if let GwLog::PolyjuiceSystem {
@@ -342,7 +348,7 @@ impl Web3Indexer {
                     let mut logs: Vec<Web3Log> = vec![];
                     let mut log_index = 0;
                     for log_item in log_item_vec {
-                        let log = parse_log(&log_item)?;
+                        let log = parse_log(&log_item, &tx_hash_gw)?;
                         match log {
                             GwLog::PolyjuiceSystem { .. } => {
                                 // we already handled this
