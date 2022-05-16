@@ -1,6 +1,6 @@
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { FilterTopic } from "../cache/types";
-import { Block, Transaction, Log, ErrorTransactionReceipt } from "./types";
+import { Block, Transaction, Log } from "./types";
 import {
   MAX_QUERY_NUMBER,
   MAX_QUERY_TIME_MILSECS,
@@ -52,6 +52,7 @@ export function formatTransaction(tx: Transaction): Transaction {
     v: BigInt(tx.v),
     cumulative_gas_used: toBigIntOpt(tx.cumulative_gas_used),
     gas_used: toBigIntOpt(tx.gas_used),
+    exit_code: +tx.exit_code,
   };
 }
 
@@ -63,20 +64,6 @@ export function formatLog(log: Log): Log {
     transaction_index: +log.transaction_index,
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
-  };
-}
-
-export function formatErrorTransactionReceipt(
-  e: ErrorTransactionReceipt
-): ErrorTransactionReceipt {
-  return {
-    ...e,
-    id: BigInt(e.id),
-    block_number: BigInt(e.block_number),
-    cumulative_gas_used: BigInt(e.cumulative_gas_used),
-    gas_used: BigInt(e.gas_used),
-    status_code: +e.status_code,
-    status_reason: Buffer.from(e.status_reason).toString("utf-8"),
   };
 }
 

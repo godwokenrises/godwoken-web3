@@ -40,8 +40,6 @@ import { envConfig } from "../../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
-  errorReceiptToApiTransaction,
-  errorReceiptToApiTransactionReceipt,
   Log,
   LogQueryOption,
   toApiBlock,
@@ -60,11 +58,10 @@ import {
   EthLog,
   EthTransaction,
   EthTransactionReceipt,
-  FailedReason,
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { FilterManager } from "../../cache";
-import { failedReasonByErrorReceipt, parseGwRunResultError } from "../gw-error";
+import { parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
   CACHE_EXPIRED_TIME_MILSECS,
@@ -721,21 +718,6 @@ export class Eth {
       return apiTx;
     }
 
-    // find error receipt
-    const errorReceipt = await this.query.getErrorTransactionReceipt(gwTxHash);
-    if (errorReceipt != null) {
-      const blockNumber = errorReceipt.block_number;
-      const downBlockNumber = blockNumber - 1n;
-      const downBlock = await this.query.getBlockByNumber(downBlockNumber);
-      let blockHash = "0x" + "00".repeat(32);
-      if (downBlock != null) {
-        const downBlockHash = downBlock.hash;
-        blockHash =
-          "0x" + (BigInt(downBlockHash) + 1n).toString(16).padStart(64, "0");
-      }
-      return errorReceiptToApiTransaction(errorReceipt, blockHash, ethTxHash);
-    }
-
     // if null, find pending transactions
     const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
     if (godwokenTxWithStatus == null) {
@@ -829,28 +811,6 @@ export class Eth {
       const apiLogs = logs.map((log) => toApiLog(log, ethTxHash));
       const transactionReceipt = toApiTransactionReceipt(tx, apiLogs);
       return transactionReceipt;
-    }
-
-    const errorReceipt = await this.query.getErrorTransactionReceipt(gwTxHash);
-    if (errorReceipt != null) {
-      const blockNumber = errorReceipt.block_number;
-      const downBlockNumber = blockNumber - 1n;
-      const downBlock = await this.query.getBlockByNumber(downBlockNumber);
-      let blockHash = "0x" + "00".repeat(32);
-      if (downBlock != null) {
-        const downBlockHash = downBlock.hash;
-        blockHash =
-          "0x" + (BigInt(downBlockHash) + 1n).toString(16).padStart(64, "0");
-      }
-      const receipt = errorReceiptToApiTransactionReceipt(
-        errorReceipt,
-        blockHash,
-        ethTxHash
-      );
-      const failedReason: FailedReason =
-        failedReasonByErrorReceipt(errorReceipt);
-      receipt.failed_reason = failedReason;
-      return receipt;
     }
 
     const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);

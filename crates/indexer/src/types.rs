@@ -39,7 +39,7 @@ pub struct Transaction {
     pub gas_used: u128,
     pub logs_bloom: Vec<u8>,
     pub contract_address: Option<Address>,
-    pub status: bool,
+    pub exit_code: u8,
 }
 
 impl Transaction {
@@ -64,7 +64,7 @@ impl Transaction {
         gas_used: u128,
         logs_bloom: Vec<u8>,
         contract_address: Option<Address>,
-        status: bool,
+        exit_code: u8,
     ) -> Transaction {
         Transaction {
             gw_tx_hash,
@@ -86,7 +86,7 @@ impl Transaction {
             gas_used,
             logs_bloom,
             contract_address,
-            status,
+            exit_code,
         }
     }
 

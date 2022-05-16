@@ -110,7 +110,7 @@ fn convert_error_tx_receipt(
             buf.into()
         },
         block_number: receipt.block_number.into(),
-        return_data: receipt.return_data.as_bytes().to_vec(),
+        return_data: receipt.return_data.into_bytes(),
         last_log: receipt.last_log.map(Into::into),
         exit_code: exit_code as u8 as i8,
     }

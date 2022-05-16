@@ -14,7 +14,7 @@ use ckb_types::H256;
 use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, registry_address::RegistryAddress};
 use gw_types::{
     bytes::Bytes,
-    packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
+    packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script, TxReceipt},
     prelude::Unpack as GwUnpack,
     prelude::*,
     U256,
@@ -118,7 +118,7 @@ impl Web3Indexer {
             };
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
-            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, status) 
+            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, exit_code) 
             VALUES 
             ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING ID")
             .bind(hex(web3_tx.gw_tx_hash.as_slice())?)
@@ -140,7 +140,7 @@ impl Web3Indexer {
             .bind(u128_to_big_decimal(&web3_tx.gas_used)?)
             .bind(hex(&web3_tx.logs_bloom)?)
             .bind(web3_contract_address_hex)
-            .bind(web3_tx.status)
+            .bind(Decimal::from(web3_tx.exit_code))
             .fetch_one(&mut tx)
             .await?;
 
@@ -264,22 +264,8 @@ impl Web3Indexer {
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
                 // read logs
-                let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
-                let tx_hash_hex = hex(tx_hash.as_bytes()).unwrap_or_else(|_| {
-                    format!("convert tx hash: {:?} to hex format failed", tx_hash)
-                });
-                let tx_receipt: gw_types::packed::TxReceipt = self
-                    .godwoken_rpc_client
-                    .get_transaction_receipt(&tx_hash)?
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
-                            tx_hash_hex,
-                            block_number,
-                            tx_index
-                        )
-                    })?
-                    .into();
+                let tx_receipt: TxReceipt =
+                    self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
                 let log_item_vec = tx_receipt.logs();
 
                 // read polyjuice system log
@@ -315,6 +301,7 @@ impl Web3Indexer {
                     ));
                 };
 
+                let exit_code: u8 = tx_receipt.exit_code().into();
                 let web3_transaction = Web3Transaction::new(
                     gw_tx_hash,
                     Some(chain_id),
@@ -335,7 +322,7 @@ impl Web3Indexer {
                     tx_gas_used,
                     Vec::new(),
                     contract_address,
-                    true,
+                    exit_code,
                 );
 
                 let web3_logs = {
@@ -413,6 +400,10 @@ impl Web3Indexer {
 
                         let nonce: u32 = l2_transaction.raw().nonce().unpack();
 
+                        let tx_receipt: TxReceipt =
+                            self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
+
+                        let exit_code: u8 = tx_receipt.exit_code().into();
                         let web3_transaction = Web3Transaction::new(
                             gw_tx_hash,
                             None,
@@ -433,7 +424,7 @@ impl Web3Indexer {
                             gas_limit,
                             Vec::new(),
                             None,
-                            true,
+                            exit_code,
                         );
 
                         let web3_tx_with_logs = Web3TransactionWithLogs {
@@ -448,6 +439,30 @@ impl Web3Indexer {
             }
         }
         Ok(web3_tx_with_logs_vec)
+    }
+
+    fn get_transaction_receipt(
+        &self,
+        gw_tx_hash: gw_common::H256,
+        block_number: u64,
+        tx_index: u32,
+    ) -> Result<TxReceipt> {
+        let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+        let tx_hash_hex = hex(tx_hash.as_bytes())
+            .unwrap_or_else(|_| format!("convert tx hash: {:?} to hex format failed", tx_hash));
+        let tx_receipt: TxReceipt = self
+            .godwoken_rpc_client
+            .get_transaction_receipt(&tx_hash)?
+            .ok_or_else(|| {
+                anyhow!(
+                    "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
+                    tx_hash_hex,
+                    block_number,
+                    tx_index
+                )
+            })?
+            .into();
+        Ok(tx_receipt)
     }
 
     async fn build_web3_block(

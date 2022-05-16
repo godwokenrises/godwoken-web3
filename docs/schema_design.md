@@ -85,6 +85,10 @@ CREATE TABLE error_transactions (
 
 CREATE INDEX ON error_transactions (block_number);
 CREATE INDEX ON error_transactions (hash);
+
+-- Replace `status` with `exit_code`
+ALTER TABLE transactions ADD COLUMN exit_code smallint NOT NULL;
+ALTER TABLE transactions DROP COLUMN status;
 ```
 
 ## 字段含义
@@ -131,7 +135,7 @@ CREATE INDEX ON error_transactions (hash);
 - gas_used：交易实际花费的gas
 - log_bloom：该交易中logs的bloom filter
 - contract_address: 如果是合约创建交易，这个则为创建的合约的地址；否则为null
-- status: 表示交易是否成功，0失败，1成功
+- exit_code: 表示交易是否成功，0成功，其它为失败
 
 ### log
 - transaction_id: 交易id，transaction表主键
