@@ -104,7 +104,11 @@ impl From<ErrorTxReceipt> for ErrorReceiptRecord {
             status_reason: receipt.return_data[..status_reason_len].to_vec(),
         };
 
-        let gw_log = match receipt.last_log.map(|log| parse_log(&log)).transpose() {
+        let gw_log = match receipt
+            .last_log
+            .map(|log| parse_log(&log, &basic_record.tx_hash))
+            .transpose()
+        {
             Ok(Some(log)) => log,
             Err(err) => {
                 log::error!("[error receipt]: parse log error {}", err);

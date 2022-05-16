@@ -6,8 +6,8 @@ use std::{convert::TryInto, usize};
 
 // 128KB
 pub const GW_L2TX_ARGS_MAX_SIZE: u32 = 128 * 1024;
-// 4KB
-pub const GW_USER_LOG_DATA_MAX_SIZE: u32 = 4 * 1024;
+// 64KB
+pub const GW_USER_LOG_DATA_MAX_SIZE: u32 = 64 * 1024;
 
 pub const GW_LOG_SUDT_TRANSFER: u8 = 0x0;
 pub const GW_LOG_SUDT_PAY_FEE: u8 = 0x1;
@@ -129,7 +129,7 @@ fn parse_sudt_log_data(data: &[u8]) -> anyhow::Result<(RegistryAddress, Registry
     Ok((from_address, to_address, amount))
 }
 
-pub fn parse_log(item: &LogItem) -> Result<GwLog> {
+pub fn parse_log(item: &LogItem, tx_hash: &H256) -> Result<GwLog> {
     let service_flag: u8 = item.service_flag().into();
     let raw_data = item.data().raw_data();
     let data = raw_data.as_ref();
@@ -221,7 +221,15 @@ pub fn parse_log(item: &LogItem) -> Result<GwLog> {
             offset += 4;
             let data_size: u32 = u32::from_le_bytes(data_size_bytes);
             if data_size > GW_USER_LOG_DATA_MAX_SIZE {
-                return Err(anyhow!("user log data size too large: {}", data_size));
+                let tx_hash_hex = hex(tx_hash.as_slice()).unwrap_or_else(|_| {
+                    format!("Can't convert tx_hash: {:?} to hex format", tx_hash)
+                });
+                let error_message = format!(
+                    "Polyjuice user log data size too large, data size: {}, transaction_hash: {}",
+                    data_size, tx_hash_hex
+                );
+                log::error!("{}", error_message);
+                return Err(anyhow!(error_message));
             }
             if data.len() < offset + data_size as usize {
                 return Err(anyhow!("invalid user log data size: {}", data_size));
