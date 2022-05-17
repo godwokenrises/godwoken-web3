@@ -23,9 +23,8 @@ export async function up(knex: Knex): Promise<void> {
       table
         .decimal("block_number", null, 0)
         .notNullable()
-        .references("blocks.number")
-        .index();
-      table.binary("block_hash").notNullable().index();
+        .references("blocks.number");
+      table.binary("block_hash").notNullable();
       table.integer("transaction_index").notNullable();
       table.binary("from_address").notNullable().index();
       table.binary("to_address").index();
