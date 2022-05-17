@@ -1,5 +1,12 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
-import { Block, Transaction, Log } from "./types";
+import {
+  Block,
+  Transaction,
+  Log,
+  DBBlock,
+  DBTransaction,
+  DBLog,
+} from "./types";
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
@@ -14,6 +21,8 @@ import {
   buildQueryLogAddress,
   normalizeLogQueryAddress,
   filterLogsByTopics,
+  bufferToHex,
+  hexToBuffer,
 } from "./helpers";
 
 const poolMax = envConfig.pgPoolMax || 20;
@@ -31,7 +40,7 @@ export class Query {
   }
 
   async getTipBlockNumber(): Promise<bigint | undefined> {
-    const blockData = await this.knex<Block>("blocks")
+    const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
       .orderBy("number", "desc")
       .first();
@@ -40,7 +49,7 @@ export class Query {
   }
 
   async getTipBlock(): Promise<Block | undefined> {
-    const block = await this.knex<Block>("blocks")
+    const block = await this.knex<DBBlock>("blocks")
       .orderBy("number", "desc")
       .first();
 
@@ -65,7 +74,7 @@ export class Query {
   private async getBlock(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Block>>>
   ): Promise<Block | undefined> {
-    const block = await this.knex<Block>("blocks").where(params).first();
+    const block = await this.knex<DBBlock>("blocks").where(params).first();
 
     if (!block) {
       return undefined;
@@ -81,9 +90,9 @@ export class Query {
     if (minBlockNumber >= maxBlockNumber) {
       return [];
     }
-    const blocks = await this.knex<Block>("blocks")
-      .where("number", ">", minBlockNumber)
-      .andWhere("number", "<=", maxBlockNumber)
+    const blocks = await this.knex<DBBlock>("blocks")
+      .where("number", ">", minBlockNumber.toString())
+      .andWhere("number", "<=", maxBlockNumber.toString())
       .orderBy("number", "asc");
     return blocks.map((block) => formatBlock(block));
   }
@@ -92,7 +101,7 @@ export class Query {
     number: bigint,
     order: "desc" | "asc" = "desc"
   ): Promise<Block[]> {
-    const blocks = await this.knex<Block>("blocks")
+    const blocks = await this.knex<DBBlock>("blocks")
       .where("number", ">", number.toString())
       .orderBy("number", order);
     return blocks.map((block) => formatBlock(block));
@@ -111,7 +120,7 @@ export class Query {
   private async getTransactions(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
   ): Promise<Transaction[]> {
-    const transactions = await this.knex<Transaction>("transactions").where(
+    const transactions = await this.knex<DBTransaction>("transactions").where(
       params
     );
 
@@ -155,7 +164,7 @@ export class Query {
   private async getTransaction(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
   ): Promise<Transaction | undefined> {
-    const transaction = await this.knex<Transaction>("transactions")
+    const transaction = await this.knex<DBTransaction>("transactions")
       .where(params)
       .first();
 
@@ -183,11 +192,11 @@ export class Query {
   private async getTransactionHashes(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
   ): Promise<Hash[]> {
-    const transactionHashes = await this.knex<Transaction>("transactions")
+    const transactionHashes = await this.knex<DBTransaction>("transactions")
       .select("hash")
       .where(params);
 
-    return transactionHashes.map((tx) => tx.hash);
+    return transactionHashes.map((tx) => bufferToHex(tx.hash));
   }
 
   async getTransactionEthHashesByBlockHash(blockHash: Hash): Promise<Hash[]> {
@@ -207,11 +216,11 @@ export class Query {
   private async getTransactionEthHashes(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
   ): Promise<Hash[]> {
-    const transactionHashes = await this.knex<Transaction>("transactions")
+    const transactionHashes = await this.knex<DBTransaction>("transactions")
       .select("eth_tx_hash")
       .where(params);
 
-    return transactionHashes.map((tx) => tx.eth_tx_hash);
+    return transactionHashes.map((tx) => bufferToHex(tx.eth_tx_hash));
   }
 
   // undefined means not found
@@ -230,7 +239,7 @@ export class Query {
   private async getBlockTransactionCount(
     params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
   ): Promise<number> {
-    const data = await this.knex<Transaction>("transactions")
+    const data = await this.knex<DBTransaction>("transactions")
       .where(params)
       .count();
 
@@ -242,23 +251,23 @@ export class Query {
   async getTransactionAndLogsByHash(
     txHash: Hash
   ): Promise<[Transaction, Log[]] | undefined> {
-    const tx = await this.knex<Transaction>("transactions")
-      .where({ hash: txHash })
+    const tx = await this.knex<DBTransaction>("transactions")
+      .where({ hash: hexToBuffer(txHash) })
       .first();
 
     if (!tx) {
       return undefined;
     }
 
-    const logs = await this.knex<Log>("logs").where({
-      transaction_hash: txHash,
+    const logs = await this.knex<DBLog>("logs").where({
+      transaction_hash: hexToBuffer(txHash),
     });
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
 
   async getTipLog() {
-    let log = await this.knex<Log>("logs").orderBy("id", "desc").first();
+    let log = await this.knex<DBLog>("logs").orderBy("id", "desc").first();
     if (log != null) {
       return formatLog(log);
     }
@@ -273,15 +282,14 @@ export class Query {
   ): Promise<Log[]> {
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
-    let logs: Log[] = await this.knex<Log>("logs")
+    let logs: DBLog[] = await this.knex<DBLog>("logs")
       .modify(buildQueryLogAddress, address)
       .where("block_hash", blockHash)
       .where("id", ">", queryLastPollId.toString(10))
       .orderBy("id", "asc")
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER);
-    logs = logs.map((log) => formatLog(log));
-    return logs;
+    return logs.map((log) => formatLog(log));
   }
 
   private async queryLogsByBlockRange(
@@ -293,7 +301,7 @@ export class Query {
   ): Promise<Log[]> {
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
-    let logs: Log[] = await this.knex<Log>("logs")
+    let logs: DBLog[] = await this.knex<DBLog>("logs")
       .modify(buildQueryLogAddress, address)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
@@ -301,8 +309,7 @@ export class Query {
       .orderBy("id", "asc")
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER);
-    logs = logs.map((log) => formatLog(log));
-    return logs;
+    return logs.map((log) => formatLog(log));
   }
 
   async getLogs(

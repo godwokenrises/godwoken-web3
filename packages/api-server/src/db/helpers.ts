@@ -1,6 +1,13 @@
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { FilterTopic } from "../cache/types";
-import { Block, Transaction, Log } from "./types";
+import {
+  Block,
+  Transaction,
+  Log,
+  DBBlock,
+  DBTransaction,
+  DBLog,
+} from "./types";
 import {
   MAX_QUERY_NUMBER,
   MAX_QUERY_TIME_MILSECS,
@@ -29,17 +36,33 @@ export function formatDecimal(dec: string) {
   return wholeNum;
 }
 
-export function formatBlock(block: Block): Block {
+export function hexToBuffer(hex: HexString): Buffer {
+  return Buffer.from(hex.slice(2), "hex");
+}
+
+export function bufferToHex(buf: Buffer): HexString {
+  return "0x" + buf.toString("hex");
+}
+
+function bufferToHexOpt(buf?: Buffer): HexString | undefined {
+  return buf == null ? undefined : bufferToHex(buf);
+}
+
+export function formatBlock(block: DBBlock): Block {
   return {
     ...block,
     number: BigInt(block.number),
     gas_limit: BigInt(block.gas_limit),
     gas_used: BigInt(block.gas_used),
     size: BigInt(block.size),
+    hash: bufferToHex(block.hash),
+    parent_hash: bufferToHex(block.parent_hash),
+    miner: bufferToHex(block.miner),
+    logs_bloom: "0x",
   };
 }
 
-export function formatTransaction(tx: Transaction): Transaction {
+export function formatTransaction(tx: DBTransaction): Transaction {
   return {
     ...tx,
     id: BigInt(tx.id),
@@ -53,10 +76,20 @@ export function formatTransaction(tx: Transaction): Transaction {
     cumulative_gas_used: toBigIntOpt(tx.cumulative_gas_used),
     gas_used: toBigIntOpt(tx.gas_used),
     exit_code: +tx.exit_code,
+    hash: bufferToHex(tx.hash),
+    eth_tx_hash: bufferToHex(tx.eth_tx_hash),
+    block_hash: bufferToHex(tx.block_hash),
+    from_address: bufferToHex(tx.from_address),
+    to_address: bufferToHexOpt(tx.to_address),
+    input: bufferToHexOpt(tx.input),
+    r: bufferToHex(tx.r),
+    s: bufferToHex(tx.s),
+    contract_address: bufferToHexOpt(tx.contract_address),
+    logs_bloom: "0x",
   };
 }
 
-export function formatLog(log: Log): Log {
+export function formatLog(log: DBLog): Log {
   return {
     ...log,
     id: BigInt(log.id),
@@ -64,6 +97,11 @@ export function formatLog(log: Log): Log {
     transaction_index: +log.transaction_index,
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
+    transaction_hash: bufferToHex(log.transaction_hash),
+    block_hash: bufferToHex(log.block_hash),
+    address: bufferToHex(log.address),
+    data: bufferToHex(log.data),
+    topics: log.topics.map((t) => bufferToHex(t)),
   };
 }
 

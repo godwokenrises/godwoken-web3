@@ -19,6 +19,17 @@ import {
   POLY_MAX_BLOCK_GAS_LIMIT,
 } from "../methods/constant";
 
+export interface DBBlock {
+  number: string;
+  hash: Buffer;
+  parent_hash: Buffer;
+  gas_limit: string;
+  gas_used: string;
+  timestamp: Date;
+  miner: Buffer;
+  size: number;
+}
+
 export interface Block {
   number: bigint;
   hash: Hash;
@@ -29,6 +40,29 @@ export interface Block {
   timestamp: Date;
   miner: HexString;
   size: bigint;
+}
+
+export interface DBTransaction {
+  id: string;
+  hash: Buffer;
+  eth_tx_hash: Buffer;
+  block_number: string;
+  block_hash: Buffer;
+  transaction_index: number;
+  from_address: Buffer;
+  to_address?: Buffer;
+  value: string;
+  nonce?: string;
+  gas_limit?: string;
+  gas_price?: string;
+  input?: Buffer;
+  v: number;
+  r: Buffer;
+  s: Buffer;
+  cumulative_gas_used?: string;
+  gas_used?: string;
+  contract_address?: Buffer;
+  exit_code: number;
 }
 
 export interface Transaction {
@@ -53,6 +87,19 @@ export interface Transaction {
   logs_bloom: HexString;
   contract_address?: HexString;
   exit_code: number;
+}
+
+export interface DBLog {
+  id: string;
+  transaction_id: string;
+  transaction_hash: Buffer;
+  transaction_index: number;
+  block_number: string;
+  block_hash: Buffer;
+  address: Buffer;
+  data: Buffer;
+  log_index: number;
+  topics: Buffer[];
 }
 
 export interface Log {
