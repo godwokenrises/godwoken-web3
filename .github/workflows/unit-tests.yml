@@ -23,8 +23,8 @@ jobs:
     # Godwoken-Kicker
     - uses: actions/checkout@v3
       with:
-        repository: RetricSu/godwoken-kicker
-        ref: 'compatibility-changes'
+        repository: classicalliu/godwoken-kicker
+        ref: 'for-refactor-db'
     - name: Kicker init
       run: ./kicker init
     - name: Kicker start
