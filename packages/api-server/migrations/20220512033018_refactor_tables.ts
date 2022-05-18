@@ -53,6 +53,7 @@ export async function up(knex: Knex): Promise<void> {
       table
         .bigInteger("transaction_id")
         .notNullable()
+        .index()
         .references("transactions.id");
       table.binary("transaction_hash").notNullable().index();
       table.integer("transaction_index").notNullable();
