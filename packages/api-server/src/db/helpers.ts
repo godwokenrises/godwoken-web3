@@ -262,6 +262,9 @@ export function buildQueryLogAddress(
 ) {
   if (address && address.length !== 0) {
     const queryAddress = Array.isArray(address) ? [...address] : [address];
-    queryBuilder.whereIn("address", queryAddress);
+    queryBuilder.whereIn(
+      "address",
+      queryAddress.map((addr) => hexToBuffer(addr))
+    );
   }
 }
