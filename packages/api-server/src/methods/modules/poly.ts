@@ -108,13 +108,10 @@ export class Poly {
   ): Promise<GodwokenBlockParameter> {
     console.log(blockParameter);
     switch (blockParameter) {
-      // The most recently produced block
       case "latest":
         return undefined;
-      // Block #0
       case "earliest":
-        return 0n;
-      // The block in Godwoken mem-pool
+        return 10n;
       case "pending":
         // null means pending in godwoken
         return undefined;
