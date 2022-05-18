@@ -2,9 +2,7 @@ import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
-import {
-  RPC_MAX_GAS_LIMIT,
-} from "./constant";
+import { RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexString } from "@ckb-lumos/base";
 
 /**
