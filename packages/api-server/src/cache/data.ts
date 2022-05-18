@@ -153,58 +153,41 @@ export class RedisDataCache {
           // set data cache
           await pubClient.set(dataKey, result, setDataKeyOptions);
           // publish the result to channel
-          const publishResult = successResult(result);
           const totalSubs = await pubClient.publish(
             this.lock.subscribe.channel,
-            publishResult
+            result
           );
           console.debug(
-            `[${this.constructor.name}][success]: publish message ${publishResult} on channel ${this.lock.subscribe.channel}, total subscribers: ${totalSubs}`
+            `[${this.constructor.name}]: publish message ${result} on channel ${this.lock.subscribe.channel}, total subscribers: ${totalSubs}`
           );
           await releaseLock(lockValue);
           return result;
-        } catch (error: any) {
-          const reason = error.message;
-          if (!reason.includes("request to")) {
-            // publish the non-network-connecting-error-result to channel
-            const publishResult = errorResult(reason);
-            const totalSubs = await pubClient.publish(
-              this.lock.subscribe.channel,
-              publishResult
-            );
-            console.debug(
-              `[${this.constructor.name}][error]: publish message ${publishResult} on channel ${this.lock.subscribe.channel}, total subscribers: ${totalSubs}`
-            );
-          }
+        } catch (error) {
+          console.debug(error);
           await releaseLock(lockValue);
-          throw new Error(error.message);
         }
       }
 
       // if lock is not acquired
       try {
-        const result = await this.subscribe();
+        const msg = await this.subscribe();
         console.debug(
           `[${this.constructor.name}]: hit cache via Redis.Subscribe, key: ${dataKey}`
         );
-        return result;
+        return msg;
       } catch (error: any) {
         if (
           !JSON.stringify(error).includes(
             "subscribe channel for message time out"
           )
         ) {
-          console.debug(
-            `[${this.constructor.name}]: subscribe err:`,
-            error.message
-          );
-          throw new Error(error.message);
+          console.debug(`[${this.constructor.name}]: subscribe err:`, error);
         }
       }
 
       // check if poll time out
       const t2 = new Date();
-      const diff = t2.getTime() - t1.getTime();
+      const diff = t1.getTime() - t2.getTime();
       if (diff > this.lock.pollTimeOutMs) {
         throw new Error(
           `poll data value from cache layer time out ${this.lock.pollTimeOutMs}`
@@ -220,24 +203,18 @@ export class RedisDataCache {
       throw new Error(`enable redis lock first!`);
     }
 
-    const p = new Promise((resolve, reject) => {
+    const p = new Promise((resolve) => {
       subClient.subscribe(
         this.lock!.subscribe.channel,
         async (message: string) => {
-          try {
-            const data = parseExecuteResult(message);
-            await subClient.unsubscribe(this.lock!.subscribe.channel);
-            return resolve(data);
-          } catch (error) {
-            return reject(error);
-          }
+          await subClient.unsubscribe(this.lock!.subscribe.channel);
+          return resolve(message);
         }
       );
     });
 
     const t = new Promise((_resolve, reject) => {
       setTimeout(() => {
-        subClient.unsubscribe(this.lock!.subscribe.channel);
         return reject(
           `subscribe channel for message time out ${this.lock?.subscribe.timeOutMs}`
         );
@@ -250,40 +227,4 @@ export class RedisDataCache {
 
 export function getLockUniqueValue() {
   return "0x" + crypto.randomBytes(20).toString("hex");
-}
-
-export enum PublishExecuteResultStatus {
-  Success,
-  Error,
-}
-
-export interface PublishExecuteResult {
-  status: PublishExecuteResultStatus;
-  data?: string;
-  err?: string;
-}
-
-export function successResult(result: string) {
-  const res: PublishExecuteResult = {
-    status: PublishExecuteResultStatus.Success,
-    data: result,
-  };
-  return JSON.stringify(res);
-}
-
-export function errorResult(reason: string) {
-  const res: PublishExecuteResult = {
-    status: PublishExecuteResultStatus.Error,
-    err: reason,
-  };
-  return JSON.stringify(res);
-}
-
-export function parseExecuteResult(res: string) {
-  const jsonRes: PublishExecuteResult = JSON.parse(res);
-  if (jsonRes.status === PublishExecuteResultStatus.Success) {
-    return jsonRes.data!;
-  }
-
-  throw new Error(jsonRes.err);
 }
