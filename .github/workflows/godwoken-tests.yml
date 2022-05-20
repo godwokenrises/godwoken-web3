@@ -10,8 +10,7 @@ on:
 
 jobs:
   godwoken-tests:
-    uses: classicalliu/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@add-kicker-repository-input
+    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
     with:
       web3_ref: "${{ github.sha }}"
-      kicker_repository: "classicalliu/godwoken-kicker"
-      kicker_ref: "for-refactor-db"
+      kicker_ref: "refs/pull/253/head"
