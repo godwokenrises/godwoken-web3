@@ -15,6 +15,7 @@ import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
 import { verifyGasLimit } from "./methods/validator";
+import { AppError, ERRORS } from "./methods/error";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -53,7 +54,9 @@ function decodeRawTransactionData(dataParams: HexString) {
   const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
 
   if (result.length !== 9) {
-    throw new Error("decode raw transaction data error");
+    throw new AppError(ERRORS.DATABASE_QUERY_ERROR, {
+      reason: "decode raw transaction data error",
+    });
   }
 
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
@@ -86,9 +89,7 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   let finalVInt = undefined;
 
   if (vInt === 27 || vInt === 28) {
-    throw new Error(
-      `only EIP155 transaction is allowed, illegal transaction recId ${tx.v}. more info: ${COMPATIBLE_DOCS_URL}`
-    );
+    throw new AppError(ERRORS.TRANSACTION_TYPE_NOT_SUPPORTED, { recId: tx.v });
   }
 
   if (vInt % 2 === 0) {
@@ -133,9 +134,7 @@ async function parseRawTransactionData(
 
   const gasLimitErr = verifyGasLimit(gasLimit, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padContext(
-      `eth_sendRawTransaction ${parseRawTransactionData.name}`
-    );
+    throw gasLimitErr;
   }
 
   const r = "0x" + rA.slice(2).padStart(64, "0");
@@ -158,9 +157,9 @@ async function parseRawTransactionData(
   );
 
   if (fromId == null) {
-    throw new Error(
-      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
-    );
+    throw new AppError(ERRORS.FROM_ADDRESS_NOT_REGISTERED, {
+      fromAddress: fromEthAddress,
+    });
   }
 
   // header
@@ -196,16 +195,14 @@ async function parseRawTransactionData(
   }
 
   if (toId == null) {
-    throw new Error(`to id not found by address: ${to}`);
+    throw new AppError(ERRORS.TO_ADDRESS_NOT_REGISTERED, { toAddress: to });
   }
 
   // disable to address is eoa case
   const toScriptHash = await rpc.getScriptHash(Number(toId));
   const eoaScriptHash = ethEoaAddressToScriptHash(to);
   if (toScriptHash === eoaScriptHash) {
-    throw new Error(
-      `to_address can not be EOA address! more info: ${COMPATIBLE_DOCS_URL}`
-    );
+    throw new AppError(ERRORS.TO_ADDRESS_EOA_ACCOUNT, { toAddress: to });
   }
 
   const args =

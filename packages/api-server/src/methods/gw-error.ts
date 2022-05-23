@@ -3,8 +3,7 @@
 import abiCoder, { AbiCoder } from "web3-eth-abi";
 import { FailedReason } from "../base/types/api";
 import { COMPATIBLE_DOCS_URL } from "./constant";
-import { RpcError } from "./error";
-import { GW_RPC_REQUEST_ERROR } from "./error-code";
+import { AppError, ERRORS } from "./error";
 import { LogItem, PolyjuiceSystemLog } from "./types";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { logger } from "../base/logger";
@@ -173,7 +172,7 @@ export function parseGwError(error: any): GwErrorDetail {
       const newMessage = `${failedReason.status_type.toLowerCase()}: ${
         failedReason.message
       }`;
-      throw new RpcError(err.code, newMessage, data);
+      throw new AppError({ code: err.code, message: newMessage }, data);
     }
 
     let polyjuiceSystemLog: PolyjuiceSystemLog | undefined;
@@ -215,7 +214,7 @@ export function parseGwRpcError(error: any): void {
       const newMessage = `${failedReason.status_type.toLowerCase()}: ${
         failedReason.message
       }`;
-      throw new RpcError(err.code, newMessage, data);
+      throw new AppError({ code: err.code, message: newMessage }, data);
     }
 
     const last_log: LogItem | undefined = err.data?.last_log;
@@ -235,32 +234,34 @@ export function parseGwRpcError(error: any): void {
       const newMessage = `${failedReason.status_type.toLowerCase()}: ${
         failedReason.message
       }`;
-      throw new RpcError(err.code, newMessage, data);
+      throw new AppError({ code: err.code, message: newMessage }, data);
     }
 
     // can't find backend by script hash error
     if (err.message?.startsWith("can't find backend for script_hash")) {
-      throw new RpcError(
-        err.code,
-        `to address is not a valid contract. more info: ${COMPATIBLE_DOCS_URL}`
-      );
+      throw new AppError({
+        code: err.code,
+        message: `to address is not a valid contract. more info: ${COMPATIBLE_DOCS_URL}`,
+      });
     }
 
-    throw new RpcError(err.code, err.message);
+    throw new AppError({ ...err });
   }
 
   // connection error
   if (message.startsWith("request to")) {
-    throw new Error(message);
+    throw new AppError(ERRORS.CONNECTION_RESET, { reason: message });
   }
 
-  throw new RpcError(GW_RPC_REQUEST_ERROR, error.message);
+  throw new AppError(ERRORS.GW_ERROR, { reason: error.message });
 }
 
 export function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length !== 8 + 8 + 16 + 4 + 4) {
-    throw new Error(`invalid system log raw data length: ${buf.length}`);
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `invalid system log raw data length: ${buf.length}`,
+    });
   }
   const gasUsed = buf.readBigUInt64LE(0);
   const cumulativeGasUsed = buf.readBigUInt64LE(8);
@@ -274,7 +275,7 @@ export function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   };
 }
 
-export function parseGwRunResultError(err: any): RpcError {
+export function parseGwRunResultError(err: any): AppError {
   const gwErr = parseGwError(err);
   const failedReason: any = {};
   if (gwErr.statusCode != null) {
@@ -297,5 +298,5 @@ export function parseGwRunResultError(err: any): RpcError {
       gwErr.statusReason
     }`;
   }
-  return new RpcError(gwErr.code, errorMessage, errorData);
+  return new AppError({ code: gwErr.code, message: errorMessage }, errorData);
 }

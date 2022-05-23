@@ -1,8 +1,7 @@
 import * as modules from "./modules";
 import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
-import { INVALID_PARAMS } from "./error-code";
-import { RpcError } from "./error";
+import { AppError, ERRORS } from "./error";
 import { envConfig } from "../base/env-config";
 
 /**
@@ -37,23 +36,16 @@ function getMethods(argsList: ModConstructorArgs = {}) {
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
           } catch (err: any) {
-            if (envConfig.sentryDns && err.code !== INVALID_PARAMS) {
+            if (
+              envConfig.sentryDns &&
+              err.code !== ERRORS.INTERNAL_ERROR.code
+            ) {
               Sentry.captureException(err, {
                 extra: { method: concatedMethodName, params: args },
               });
             }
-            if (err.name === "RpcError") {
-              if (err.data) {
-                return cb({
-                  code: err.code,
-                  message: err.message,
-                  data: err.data,
-                } as RpcError);
-              }
-              return cb({
-                code: err.code,
-                message: err.message,
-              });
+            if (err instanceof AppError) {
+              return cb(err);
             }
             throw err;
           }

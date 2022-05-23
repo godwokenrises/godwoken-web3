@@ -2,6 +2,7 @@ import { createClient } from "redis";
 import { envConfig } from "../base/env-config";
 import crypto from "crypto";
 import { logger } from "../base/logger";
+import { AppError, ERRORS } from "../methods/error";
 
 // init publisher redis client
 export const pubClient = createClient({
@@ -120,7 +121,12 @@ export class RedisDataCache {
     };
 
     const releaseLock = async (lockValue: string) => {
-      if (!this.lock) throw new Error("enable lock first!");
+      if (!this.lock) {
+        console.error("lock not retrieved");
+        throw new AppError(ERRORS.INTERNAL_ERROR, {
+          reason: "lock not retrieved",
+        });
+      }
 
       const value = await pubClient.get(this.lock.key.name);
       if (value === lockValue) {
@@ -177,7 +183,11 @@ export class RedisDataCache {
             );
           }
           await releaseLock(lockValue);
-          throw new Error(error.message);
+          if (error instanceof AppError) {
+            throw error;
+          } else {
+            throw new AppError(ERRORS.REDIS_ERROR, { reason: error.message });
+          }
         }
       }
 
@@ -198,7 +208,11 @@ export class RedisDataCache {
             `[${this.constructor.name}]: subscribe err:`,
             error.message
           );
-          throw new Error(error.message);
+          if (error instanceof AppError) {
+            throw error;
+          } else {
+            throw new AppError(ERRORS.REDIS_ERROR, { reason: error.message });
+          }
         }
       }
 
@@ -206,9 +220,7 @@ export class RedisDataCache {
       const t2 = new Date();
       const diff = t2.getTime() - t1.getTime();
       if (diff > this.lock.pollTimeOutMs) {
-        throw new Error(
-          `poll data value from cache layer time out ${this.lock.pollTimeOutMs}`
-        );
+        throw new AppError(ERRORS.REDIS_POLL_TIMEOUT);
       }
 
       await asyncSleep(this.lock.pollIntervalMs);
@@ -217,7 +229,9 @@ export class RedisDataCache {
 
   async subscribe() {
     if (this.lock == null) {
-      throw new Error(`enable redis lock first!`);
+      throw new AppError(ERRORS.INTERNAL_ERROR, {
+        reason: "lock not retrieved",
+      });
     }
 
     const p = new Promise((resolve, reject) => {
@@ -285,7 +299,7 @@ export function parseExecuteResult(res: string) {
     return jsonRes.data!;
   }
 
-  throw new Error("[RedisSubscribeResult]" + jsonRes.err);
+  throw new AppError(ERRORS.REDIS_ERROR, { reason: jsonRes.err });
 }
 
 const asyncSleep = async (ms = 0) => {

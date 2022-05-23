@@ -6,7 +6,7 @@ import {
   MAX_QUERY_TIME_MILSECS,
   MAX_QUERY_ROUNDS,
 } from "./constant";
-import { LimitExceedError } from "../methods/error";
+import { AppError, ERRORS } from "../methods/error";
 import { Knex as KnexType } from "knex";
 
 export function toBigIntOpt(
@@ -198,16 +198,19 @@ export async function limitQuery(
 
     // check if exceed max query number
     if (results.length > MAX_QUERY_NUMBER) {
-      throw new LimitExceedError(
-        `query returned more than ${MAX_QUERY_NUMBER} results`
-      );
+      throw new AppError(ERRORS.DATABASE_QUERY_TOO_MANY_RESULTS, {
+        limit: MAX_QUERY_NUMBER,
+      });
     }
 
     // check if exceed query timeout
     const t2 = new Date();
     const diffTimeMs = t2.getTime() - t1.getTime();
     if (diffTimeMs > MAX_QUERY_TIME_MILSECS) {
-      throw new LimitExceedError(`query timeout exceeded`);
+      throw new AppError(ERRORS.DATABASE_QUERY_TIMEOUT, {
+        limit: MAX_QUERY_TIME_MILSECS,
+        elapsed: diffTimeMs,
+      });
     }
 
     if (executeResult.status === QueryRoundStatus.stop) {

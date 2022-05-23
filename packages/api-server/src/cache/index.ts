@@ -14,6 +14,7 @@ import {
 } from "./constant";
 import { validators } from "../methods/validator";
 import { envConfig } from "../base/env-config";
+import { AppError, ERRORS } from "../methods/error";
 
 export class FilterManager {
   public store: Store;
@@ -70,7 +71,7 @@ export class FilterManager {
   async getFilterCache(id: string): Promise<FilterCache> {
     const data = await this.store.get(id);
     if (data == null)
-      throw new Error(`filter ${id} not exits, might be out of dated.`);
+      throw new AppError(ERRORS.FILTER_NOT_REGISTERED, { filter_id: id });
 
     return deserializeFilterCache(data);
   }
@@ -101,17 +102,20 @@ export function verifyLimitSizeForTopics(topics?: FilterTopic[]) {
   }
 
   if (topics.length > MAX_FILTER_TOPIC_ARRAY_LENGTH) {
-    throw new Error(
-      `got FilterTopics.length ${topics.length}, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
-    );
+    throw new AppError(ERRORS.FILTER_TOO_MANY_TOPICS, {
+      limit: MAX_FILTER_TOPIC_ARRAY_LENGTH,
+      actual: topics.length,
+    });
   }
 
   for (const topic of topics) {
     if (Array.isArray(topic)) {
+      // FIXME: distinguish limits for topics.length and topic.length
       if (topic.length > MAX_FILTER_TOPIC_ARRAY_LENGTH) {
-        throw new Error(
-          `got one or more topic item's length ${topic.length}, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
-        );
+        throw new AppError(ERRORS.FILTER_TOPIC_TOO_LENGTHY, {
+          limit: MAX_FILTER_TOPIC_ARRAY_LENGTH,
+          actual: topic.length,
+        });
       }
     }
   }
@@ -131,9 +135,10 @@ export function verifyFilterFlag(target: any) {
     target !== FilterFlag.blockFilter &&
     target !== FilterFlag.pendingTransaction
   ) {
-    throw new Error(`invalid value for filterFlag`);
+    throw new AppError(ERRORS.FILTER_FLAG_NOT_SUPPORTED, {
+      filterFlag: target,
+    });
   }
-  return;
 }
 
 export function verifyFilterObject(target: any) {

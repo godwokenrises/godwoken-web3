@@ -47,12 +47,7 @@ import {
   toApiTransaction,
   toApiTransactionReceipt,
 } from "../../db/types";
-import {
-  HeaderNotFoundError,
-  InvalidParamsError,
-  MethodNotSupportError,
-  Web3Error,
-} from "../error";
+import { AppError, ERRORS } from "../error";
 import {
   EthBlock,
   EthLog,
@@ -75,6 +70,7 @@ import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
+import { isError } from "../../util";
 
 const Config = require("../../../config/eth.json");
 
@@ -352,65 +348,63 @@ export class Eth {
   }
 
   async sign(_args: any[]): Promise<void> {
-    throw new MethodNotSupportError("eth_sign is not supported!");
+    throw new AppError(ERRORS.JSONRPC_METHOD_NOT_SUPPORTED, {
+      method: "eth_sign",
+    });
   }
 
   async signTransaction(_args: any[]): Promise<void> {
-    throw new MethodNotSupportError("eth_signTransaction is not supported!");
+    throw new AppError(ERRORS.JSONRPC_METHOD_NOT_SUPPORTED, {
+      method: "eth_signTransaction",
+    });
   }
 
   async sendTransaction(_args: any[]): Promise<void> {
-    throw new MethodNotSupportError("eth_sendTransaction is not supported!");
+    throw new AppError(ERRORS.JSONRPC_METHOD_NOT_SUPPORTED, {
+      method: "eth_sendTransaction",
+    });
   }
 
   async getBalance(args: [string, string]): Promise<HexNumber> {
-    try {
-      const address = args[0];
-      const blockParameter = args[1];
-      const blockNumber: GodwokenBlockParameter =
-        await this.parseBlockParameter(blockParameter);
-      const registryAddress: EthRegistryAddress = new EthRegistryAddress(
-        address
-      );
-      const balance = await this.rpc.getBalance(
-        registryAddress.serialize(),
-        +CKB_SUDT_ID,
-        blockNumber
-      );
+    const address = args[0];
+    const blockParameter = args[1];
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
+      blockParameter
+    );
+    const registryAddress: EthRegistryAddress = new EthRegistryAddress(address);
+    const balance = await this.rpc.getBalance(
+      registryAddress.serialize(),
+      +CKB_SUDT_ID,
+      blockNumber
+    );
 
-      if (this.ethWallet) {
-        const balanceHex = new Uint256(balance * 10n ** 10n).toHex();
-        return balanceHex;
-      }
-
-      const balanceHex = new Uint256(balance).toHex();
+    if (this.ethWallet) {
+      const balanceHex = new Uint256(balance * 10n ** 10n).toHex();
       return balanceHex;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
     }
+
+    const balanceHex = new Uint256(balance).toHex();
+    return balanceHex;
   }
 
   async getStorageAt(args: [string, string, string]): Promise<HexString> {
-    try {
-      const address = args[0];
-      const storagePosition = args[1];
-      const blockParameter = args[2];
-      const blockNumber: GodwokenBlockParameter =
-        await this.parseBlockParameter(blockParameter);
-      const accountId: U32 | undefined = await ethAddressToAccountId(
-        address,
-        this.rpc
-      );
-      if (accountId == null) {
-        return "0x0000000000000000000000000000000000000000000000000000000000000000";
-      }
-
-      const key = buildStorageKey(storagePosition);
-      const value = await this.rpc.getStorageAt(accountId, key, blockNumber);
-      return value;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
+    const address = args[0];
+    const storagePosition = args[1];
+    const blockParameter = args[2];
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
+      blockParameter
+    );
+    const accountId: U32 | undefined = await ethAddressToAccountId(
+      address,
+      this.rpc
+    );
+    if (accountId == null) {
+      return "0x0000000000000000000000000000000000000000000000000000000000000000";
     }
+
+    const key = buildStorageKey(storagePosition);
+    const value = await this.rpc.getStorageAt(accountId, key, blockNumber);
+    return value;
   }
 
   /**
@@ -419,192 +413,175 @@ export class Eth {
    * @param callback
    */
   async getTransactionCount(args: [string, string]): Promise<HexNumber> {
-    try {
-      const address = args[0];
-      const blockParameter = args[1];
-      const blockNumber: GodwokenBlockParameter =
-        await this.parseBlockParameter(blockParameter);
-      const accountId: number | undefined = await ethAddressToAccountId(
-        address,
-        this.rpc
-      );
-      if (accountId == null) {
-        return "0x0";
-      }
-      const nonce = await this.rpc.getNonce(accountId, blockNumber);
-      const transactionCount = new Uint32(nonce).toHex();
-      return transactionCount;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
+    const address = args[0];
+    const blockParameter = args[1];
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
+      blockParameter
+    );
+    const accountId: number | undefined = await ethAddressToAccountId(
+      address,
+      this.rpc
+    );
+    if (accountId == null) {
+      return "0x0";
     }
+    const nonce = await this.rpc.getNonce(accountId, blockNumber);
+    const transactionCount = new Uint32(nonce).toHex();
+    return transactionCount;
   }
 
   async getCode(args: [string, string]): Promise<HexString> {
-    try {
-      const defaultResult = "0x";
+    const defaultResult = "0x";
 
-      const address = args[0];
-      const blockParameter = args[1];
-      const blockNumber: GodwokenBlockParameter =
-        await this.parseBlockParameter(blockParameter);
-      const accountId: number | undefined = await ethAddressToAccountId(
-        address,
-        this.rpc
-      );
-      if (accountId == null) {
-        return defaultResult;
-      }
-      const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
-      const dataHash = await this.rpc.getStorageAt(
-        accountId,
-        contractCodeKey,
-        blockNumber
-      );
-      const data = await this.rpc.getData(dataHash, blockNumber);
-      return data || defaultResult;
-    } catch (error: any) {
-      throw new Web3Error(error.message);
+    const address = args[0];
+    const blockParameter = args[1];
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
+      blockParameter
+    );
+    const accountId: number | undefined = await ethAddressToAccountId(
+      address,
+      this.rpc
+    );
+    if (accountId == null) {
+      return defaultResult;
     }
+    const contractCodeKey = polyjuiceBuildContractCodeKey(accountId);
+    const dataHash = await this.rpc.getStorageAt(
+      accountId,
+      contractCodeKey,
+      blockNumber
+    );
+    const data = await this.rpc.getData(dataHash, blockNumber);
+    return data || defaultResult;
   }
 
   async call(args: [TransactionCallObject, string]): Promise<HexString> {
-    try {
-      const txCallObj = args[0];
-      const blockParameter = args[1];
-      const blockNumber: GodwokenBlockParameter =
-        await this.parseBlockParameter(blockParameter);
+    const txCallObj = args[0];
+    const blockParameter = args[1];
+    const blockNumber: GodwokenBlockParameter = await this.parseBlockParameter(
+      blockParameter
+    );
 
-      const executeCallResult = async () => {
-        let runResult: RunResult | undefined;
-        try {
-          runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
-        } catch (err) {
-          throw parseGwRunResultError(err);
-        }
-
-        logger.debug("RunResult:", runResult);
-        return runResult.return_data;
-      };
-
-      // using cache
-      if (envConfig.enableCacheEthCall === "true") {
-        // calculate raw data cache key
-        const [tipBlockHash, memPollStateRoot] = await Promise.all([
-          this.rpc.getTipBlockHash(),
-          this.rpc.getMemPoolStateRoot(),
-        ]);
-        const serializeParams = serializeEthCallParameters(
-          txCallObj,
-          blockNumber
-        );
-        const rawDataKey = getEthCallCacheKey(
-          serializeParams,
-          tipBlockHash,
-          memPollStateRoot
-        );
-
-        const prefixName = `${this.constructor.name}:call`; // FIXME: ${this.call.name} is null
-        const constructArgs: DataCacheConstructor = {
-          prefixName,
-          rawDataKey,
-          executeCallResult,
-        };
-        const dataCache = new RedisDataCache(constructArgs);
-        const return_data = await dataCache.get();
-        return return_data;
-      } else {
-        // not using cache
-        const return_data = await executeCallResult();
-        return return_data;
+    const executeCallResult = async () => {
+      let runResult: RunResult | undefined;
+      try {
+        runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
+      } catch (err) {
+        throw parseGwRunResultError(err);
       }
-    } catch (error: any) {
-      throw new Web3Error(error.message, error.data);
+
+      logger.debug("RunResult:", runResult);
+      return runResult.return_data;
+    };
+
+    // using cache
+    if (envConfig.enableCacheEthCall === "true") {
+      // calculate raw data cache key
+      const [tipBlockHash, memPollStateRoot] = await Promise.all([
+        this.rpc.getTipBlockHash(),
+        this.rpc.getMemPoolStateRoot(),
+      ]);
+      const serializeParams = serializeEthCallParameters(
+        txCallObj,
+        blockNumber
+      );
+      const rawDataKey = getEthCallCacheKey(
+        serializeParams,
+        tipBlockHash,
+        memPollStateRoot
+      );
+
+      const prefixName = `${this.constructor.name}:call`; // FIXME: ${this.call.name} is null
+      const constructArgs: DataCacheConstructor = {
+        prefixName,
+        rawDataKey,
+        executeCallResult,
+      };
+      const dataCache = new RedisDataCache(constructArgs);
+      const return_data = await dataCache.get();
+      return return_data;
+    } else {
+      // not using cache
+      const return_data = await executeCallResult();
+      return return_data;
     }
   }
 
   async estimateGas(
     args: [Partial<TransactionCallObject>]
   ): Promise<HexNumber> {
-    try {
-      const txCallObj = args[0];
+    const txCallObj = args[0];
 
-      if (txCallObj.to == null) {
-        txCallObj.to = "0x";
-      }
+    if (txCallObj.to == null) {
+      txCallObj.to = "0x";
+    }
 
-      const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
+    const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
 
-      // cache erc20 transfer result
-      const cacheKey = `eth.eth_estimateGas.erc20_transfer`;
-      let isTransfer = false;
-      if (txCallObj.data != null && txCallObj.data !== "0x") {
-        isTransfer = isErc20Transfer(txCallObj.data);
-        if (isTransfer) {
-          const cachedResult = await this.cacheStore.get(cacheKey);
-          if (cachedResult != null) {
-            return cachedResult;
-          }
+    // cache erc20 transfer result
+    const cacheKey = `eth.eth_estimateGas.erc20_transfer`;
+    let isTransfer = false;
+    if (txCallObj.data != null && txCallObj.data !== "0x") {
+      isTransfer = isErc20Transfer(txCallObj.data);
+      if (isTransfer) {
+        const cachedResult = await this.cacheStore.get(cacheKey);
+        if (cachedResult != null) {
+          return cachedResult;
         }
       }
-
-      let runResult: RunResult | undefined;
-      try {
-        runResult = await ethCallTx(
-          txCallObj as TransactionCallObject,
-          this.rpc,
-          undefined
-        );
-      } catch (error) {
-        throw parseGwRunResultError(error);
-      }
-
-      const polyjuiceSystemLog = extractPolyjuiceSystemLog(
-        runResult.logs
-      ) as PolyjuiceSystemLog;
-
-      logger.debug(
-        "eth_estimateGas RunResult:",
-        runResult,
-        "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
-      );
-
-      const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
-      const result = "0x" + gasUsed.toString(16);
-
-      if (isTransfer) {
-        // no await
-        this.cacheStore.insert(cacheKey, result);
-      }
-
-      return result;
-    } catch (error: any) {
-      throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
     }
+
+    let runResult: RunResult | undefined;
+    try {
+      runResult = await ethCallTx(
+        txCallObj as TransactionCallObject,
+        this.rpc,
+        undefined
+      );
+    } catch (error) {
+      throw parseGwRunResultError(error);
+    }
+
+    const polyjuiceSystemLog = extractPolyjuiceSystemLog(
+      runResult.logs
+    ) as PolyjuiceSystemLog;
+
+    logger.debug(
+      "eth_estimateGas RunResult:",
+      runResult,
+      "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
+    );
+
+    const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+    const result = "0x" + gasUsed.toString(16);
+
+    if (isTransfer) {
+      // no await
+      this.cacheStore.insert(cacheKey, result);
+    }
+
+    return result;
   }
 
   async getBlockByHash(args: [string, boolean]): Promise<EthBlock | null> {
-    try {
-      const blockHash = args[0];
-      const isFullTransaction = args[1];
+    const blockHash = args[0];
+    const isFullTransaction = args[1];
 
-      const block = await this.query.getBlockByHash(blockHash);
-      if (block == null) {
-        return null;
-      }
+    const block = await this.query.getBlockByHash(blockHash);
+    if (block == null) {
+      return null;
+    }
 
-      if (isFullTransaction) {
-        const txs = await this.query.getTransactionsByBlockHash(blockHash);
-        const apiTxs = txs.map((tx) => toApiTransaction(tx));
-        const apiBlock = toApiBlock(block, apiTxs);
-        return apiBlock;
-      } else {
-        const ethTxHashes: Hash[] =
-          await this.query.getTransactionEthHashesByBlockHash(blockHash);
-        const apiBlock = toApiBlock(block, ethTxHashes);
-        return apiBlock;
-      }
-    } catch (error: any) {
-      throw new Web3Error(error.message);
+    if (isFullTransaction) {
+      const txs = await this.query.getTransactionsByBlockHash(blockHash);
+      const apiTxs = txs.map((tx) => toApiTransaction(tx));
+      const apiBlock = toApiBlock(block, apiTxs);
+      return apiBlock;
+    } else {
+      const ethTxHashes: Hash[] =
+        await this.query.getTransactionEthHashesByBlockHash(blockHash);
+      const apiBlock = toApiBlock(block, ethTxHashes);
+      return apiBlock;
     }
   }
 
@@ -726,7 +703,7 @@ export class Eth {
     const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
     const tipBlock = await this.query.getTipBlock();
     if (tipBlock == null) {
-      throw new Error("tip block not found!");
+      throw new AppError(ERRORS.DATABASE_GENESIS_NOT_FOUND);
     }
     let ethTxInfo = undefined;
     try {
@@ -823,7 +800,7 @@ export class Eth {
     }
     const tipBlock = await this.query.getTipBlock();
     if (tipBlock == null) {
-      throw new Error(`tip block not found`);
+      throw new AppError(ERRORS.DATABASE_GENESIS_NOT_FOUND);
     }
     let ethTxInfo = undefined;
     try {
@@ -886,9 +863,7 @@ export class Eth {
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new AppError(ERRORS.FILTER_NOT_REGISTERED, { filter_id });
     }
 
     if (filter === FilterFlag.blockFilter) {
@@ -915,9 +890,7 @@ export class Eth {
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new AppError(ERRORS.FILTER_NOT_REGISTERED, { filter_id });
     }
 
     //***** handle block-filter
@@ -1096,7 +1069,15 @@ export class Eth {
             data: [], // return empty result
           } as ExecuteOneQueryResult;
         }
-        throw new Web3Error(error.message, error.data);
+
+        if (error instanceof AppError) {
+          throw error;
+        } else if (isError(error)) {
+          console.warn("unknown database error:", error);
+          throw new AppError(ERRORS.DATABASE_QUERY_ERROR, { reason: error });
+        } else {
+          throw new AppError(ERRORS.UNKNOWN, { reason: error });
+        }
       }
     };
 
@@ -1106,39 +1087,34 @@ export class Eth {
 
   // return gw tx hash
   async sendRawTransaction(args: [string]): Promise<Hash> {
-    try {
-      const data = args[0];
-      const rawTx = await generateRawTransaction(data, this.rpc);
-      const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
-      logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
-      const ethTxHash = calcEthTxHash(data);
-      logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
+    const data = args[0];
+    const rawTx = await generateRawTransaction(data, this.rpc);
+    const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
+    logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
+    const ethTxHash = calcEthTxHash(data);
+    logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
 
-      // save the tx hash mapping for instant finality
-      const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-      await this.cacheStore.insert(
-        ethTxHashKey,
-        gwTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
-      const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-      await this.cacheStore.insert(
-        gwTxHashKey,
-        ethTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
+    // save the tx hash mapping for instant finality
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    await this.cacheStore.insert(
+      ethTxHashKey,
+      gwTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
+    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+    await this.cacheStore.insert(
+      gwTxHashKey,
+      ethTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
 
-      return ethTxHash;
-    } catch (error: any) {
-      logger.error(error);
-      throw new InvalidParamsError(error.message);
-    }
+    return ethTxHash;
   }
 
   private async getTipNumber(): Promise<U64> {
     const num = await this.query.getTipBlockNumber();
     if (num == null) {
-      throw new Error("tip block number not found!!");
+      throw new AppError(ERRORS.DATABASE_GENESIS_NOT_FOUND);
     }
     return num;
   }
@@ -1160,7 +1136,10 @@ export class Eth {
     const tipNumber: bigint = await this.getTipNumber();
     const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
     if (tipNumber < blockNumber) {
-      throw new HeaderNotFoundError();
+      throw new AppError(ERRORS.BLOCK_NOT_FOUND, {
+        tipNumber,
+        blockParameter,
+      });
     }
     return blockNumber;
   }
@@ -1355,13 +1334,13 @@ async function buildEthCallTx(
   if (toAddress == "0x") {
     const dataErr = verifyContractCode(data, 0);
     if (dataErr) {
-      throw dataErr.padContext(buildEthCallTx.name);
+      throw dataErr;
     }
   }
 
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padContext(buildEthCallTx.name);
+    throw gasLimitErr;
   }
 
   if (!fromAddress) {
@@ -1375,16 +1354,12 @@ async function buildEthCallTx(
   }
 
   if (fromId == null) {
-    throw new Error(
-      `from id not found by from address: ${fromAddress}, have you deposited?`
-    );
+    throw new AppError(ERRORS.FROM_ADDRESS_NOT_REGISTERED, { fromAddress });
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
   if (toId == null) {
-    throw new Error(
-      `To id of address: ${toAddress} is missing. Is your to address a valid contract account? More info: ${COMPATIBLE_DOCS_URL}`
-    );
+    throw new AppError(ERRORS.TO_ADDRESS_NOT_REGISTERED, { toAddress });
   }
   const nonce = 0;
   const polyjuiceArgs = buildPolyjuiceArgs(
@@ -1413,9 +1388,11 @@ function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
       return parseLog(logItem);
     }
   }
-  throw new Error(
-    `Can't found PolyjuiceSystemLog, logItems: ${JSON.stringify(logItems)}`
-  );
+  throw new AppError(ERRORS.UNKNOWN, {
+    reason: `Can't found PolyjuiceSystemLog, logItems: ${JSON.stringify(
+      logItems
+    )}`,
+  });
 }
 
 // https://github.com/nervosnetwork/godwoken-polyjuice/blob/v0.6.0-rc1/polyjuice-tests/src/helper.rs#L122
@@ -1430,15 +1407,17 @@ function parseLog(logItem: LogItem): GodwokenLog {
     case POLYJUICE_USER_LOG_FLAG:
       return parsePolyjuiceUserLog(logItem);
     default:
-      throw new Error(`Can't parse logItem: ${logItem}`);
+      throw new AppError(ERRORS.UNKNOWN, {
+        reason: `Can't parse logItem: ${JSON.stringify(logItem)}`,
+      });
   }
 }
 function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length !== 4 + 4 + 16) {
-    throw new Error(
-      `invalid sudt operation log raw data length: ${buf.length}`
-    );
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `invalid sudt operation log raw data length: ${buf.length}`,
+    });
   }
   const fromId = buf.readUInt32LE(0);
   const toId = buf.readUInt32LE(4);
@@ -1454,9 +1433,9 @@ function parseSudtOperationLog(logItem: LogItem): SudtOperationLog {
 function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length !== 4 + 4 + 16) {
-    throw new Error(
-      `invalid sudt operation log raw data length: ${buf.length}`
-    );
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `invalid sudt pay fee log raw data length: ${buf.length}`,
+    });
   }
   const fromId = buf.readUInt32LE(0);
   const blockProducerId = buf.readUInt32LE(4);
@@ -1472,7 +1451,9 @@ function parseSudtPayFeeLog(logItem: LogItem): SudtPayFeeLog {
 function parsePolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
   let buf = Buffer.from(logItem.data.slice(2), "hex");
   if (buf.length !== 8 + 8 + 16 + 4 + 4) {
-    throw new Error(`invalid system log raw data length: ${buf.length}`);
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `invalid system log raw data length: ${buf.length}`,
+    });
   }
   const gasUsed = buf.readBigUInt64LE(0);
   const cumulativeGasUsed = buf.readBigUInt64LE(8);
@@ -1505,9 +1486,9 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
   }
 
   if (offset !== buf.length) {
-    throw new Error(
-      `Too many bytes for polyjuice user log data: offset=${offset}, data.len()=${buf.length}`
-    );
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `Too many bytes for polyjuice user log data: offset=${offset}, data.len()=${buf.length}`,
+    });
   }
 
   return {

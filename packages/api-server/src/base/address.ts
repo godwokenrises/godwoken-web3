@@ -1,11 +1,11 @@
 import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
-import { COMPATIBLE_DOCS_URL } from "../methods/constant";
 import { envConfig } from "./env-config";
 import { gwConfig } from "./index";
 import { logger } from "./logger";
 import { Uint32 } from "./types/uint";
+import { AppError, ERRORS } from "../methods/error";
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
 
@@ -20,8 +20,17 @@ export class EthRegistryAddress {
   public readonly address: HexString;
 
   constructor(address: HexString) {
-    if (!address.startsWith("0x") || address.length != 42) {
-      throw new Error(`Eth address format error: ${address}`);
+    if (!address.startsWith("0x")) {
+      throw new AppError(ERRORS.INVALID_ADDRESS_FORMAT, {
+        reason: "address does not start with 0x",
+        raw: address,
+      });
+    }
+    if (address.length != 42) {
+      throw new AppError(ERRORS.INVALID_ADDRESS_FORMAT, {
+        reason: "address length is not 42",
+        raw: address,
+      });
     }
     this.address = address.toLowerCase();
   }
@@ -43,7 +52,9 @@ export class EthRegistryAddress {
     ).getValue();
     const address: HexString = hexWithoutPrefix.slice(16);
     if (addressByteSize !== 20 || address.length !== 40) {
-      throw new Error(`Eth address deserialize error: ${hex}`);
+      throw new AppError(ERRORS.INVALID_ETH_REGISTRY_ADDRESS_FORMAT, {
+        raw: hex,
+      });
     }
     return new EthRegistryAddress("0x" + address);
   }
@@ -91,9 +102,7 @@ export async function ethAddressToAccountId(
   }
 
   if (ethAddress === ZERO_ETH_ADDRESS) {
-    throw new Error(
-      `zero address ${ZERO_ETH_ADDRESS} has no valid account_id! more info: ${COMPATIBLE_DOCS_URL}`
-    );
+    throw new AppError(ERRORS.ZERO_ADDRESS_NOT_REGISTERED);
   }
 
   const scriptHash: Hash | undefined = await ethAddressToScriptHash(

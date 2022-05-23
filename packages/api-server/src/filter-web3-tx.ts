@@ -24,6 +24,7 @@ import {
 import { gwConfig } from "./base/index";
 import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
+import { AppError, ERRORS } from "./methods/error";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -130,7 +131,10 @@ export async function filterWeb3Transaction(
       (log) => log.service_flag === POLYJUICE_SYSTEM_LOG_FLAG
     );
     if (polyjuiceSystemLog == null) {
-      throw new Error("No system log found!");
+      throw new AppError(ERRORS.UNKNOWN, {
+        reason: "system log not found",
+        l2TxReceipt,
+      });
     }
     const logInfo = parsePolyjuiceSystemLog(polyjuiceSystemLog.data);
 
@@ -288,7 +292,9 @@ function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
 function parsePolyjuiceSystemLog(data: HexString): PolyjuiceSystemLog {
   // 2 + (8 + 8 + 20 + 4) * 2
   if (data.length !== 82) {
-    throw new Error(`invalid system log raw data length: ${data.length}`);
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `invalid system log raw data length: ${data.length}`,
+    });
   }
 
   const dataWithoutPrefix = data.slice(2);
@@ -341,11 +347,11 @@ function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
     topics.push(topic);
   }
   if (offset !== dataWithoutPrefix.length) {
-    throw new Error(
-      `Too many bytes for polyjuice user log data: offset=${
+    throw new AppError(ERRORS.UNKNOWN, {
+      reason: `Too many bytes for polyjuice user log data: offset=${
         offset / 2
-      }, data.length=${dataWithoutPrefix.length / 2}`
-    );
+      }, data.length=${dataWithoutPrefix.length / 2}`,
+    });
   }
   return {
     address,
