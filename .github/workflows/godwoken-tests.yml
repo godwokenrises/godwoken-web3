@@ -13,4 +13,4 @@ jobs:
     uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
     with:
       web3_ref: "${{ github.sha }}"
-      kicker_ref: "compatibility-changes"
+      kicker_ref: "refs/pull/253/head"

@@ -46,7 +46,7 @@
     "immutable": "^4.0.0-rc.12",
     "jayson": "^3.6.4",
     "keccak256": "^1.0.2",
-    "knex": "^0.95.7",
+    "knex": "2.0.0",
     "leveldown": "^6.0.1",
     "levelup": "^5.0.1",
     "newrelic": "^8.1.0",
