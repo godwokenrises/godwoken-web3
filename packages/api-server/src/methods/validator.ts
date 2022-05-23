@@ -1,7 +1,11 @@
-import { validateHexNumber, validateHexString } from "../util";
+import {
+  isGwJSONRPCError,
+  validateHexNumber,
+  validateHexString,
+} from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
-import { InvalidParamsError, RpcError } from "./error";
+import { AppError, ERRORS } from "./error";
 import {
   POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE,
   RPC_MAX_GAS_LIMIT,
@@ -21,19 +25,19 @@ export function middleware(
 ): any {
   return async function (params: any[] = []): Promise<any> {
     if (params.length < requiredParamsCount) {
-      throw new InvalidParamsError(
-        `missing value for required argument ${params.length}`
-      );
+      throw new AppError(ERRORS.MISSING_PARAMETER, {
+        nRequiredParameters: requiredParamsCount,
+        nActualParameters: params.length,
+      });
     }
 
     for (let i = 0; i < validators.length; i++) {
-      if (!validators[i]) {
-        throw new Error(`validator ${i} not found!`);
-      }
-
       const err = validators[i](params, i);
-      if (err) {
-        throw new RpcError(err.code, err.message, err.data);
+      if (err && err instanceof AppError) {
+        throw err;
+      } else {
+        logger.warn("internal error:", err);
+        throw new AppError(ERRORS.INTERNAL_ERROR, { reason: err });
       }
     }
 
@@ -43,7 +47,15 @@ export function middleware(
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
       );
-      throw new RpcError(err.code, err.message, err.data);
+      // TODO Handle database and redis error
+      if (err instanceof AppError) {
+        throw err;
+      } else if (isGwJSONRPCError(err)) {
+        throw new AppError(ERRORS.GW_ERROR, { reason: err });
+      } else {
+        logger.warn("internal error:", err);
+        throw new AppError(ERRORS.INTERNAL_ERROR, { reason: err });
+      }
     }
   };
 }
@@ -132,12 +144,13 @@ export const validators = {
 };
 
 //****** standalone verify function ********/
-export function verifyBoolean(
-  bool: any,
-  index: number
-): InvalidParamsError | undefined {
+export function verifyBoolean(bool: any, index: number): AppError | undefined {
   if (typeof bool !== "boolean") {
-    return invalidParamsError(index, `argument is not boolean`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: bool,
+      reason: "not boolean type",
+    });
   }
   return undefined;
 }
@@ -145,20 +158,21 @@ export function verifyBoolean(
 export function verifyHexNumber(
   hexNumber: string,
   index: number
-): InvalidParamsError | undefined {
-  if (typeof hexNumber !== "string") {
-    return invalidParamsError(
-      index,
-      `hexNumber argument must be a string type`
-    );
-  }
-
+): AppError | undefined {
   if (!hexNumber.startsWith("0x")) {
-    return invalidParamsError(index, `hexNumber without 0x prefix`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: hexNumber,
+      reason: "without 0x prefix",
+    });
   }
 
   if (!validateHexNumber(hexNumber)) {
-    return invalidParamsError(index, `invalid hexNumber token`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: hexNumber,
+      reason: "contains invalid token",
+    });
   }
 
   return undefined;
@@ -167,24 +181,37 @@ export function verifyHexNumber(
 export function verifyHexString(
   hexString: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   if (typeof hexString !== "string") {
-    return invalidParamsError(
+    return new AppError(ERRORS.INVALID_PARAMETER, {
       index,
-      `hexString argument must be a string type`
-    );
+      raw: hexString,
+      reason: "not string type",
+    });
   }
 
   if (!hexString.startsWith("0x")) {
-    return invalidParamsError(index, `hexString without 0x prefix`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: hexString,
+      reason: "without 0x prefix",
+    });
   }
 
   if (hexString.length % 2 !== 0) {
-    return invalidParamsError(index, `hexString must has even length`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: hexString,
+      reason: "not even length",
+    });
   }
 
   if (!validateHexString(hexString)) {
-    return invalidParamsError(index, `invalid hexString token`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: hexString,
+      reason: "contains invalid token",
+    });
   }
 
   return undefined;
@@ -193,19 +220,21 @@ export function verifyHexString(
 export function verifyAddress(
   address: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyHexString(address, index);
   if (err) {
-    return err.padContext("address");
+    return err.addContext({ type: "address" });
   }
 
   if (address.substring(2).length !== 40) {
-    return invalidParamsError(
+    return new AppError(ERRORS.INVALID_PARAMETER, {
       index,
-      `expect address has 20 bytes, but getting ${
+      raw: address,
+      type: "address",
+      reason: `expected address length is 20, but got ${
         address.substring(2).length / 2
-      } bytes`
-    );
+      }`,
+    });
   }
 
   return undefined;
@@ -214,40 +243,41 @@ export function verifyAddress(
 export function verifyBlockHash(
   blockHash: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyHexString(blockHash, index);
   if (err) {
-    return err.padContext("blockHash");
+    return err.addContext({ type: "blockHash" });
   }
 
   if (blockHash.substring(2).length !== 64) {
-    return invalidParamsError(
+    return new AppError(ERRORS.INVALID_PARAMETER, {
       index,
-      `expect blockHash has 32 bytes, but getting ${
+      raw: blockHash,
+      type: "blockHash",
+      reason: `expected hash length is 32, but got ${
         blockHash.substring(2).length / 2
-      } bytes`
-    );
+      }`,
+    });
   }
 
   return undefined;
 }
 
-export function verifyTxHash(
-  txHash: any,
-  index: number
-): InvalidParamsError | undefined {
+export function verifyTxHash(txHash: any, index: number): AppError | undefined {
   const err = verifyHexString(txHash, index);
   if (err) {
-    return err.padContext("txHash");
+    return err.addContext({ type: "txHash" });
   }
 
   if (txHash.substring(2).length !== 64) {
-    return invalidParamsError(
+    return new AppError(ERRORS.INVALID_PARAMETER, {
       index,
-      `expect txHash has 32 bytes, but getting ${
+      raw: txHash,
+      type: "txHash",
+      reason: `expected hash length is 32, but got ${
         txHash.substring(2).length / 2
-      } bytes`
-    );
+      }`,
+    });
   }
 
   return undefined;
@@ -256,7 +286,7 @@ export function verifyTxHash(
 export function verifyBlockParameter(
   blockParameter: BlockParameter,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   if (
     blockParameter === "latest" ||
     blockParameter === "earliest" ||
@@ -267,7 +297,7 @@ export function verifyBlockParameter(
 
   const err = verifyHexNumber(blockParameter, index);
   if (err) {
-    return err.padContext("blockParameter block number");
+    return err.addContext({ type: "BlockParameter::Number" });
   }
 
   return undefined;
@@ -276,9 +306,13 @@ export function verifyBlockParameter(
 export function verifyOptEthCallObject(
   callObj: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   if (typeof callObj !== "object") {
-    return invalidParamsError(index, `argument must be an object`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: callObj,
+      reason: "not object type",
+    });
   }
 
   const from = callObj.from;
@@ -292,7 +326,7 @@ export function verifyOptEthCallObject(
   if (to != null) {
     const toErr = verifyAddress(to, index);
     if (toErr) {
-      return toErr.padContext("callObj to address");
+      return toErr.addContext({ property: "to" });
     }
   }
 
@@ -300,7 +334,7 @@ export function verifyOptEthCallObject(
   if (from != null) {
     const fromErr = verifyAddress(from, index);
     if (fromErr) {
-      return fromErr.padContext("callObj from address");
+      return fromErr.addContext({ property: "from" });
     }
   }
 
@@ -308,7 +342,7 @@ export function verifyOptEthCallObject(
   if (gasPrice != null) {
     const gasErr = verifyHexNumber(gasPrice, index);
     if (gasErr) {
-      return gasErr.padContext("callObj gasPrice");
+      return gasErr.addContext({ property: "gasPrice" });
     }
   }
 
@@ -316,7 +350,7 @@ export function verifyOptEthCallObject(
   if (gasLimit != null) {
     const gasLimitErr = verifyGasLimit(gasLimit, index);
     if (gasLimitErr) {
-      return gasLimitErr.padContext("callObj");
+      return gasLimitErr.addContext({ property: "gasLimit" });
     }
   }
 
@@ -324,7 +358,7 @@ export function verifyOptEthCallObject(
   if (value != null) {
     const valueErr = verifyHexNumber(value, index);
     if (valueErr) {
-      return valueErr.padContext("callObj value");
+      return valueErr.addContext({ property: "value" });
     }
   }
 
@@ -332,7 +366,7 @@ export function verifyOptEthCallObject(
   if (data != null) {
     const dataErr = verifyHexString(data, index);
     if (dataErr) {
-      return dataErr.padContext("callObj data");
+      return dataErr.addContext({ property: "data" });
     }
   }
 
@@ -342,15 +376,19 @@ export function verifyOptEthCallObject(
 export function verifyEthCallObject(
   callObj: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyOptEthCallObject(callObj, index);
   if (err) {
-    return err.padContext("eth_call");
+    return err;
   }
 
   // to is required
   if (callObj.to == null) {
-    return invalidParamsError(index, `eth_call to address is required!`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: callObj,
+      reason: "eth_call requires callObj's 'to' property",
+    });
   }
 
   return undefined;
@@ -359,10 +397,10 @@ export function verifyEthCallObject(
 export function verifyEstimateGasCallObject(
   callObj: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyOptEthCallObject(callObj, index);
   if (err) {
-    return err.padContext("eth_estimateGas");
+    return err;
   }
 
   return undefined;
@@ -371,10 +409,10 @@ export function verifyEstimateGasCallObject(
 export function verifyStorageKey(
   key: string,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyHexString(key, index);
   if (err) {
-    return err.padContext("storageKey");
+    return err;
   }
   return undefined;
 }
@@ -382,19 +420,20 @@ export function verifyStorageKey(
 export function verifyFilterTopicString(
   topic: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyHexString(topic, index);
   if (err) {
-    return err.padContext("topic string");
+    return err.addContext({ type: "topic" });
   }
 
   if (topic.substring(2).length !== 64) {
-    return invalidParamsError(
+    return new AppError(ERRORS.INVALID_PARAMETER, {
       index,
-      `expect topic string has 32 bytes, but getting ${
+      raw: topic,
+      reason: `expected topic length is 32, but got ${
         topic.substring(2).length / 2
-      } bytes`
-    );
+      }`,
+    });
   }
 
   return undefined;
@@ -403,7 +442,7 @@ export function verifyFilterTopicString(
 export function verifyFilterTopic(
   topic: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   // topic type: export type FilterTopic = HexString | null | HexString[] (../src/cache/type.ts)
   if (!Array.isArray(topic)) {
     return verifyFilterTopicString(topic, index);
@@ -413,7 +452,7 @@ export function verifyFilterTopic(
     for (const t of topic) {
       const err = verifyFilterTopicString(t, index);
       if (err) {
-        return err.padContext("topicString[] array");
+        return err.addContext({ type: "topicString[]" });
       }
     }
   }
@@ -424,9 +463,13 @@ export function verifyFilterTopic(
 export function verifyNewFilterObj(
   filterObj: any,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   if (typeof filterObj !== "object") {
-    return invalidParamsError(index, `filter argument must be an object`);
+    return new AppError(ERRORS.INVALID_PARAMETER, {
+      index,
+      raw: filterObj,
+      reason: "not object type",
+    });
   }
 
   const fromBlock = filterObj.fromBlock;
@@ -438,7 +481,7 @@ export function verifyNewFilterObj(
   if (fromBlock != null) {
     const fromBlockErr = verifyBlockParameter(fromBlock, index);
     if (fromBlockErr) {
-      return fromBlockErr.padContext("filter fromBlock");
+      return fromBlockErr.addContext({ property: "fromBlock" });
     }
   }
 
@@ -446,7 +489,7 @@ export function verifyNewFilterObj(
   if (toBlock != null) {
     const toBlockErr = verifyBlockParameter(toBlock, index);
     if (toBlockErr) {
-      return toBlockErr.padContext("filter toBlock");
+      return toBlockErr.addContext({ property: "toBlock" });
     }
   }
 
@@ -456,13 +499,16 @@ export function verifyNewFilterObj(
       for (const addr of address) {
         const addressErr = verifyAddress(addr, index);
         if (addressErr) {
-          return addressErr.padContext("filter address[] Array");
+          return addressErr.addContext({
+            property: "address",
+            type: "address[]",
+          });
         }
       }
     } else {
       const addressErr = verifyAddress(address, index);
       if (addressErr) {
-        return addressErr.padContext("filter address");
+        return addressErr.addContext({ property: "address", type: "address" });
       }
     }
   }
@@ -470,12 +516,20 @@ export function verifyNewFilterObj(
   // validate `topics`
   if (topics != null) {
     if (!Array.isArray(topics)) {
-      return invalidParamsError(index, `filter topics must be an array`);
+      return new AppError(ERRORS.INVALID_PARAMETER, {
+        index,
+        raw: filterObj,
+        property: "topics",
+        reason: "not array type",
+      });
     }
     for (const topic of topics) {
       const topicErr = verifyFilterTopic(topic, index);
       if (topicErr) {
-        return topicErr.padContext("filter topic[] Array");
+        return topicErr.addContext({
+          property: "topics",
+          type: "topicString[]",
+        });
       }
     }
   }
@@ -486,17 +540,18 @@ export function verifyNewFilterObj(
 export function verifyGasLimit(
   gasLimit: HexString,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const gasLimitErr = verifyHexNumber(gasLimit, index);
   if (gasLimitErr) {
-    return gasLimitErr.padContext("gasLimit");
+    return gasLimitErr;
   }
 
   if (BigInt(gasLimit) > BigInt(RPC_MAX_GAS_LIMIT)) {
-    return invalidParamsError(
+    return new AppError(ERRORS.GAS_LIMIT_TOO_LARGE, {
       index,
-      `gas limit ${gasLimit} exceeds rpc gas limit of ${RPC_MAX_GAS_LIMIT}`
-    );
+      gasLimit,
+      limit: RPC_MAX_GAS_LIMIT,
+    });
   }
   return undefined;
 }
@@ -504,25 +559,21 @@ export function verifyGasLimit(
 export function verifyContractCode(
   code: HexString,
   index: number
-): InvalidParamsError | undefined {
+): AppError | undefined {
   const err = verifyHexString(code, index);
   if (err) {
-    return err.padContext("verifyContractCode");
+    return err;
   }
 
   const codeSizeInByte = code.slice(2).length / 2;
   if (codeSizeInByte > POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE) {
-    return invalidParamsError(
+    return new AppError(ERRORS.TRANSACTION_DATA_TOO_LARGE, {
       index,
-      `max code size exceeded, limit: ${POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE} bytes, got ${codeSizeInByte} bytes`
-    );
+      limit: POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE,
+      actual: codeSizeInByte,
+    });
   }
 
   return undefined;
 }
 //******* end of standalone verify function ********/
-
-// some utils function
-function invalidParamsError(index: number, message: string) {
-  return new InvalidParamsError(`invalid argument ${index}: ${message}`);
-}

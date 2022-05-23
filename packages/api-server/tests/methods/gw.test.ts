@@ -1,17 +1,17 @@
 import test from "ava";
 import { JSONResponse, client } from "../www";
-import * as errcode from "../../src/methods/error-code";
+import { ERRORS } from "../../src/methods/error";
 
 test("gw_get_storage_at", async (t) => {
   const res: JSONResponse = await client.request(t.title, []);
   t.truthy(res.error);
-  t.is(res.error?.code, errcode.INVALID_PARAMS);
+  t.is(res.error?.code, ERRORS.INTERNAL_ERROR.code);
 });
 
 test("gw_get_nonce", async (t) => {
   const res: JSONResponse = await client.request(t.title, ["0xasdf"]);
   t.truthy(res.error);
-  t.is(res.error?.code, errcode.INVALID_PARAMS);
+  t.is(res.error?.code, ERRORS.INTERNAL_ERROR.code);
 });
 
 test("gw_execute_raw_l2transaction", async (t) => {

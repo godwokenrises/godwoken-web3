@@ -1,4 +1,6 @@
 import { BlockParameter } from "./methods/types";
+import { JSONRPCError } from "jayson";
+import { AppError, ERRORS } from "./methods/error";
 
 const { platform } = require("os");
 const { version: packageVersion } = require("../../../package.json");
@@ -12,8 +14,6 @@ export function getClientVersion() {
 }
 
 export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
-  if (!block_paramter) throw new Error("block_parameter is undefind!");
-
   switch (block_paramter) {
     case "latest":
       return BigInt("1" + "0".repeat(10)); // a very large number
@@ -22,7 +22,6 @@ export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
       return BigInt(0);
 
     case "pending":
-      // throw new Error("pending transaction unsupported.");
       return BigInt("1" + "0".repeat(10)); // treat it as 'latest'
 
     default:
@@ -47,7 +46,9 @@ export function snakeToCamel(
   depthLimit: number = 10 // prevent memory leak for recursive
 ) {
   if (depthLimit === 0) {
-    throw new Error("[snakeToCamel] recursive depth reached max limit.");
+    throw new AppError(ERRORS.INTERNAL_ERROR, {
+      reason: "snakeToCamel recursive depth reached max limit",
+    });
   }
 
   let camel: any = {};
@@ -69,7 +70,9 @@ export function camelToSnake(
   depthLimit: number = 10 // prevent memory leak for recursive
 ) {
   if (depthLimit === 0) {
-    throw new Error("[camelToSnake] recursive depth reached max limit.");
+    throw new AppError(ERRORS.INTERNAL_ERROR, {
+      reason: "camelToSnake recursive depth reached max limit",
+    });
   }
 
   let snake: any = {};
@@ -96,4 +99,22 @@ export function validateHexString(hex: string): boolean {
 
 export function validateHexNumber(hex: string): boolean {
   return /^0x(0|[0-9a-fA-F]+)$/.test(hex);
+}
+
+export function isError(entry: any): entry is Error {
+  return entry && entry.name && entry.message;
+}
+
+export function isJSONRPCError(entry: any): entry is JSONRPCError {
+  return entry && entry.code && entry.message;
+}
+
+export function isGwJSONRPCError(entry: any): entry is JSONRPCError {
+  if (isJSONRPCError(entry)) {
+    // The JSONRPC server we may request must be Godwoken, so here we can be sure that this JSONRPCError is coming from
+    // the Godwoken server.
+    return (entry.message as string).startsWith("JSONRPCError: server error");
+  } else {
+    return false;
+  }
 }

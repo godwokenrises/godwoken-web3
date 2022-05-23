@@ -1,6 +1,5 @@
 import { EthNewHead } from "../base/types/api";
 import { BlockEmitter } from "../block-emitter";
-import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
 import { middleware as wsrpc } from "./wss";
 import crypto from "crypto";
@@ -13,6 +12,7 @@ import {
   CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../cache/constant";
+import { AppError, ERRORS } from "../methods/error";
 
 const query = new Query();
 const cacheStore = new Store(
@@ -164,7 +164,7 @@ export function wrapper(ws: any, _req: any) {
           return cb(null, id);
         } catch (error) {
           return cb({
-            code: INVALID_PARAMS,
+            code: ERRORS.INTERNAL_ERROR.code,
             message: `no logs in params for "${name}" subscription method`,
           });
         }
@@ -172,7 +172,7 @@ export function wrapper(ws: any, _req: any) {
 
       default:
         return cb({
-          code: METHOD_NOT_FOUND,
+          code: ERRORS.JSONRPC_METHOD_NOT_SUPPORTED,
           message: `no "${name}" subscription in eth namespace`,
         });
     }
@@ -207,12 +207,10 @@ export function wrapper(ws: any, _req: any) {
   }
 
   function parseLogsSubParams(params: any[]): LogQueryOption {
-    if (params[0] !== "logs") {
-      throw new Error("invalid params");
-    }
-
     if (params[1] && typeof params[1] !== "object") {
-      throw new Error("invalid params");
+      throw new AppError(ERRORS.INVALID_PARAMETER, {
+        reason: "LogQueryOption params[1] is not object",
+      });
     }
 
     if (params[1]) {
@@ -246,8 +244,8 @@ export function wrapper(ws: any, _req: any) {
         if (value == null) {
           return {
             err: {
-              code: METHOD_NOT_FOUND,
-              message: `method ${obj.method} not found!`,
+              code: ERRORS.JSONRPC_METHOD_NOT_SUPPORTED.code,
+              message: ERRORS.JSONRPC_METHOD_NOT_SUPPORTED.message,
             },
           };
         }

@@ -1,7 +1,7 @@
 import { AccessGuard } from "./cache/guard";
-import { LIMIT_EXCEEDED } from "./methods/error-code";
 import { Request, Response, NextFunction } from "express";
 import { logger } from "./base/logger";
+import { ERRORS } from "./methods/error";
 
 export const accessGuard = new AccessGuard();
 accessGuard.connect();
@@ -57,12 +57,14 @@ export async function rateLimit(
         "Retry-After": remainMilsecs.toString(),
       };
 
-      const message = `Too Many Requests, IP: ${reqId}, please wait ${remainSecs}s and retry. RPC method: ${rpcMethod}.`;
       const error = {
-        code: LIMIT_EXCEEDED,
-        message: message,
+        code: ERRORS.RATE_LIMITED.code,
+        message: ERRORS.RATE_LIMITED.message,
+        data: {
+          ip: reqId,
+          method: rpcMethod,
+        },
       };
-
       logger.debug(
         `Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
       );

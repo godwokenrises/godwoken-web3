@@ -1,6 +1,6 @@
 import { Hash, HexNumber } from "@ckb-lumos/base";
 import { envConfig } from "../../base/env-config";
-import { MethodNotSupportError, Web3Error } from "../error";
+import { AppError, ERRORS } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { gwConfig } from "../../base/index";
 const { version: web3Version } = require("../../../package.json");
@@ -16,12 +16,7 @@ export class Poly {
   }
 
   async getCreatorId(_args: []): Promise<HexNumber> {
-    try {
-      const creatorIdHex = gwConfig.accounts.polyjuiceCreator.id;
-      return creatorIdHex;
-    } catch (err: any) {
-      throw new Web3Error(err.message);
-    }
+    return gwConfig.accounts.polyjuiceCreator.id;
   }
 
   // from in eth_call is optional, DEFAULT_FROM_ADDRESS fills it when empty
@@ -38,7 +33,9 @@ export class Poly {
   }
 
   async getRollupConfigHash(_args: []): Promise<Hash> {
-    throw new MethodNotSupportError("ROLLUP_CONFIG_HASH not supported!");
+    throw new AppError(ERRORS.JSONRPC_METHOD_NOT_SUPPORTED, {
+      method: "poly_getRollupConfigHash",
+    });
   }
 
   async getEthAccountLockHash(_args: []): Promise<Hash> {
@@ -46,9 +43,10 @@ export class Poly {
   }
 
   async getChainInfo(_args: []): Promise<any> {
-    throw new MethodNotSupportError(
-      "getChainInfo is deprecated! please use poly_version"
-    );
+    throw new AppError(ERRORS.JSONRPC_METHOD_NOT_SUPPORTED, {
+      method: "poly_getChainInfo",
+      alternative: "poly_version",
+    });
   }
 
   async version() {

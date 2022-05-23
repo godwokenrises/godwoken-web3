@@ -4,7 +4,6 @@ import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
 import { MAX_QUERY_NUMBER } from "./constant";
-import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import {
   formatDecimal,
   toBigIntOpt,
@@ -15,6 +14,7 @@ import {
   normalizeLogQueryAddress,
   filterLogsByTopics,
 } from "./helpers";
+import { AppError, ERRORS } from "../methods/error";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -323,7 +323,11 @@ export class Query {
       );
 
       if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
+        throw new AppError(ERRORS.DATABASE_QUERY_OFFSET_REACHED_END, {
+          offset,
+          fromBlock: blockHashOrFromBlock,
+          toBlock: toBlock,
+        });
       }
 
       return filterLogsByTopics(logs, topics);
@@ -339,13 +343,21 @@ export class Query {
       );
 
       if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
+        throw new AppError(ERRORS.DATABASE_QUERY_OFFSET_REACHED_END, {
+          offset,
+          fromBlock: blockHashOrFromBlock,
+          toBlock: toBlock,
+        });
       }
 
       return filterLogsByTopics(logs, topics);
     }
 
-    throw new Error("invalid params!");
+    throw new AppError(ERRORS.INVALID_PARAMETER, {
+      offset,
+      fromBlock: blockHashOrFromBlock,
+      toBlock: toBlock,
+    });
   }
 
   async getLogsAfterLastPoll(
@@ -367,7 +379,11 @@ export class Query {
       );
 
       if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
+        throw new AppError(ERRORS.DATABASE_QUERY_OFFSET_REACHED_END, {
+          offset,
+          fromBlock: blockHashOrFromBlock,
+          toBlock: toBlock,
+        });
       }
 
       return filterLogsByTopics(logs, topics);
@@ -383,13 +399,21 @@ export class Query {
       );
 
       if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
+        throw new AppError(ERRORS.DATABASE_QUERY_OFFSET_REACHED_END, {
+          offset,
+          fromBlock: blockHashOrFromBlock,
+          toBlock: toBlock,
+        });
       }
 
       return filterLogsByTopics(logs, topics);
     }
 
-    throw new Error("invalid params!");
+    throw new AppError(ERRORS.INVALID_PARAMETER, {
+      offset,
+      fromBlock: blockHashOrFromBlock,
+      toBlock: toBlock,
+    });
   }
 
   // Latest 500 transactions median gas_price

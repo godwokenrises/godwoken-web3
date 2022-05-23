@@ -2,7 +2,6 @@ import { getClientVersion } from "../../util";
 import { addHexPrefix, keccak, toBuffer } from "ethereumjs-util";
 import { middleware, validators } from "../validator";
 import { Hash } from "@ckb-lumos/base";
-import { Web3Error } from "../error";
 
 export class Web3 {
   constructor() {
@@ -28,12 +27,8 @@ export class Web3 {
    * Keccak-256 hash of the given data as the second argument
    */
   sha3(args: string[]): Hash {
-    try {
-      const rawDigest = keccak(toBuffer(args[0]));
-      const hexEncodedDigest = addHexPrefix(rawDigest.toString("hex"));
-      return hexEncodedDigest;
-    } catch (err: any) {
-      throw new Web3Error(err.message);
-    }
+    const rawDigest = keccak(toBuffer(args[0]));
+    const hexEncodedDigest = addHexPrefix(rawDigest.toString("hex"));
+    return hexEncodedDigest;
   }
 }
