@@ -95,75 +95,71 @@ impl Web3Indexer {
 
         let pool = &*POOL;
         let mut tx = pool.begin().await?;
-        sqlx::query("INSERT INTO blocks (number, hash, parent_hash, logs_bloom, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+        sqlx::query(
+            "INSERT INTO blocks (number, hash, parent_hash, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+        )
             .bind(Decimal::from(web3_block.number))
-            .bind(hex(web3_block.hash.as_slice())?)
-            .bind(hex(web3_block.parent_hash.as_slice())?)
-            .bind(hex(&web3_block.logs_bloom)?)
+            .bind(web3_block.hash.as_slice())
+            .bind(web3_block.parent_hash.as_slice())
             .bind(u128_to_big_decimal(&web3_block.gas_limit)?)
             .bind(u128_to_big_decimal(&web3_block.gas_used)?)
             .bind(web3_block.timestamp)
-            .bind(hex(&web3_block.miner)?)
+            .bind(&web3_block.miner.as_ref())
             .bind(Decimal::from(web3_block.size))
             .execute(&mut tx).await?;
         for web3_tx_with_logs in web3_tx_with_logs_vec {
             let web3_tx = web3_tx_with_logs.tx;
-            let web3_to_address_hex = match web3_tx.to_address {
-                Some(addr) => Some(hex(&addr)?),
-                None => None,
-            };
-            let web3_contract_address_hex = match web3_tx.contract_address {
-                Some(addr) => Some(hex(&addr)?),
-                None => None,
+            let web3_to_address = web3_tx.to_address.map(|addr| addr.to_vec());
+            let web3_contract_address = match web3_tx.contract_address {
+                Some(addr) => addr.to_vec(),
+                None => vec![],
             };
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
-            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, exit_code) 
+            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code) 
             VALUES 
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING ID")
-            .bind(hex(web3_tx.gw_tx_hash.as_slice())?)
-            .bind(hex(web3_tx.compute_eth_tx_hash().as_slice())?)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING ID")
+            .bind(web3_tx.gw_tx_hash.as_slice())
+            .bind(web3_tx.compute_eth_tx_hash().as_slice())
             .bind(Decimal::from(web3_tx.block_number))
-            .bind(hex(web3_tx.block_hash.as_slice())?)
+            .bind(web3_tx.block_hash.as_slice())
             .bind(web3_tx.transaction_index)
-            .bind(hex(&web3_tx.from_address)?)
-            .bind(web3_to_address_hex)
+            .bind(web3_tx.from_address.as_ref())
+            .bind(web3_to_address)
             .bind(u256_to_big_decimal(&web3_tx.value)?)
             .bind(Decimal::from(web3_tx.nonce))
             .bind(u128_to_big_decimal(&web3_tx.gas_limit)?)
             .bind(u128_to_big_decimal(&web3_tx.gas_price)?)
-            .bind(hex(&web3_tx.data)?)
+            .bind(&web3_tx.data)
             .bind(Decimal::from(web3_tx.v))
-            .bind(hex(&web3_tx.r)?)
-            .bind(hex(&web3_tx.s)?)
+            .bind(web3_tx.r.as_ref())
+            .bind(web3_tx.s.as_ref())
             .bind(u128_to_big_decimal(&web3_tx.cumulative_gas_used)?)
             .bind(u128_to_big_decimal(&web3_tx.gas_used)?)
-            .bind(hex(&web3_tx.logs_bloom)?)
-            .bind(web3_contract_address_hex)
+            .bind(web3_contract_address)
             .bind(Decimal::from(web3_tx.exit_code))
             .fetch_one(&mut tx)
             .await?;
 
             let web3_logs = web3_tx_with_logs.logs;
             for log in web3_logs {
-                let mut topics_hex = vec![];
+                let mut topics = vec![];
                 for topic in log.topics {
-                    let topic_hex = hex(topic.as_slice())?;
-                    topics_hex.push(topic_hex);
+                    topics.push(topic.as_slice().to_vec());
                 }
                 sqlx::query("INSERT INTO logs
                 (transaction_id, transaction_hash, transaction_index, block_number, block_hash, address, data, log_index, topics)
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
                 .bind(transaction_id)
-                .bind(hex(log.transaction_hash.as_slice())?)
+                .bind(log.transaction_hash.as_slice())
                 .bind(log.transaction_index)
                 .bind(Decimal::from(log.block_number))
-                .bind(hex(log.block_hash.as_slice())?)
-                .bind(hex(&log.address)?)
-                .bind(hex(&log.data)?)
+                .bind(log.block_hash.as_slice())
+                .bind(log.address.as_ref())
+                .bind(&log.data)
                 .bind(log.log_index)
-                .bind(topics_hex)
+                .bind(topics)
                 .execute(&mut tx)
                 .await?;
             }
@@ -237,7 +233,7 @@ impl Web3Indexer {
                 buf.copy_from_slice(&signature[32..64]);
                 buf
             };
-            let v: u64 = signature[64].into();
+            let v: u8 = signature[64];
 
             if to_script.code_hash().as_slice() == self.polyjuice_type_script_hash.0 {
                 let l2_tx_args = l2_transaction.raw().args();
@@ -321,7 +317,6 @@ impl Web3Indexer {
                     v,
                     cumulative_gas_used,
                     tx_gas_used,
-                    Vec::new(),
                     contract_address,
                     exit_code,
                 );
@@ -423,7 +418,6 @@ impl Web3Indexer {
                             v,
                             cumulative_gas_used,
                             gas_limit,
-                            Vec::new(),
                             None,
                             exit_code,
                         );
@@ -506,7 +500,6 @@ impl Web3Indexer {
             number: block_number,
             hash: block_hash,
             parent_hash,
-            logs_bloom: Vec::new(),
             gas_limit,
             gas_used,
             miner: miner_address,
