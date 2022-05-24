@@ -45,7 +45,7 @@ CREATE UNIQUE INDEX block_number_transaction_index_idx ON transactions (block_nu
 CREATE UNIQUE INDEX block_hash_transaction_index_idx ON transactions (block_hash, transaction_index);
 
 CREATE TABLE logs (
-    id NUMERIC PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     transaction_id bigint REFERENCES transactions(id) NOT NULL,
     transaction_hash bytea NOT NULL,
     transaction_index integer NOT NULL,
