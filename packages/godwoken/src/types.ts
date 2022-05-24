@@ -49,6 +49,7 @@ export interface L2TransactionReceipt {
   post_state: AccountMerkleState;
   read_data_hashes: Hash[];
   logs: LogItem[];
+  exit_code: HexNumber;
 }
 
 export interface AccountMerkleState {
