@@ -65,7 +65,4 @@ function getMethods(argsList: ModConstructorArgs = {}) {
   return methods;
 }
 
-const ethWalletMode = true;
-
 export const methods = getMethods();
-export const ethWalletMethods = getMethods({ eth: [ethWalletMode] });

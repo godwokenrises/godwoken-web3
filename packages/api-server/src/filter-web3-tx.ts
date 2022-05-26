@@ -177,7 +177,7 @@ export async function filterWeb3Transaction(
         };
       }),
       contractAddress: contractAddress || null,
-      status: "0x1",
+      status: l2TxReceipt.exit_code === "0x0" ? "0x1" : "0x0",
     };
 
     return [ethTx, receipt];

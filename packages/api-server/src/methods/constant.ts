@@ -6,9 +6,6 @@ export const POLY_BLOCK_DIFFICULTY = BigInt("2500000000000000");
 
 export const RPC_MAX_GAS_LIMIT = 50000000;
 
-// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-170.md
-export const POLY_MAX_CONTRACT_CODE_SIZE_IN_BYTE = 24576;
-
 export const ZERO_ETH_ADDRESS = `0x${"0".repeat(40)}`;
 export const DEFAULT_LOGS_BLOOM = "0x" + "00".repeat(256);
 

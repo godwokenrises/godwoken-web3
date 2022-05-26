@@ -28,4 +28,4 @@ test-web3:
 	yarn check --verify-tree
 	
 migrate:
-	cd crates/indexer && sqlx migrate run && cd - && yarn run migrate:latest
+	yarn run migrate:latest

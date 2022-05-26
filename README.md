@@ -117,9 +117,8 @@ docker exec -it <CONTAINER NAME> /bin/bash
 ```
 $ root@ec562fe2172b:/godwoken-web3# pm2 monit
 ```
-Normal mode: http://your-url/
 
-Eth wallet mode: http://your-url/eth-wallet (for wallet like metamask, please connect to this url)
+Http url: http://your-url/
 
 WebSocket url: ws://your-url/ws
 
