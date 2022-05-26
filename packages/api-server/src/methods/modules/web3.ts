@@ -32,7 +32,7 @@ export class Web3 {
       const rawDigest = keccak(toBuffer(args[0]));
       const hexEncodedDigest = addHexPrefix(rawDigest.toString("hex"));
       return hexEncodedDigest;
-    } catch (err) {
+    } catch (err: any) {
       throw new Web3Error(err.message);
     }
   }

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use ckb_types::prelude::Entity;
 use gw_web3_rpc_client::{convertion::to_l2_block, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
@@ -20,8 +18,8 @@ impl Runner {
             config.polyjuice_type_script_hash,
             config.rollup_type_hash,
             config.eth_account_lock_hash,
-            config.tron_account_lock_hash,
             config.godwoken_rpc_url.as_str(),
+            config.chain_id,
         );
         let godwoken_rpc_client = GodwokenRpcClient::new(config.godwoken_rpc_url.as_str());
         let runner = Runner {
@@ -81,15 +79,14 @@ impl Runner {
     }
 
     async fn get_db_block_hash(&self, block_number: u64) -> Result<Option<ckb_types::H256>> {
-        let row: Option<(String,)> =
+        let row: Option<(Vec<u8>,)> =
             sqlx::query_as("select hash from blocks where number = $1 limit 1;")
                 .bind(Decimal::from(block_number))
                 .fetch_optional(&*POOL)
                 .await?;
 
-        if let Some((block_hash_hex,)) = row {
-            let block_hash =
-                ckb_types::H256::from_str(block_hash_hex.trim().trim_start_matches("0x"))?;
+        if let Some((block_hash_vec,)) = row {
+            let block_hash = ckb_types::H256::from_slice(block_hash_vec.as_ref())?;
             return Ok(Some(block_hash));
         }
         Ok(None)

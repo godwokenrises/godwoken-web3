@@ -43,7 +43,7 @@
     },
     {
       "type": "struct",
-      "name": "GlobalState",
+      "name": "GlobalStateV0",
       "fields": [
         {
           "name": "rollup_config_hash",
@@ -74,6 +74,67 @@
           "type": "byte"
         }
       ]
+    },
+    {
+      "type": "struct",
+      "name": "GlobalState",
+      "fields": [
+        {
+          "name": "rollup_config_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "account",
+          "type": "AccountMerkleState"
+        },
+        {
+          "name": "block",
+          "type": "BlockMerkleState"
+        },
+        {
+          "name": "reverted_block_root",
+          "type": "Byte32"
+        },
+        {
+          "name": "tip_block_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "tip_block_timestamp",
+          "type": "Uint64"
+        },
+        {
+          "name": "last_finalized_block_number",
+          "type": "Uint64"
+        },
+        {
+          "name": "status",
+          "type": "byte"
+        },
+        {
+          "name": "version",
+          "type": "byte"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "AllowedTypeHash",
+      "fields": [
+        {
+          "name": "type_",
+          "type": "byte"
+        },
+        {
+          "name": "hash",
+          "type": "Byte32"
+        }
+      ]
+    },
+    {
+      "type": "fixvec",
+      "name": "AllowedTypeHashVec",
+      "item": "AllowedTypeHash"
     },
     {
       "type": "table",
@@ -128,12 +189,16 @@
           "type": "byte"
         },
         {
+          "name": "chain_id",
+          "type": "Uint64"
+        },
+        {
           "name": "allowed_eoa_type_hashes",
-          "type": "Byte32Vec"
+          "type": "AllowedTypeHashVec"
         },
         {
           "name": "allowed_contract_type_hashes",
-          "type": "Byte32Vec"
+          "type": "AllowedTypeHashVec"
         }
       ]
     },
@@ -141,6 +206,10 @@
       "type": "table",
       "name": "RawL2Transaction",
       "fields": [
+        {
+          "name": "chain_id",
+          "type": "Uint64"
+        },
         {
           "name": "from_id",
           "type": "Uint32"
@@ -179,7 +248,7 @@
       "item": "L2Transaction"
     },
     {
-      "type": "table",
+      "type": "struct",
       "name": "SubmitTransactions",
       "fields": [
         {
@@ -219,8 +288,8 @@
           "type": "Uint64"
         },
         {
-          "name": "block_producer_id",
-          "type": "Uint32"
+          "name": "block_producer",
+          "type": "Bytes"
         },
         {
           "name": "parent_block_hash",
@@ -310,6 +379,10 @@
         {
           "name": "script",
           "type": "Script"
+        },
+        {
+          "name": "registry_id",
+          "type": "Uint32"
         }
       ]
     },
@@ -325,6 +398,10 @@
         {
           "name": "nonce",
           "type": "Uint32"
+        },
+        {
+          "name": "chain_id",
+          "type": "Uint64"
         },
         {
           "name": "capacity",
@@ -343,24 +420,16 @@
           "type": "Byte32"
         },
         {
-          "name": "sell_amount",
-          "type": "Uint128"
-        },
-        {
-          "name": "sell_capacity",
-          "type": "Uint64"
+          "name": "registry_id",
+          "type": "Uint32"
         },
         {
           "name": "owner_lock_hash",
           "type": "Byte32"
         },
         {
-          "name": "payment_lock_hash",
-          "type": "Byte32"
-        },
-        {
           "name": "fee",
-          "type": "Fee"
+          "type": "Uint128"
         }
       ]
     },
@@ -384,7 +453,7 @@
       ]
     },
     {
-      "type": "table",
+      "type": "struct",
       "name": "KVPair",
       "fields": [
         {
@@ -398,17 +467,17 @@
       ]
     },
     {
-      "type": "dynvec",
+      "type": "fixvec",
       "name": "KVPairVec",
       "item": "KVPair"
     },
     {
-      "type": "struct",
+      "type": "table",
       "name": "BlockInfo",
       "fields": [
         {
-          "name": "block_producer_id",
-          "type": "Uint32"
+          "name": "block_producer",
+          "type": "Bytes"
         },
         {
           "name": "number",
@@ -435,6 +504,10 @@
         {
           "name": "cancel_timeout",
           "type": "Uint64"
+        },
+        {
+          "name": "registry_id",
+          "type": "Uint32"
         }
       ]
     },
@@ -443,16 +516,16 @@
       "name": "CustodianLockArgs",
       "fields": [
         {
-          "name": "deposit_lock_args",
-          "type": "DepositLockArgs"
-        },
-        {
           "name": "deposit_block_hash",
           "type": "Byte32"
         },
         {
           "name": "deposit_block_number",
           "type": "Uint64"
+        },
+        {
+          "name": "deposit_lock_args",
+          "type": "DepositLockArgs"
         }
       ]
     },
@@ -471,10 +544,6 @@
       "name": "WithdrawalLockArgs",
       "fields": [
         {
-          "name": "account_script_hash",
-          "type": "Byte32"
-        },
-        {
           "name": "withdrawal_block_hash",
           "type": "Byte32"
         },
@@ -483,23 +552,11 @@
           "type": "Uint64"
         },
         {
-          "name": "sudt_script_hash",
+          "name": "account_script_hash",
           "type": "Byte32"
-        },
-        {
-          "name": "sell_amount",
-          "type": "Uint128"
-        },
-        {
-          "name": "sell_capacity",
-          "type": "Uint64"
         },
         {
           "name": "owner_lock_hash",
-          "type": "Byte32"
-        },
-        {
-          "name": "payment_lock_hash",
           "type": "Byte32"
         }
       ]
@@ -509,8 +566,7 @@
       "name": "UnlockWithdrawalWitness",
       "items": [
         "UnlockWithdrawalViaFinalize",
-        "UnlockWithdrawalViaRevert",
-        "UnlockWithdrawalViaTrade"
+        "UnlockWithdrawalViaRevert"
       ]
     },
     {
@@ -525,16 +581,6 @@
         {
           "name": "custodian_lock_hash",
           "type": "Byte32"
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "name": "UnlockWithdrawalViaTrade",
-      "fields": [
-        {
-          "name": "owner_lock",
-          "type": "Script"
         }
       ]
     },
@@ -564,7 +610,7 @@
       "name": "Fee",
       "fields": [
         {
-          "name": "sudt_id",
+          "name": "registry_id",
           "type": "Uint32"
         },
         {
@@ -600,7 +646,7 @@
       "name": "SUDTQuery",
       "fields": [
         {
-          "name": "short_address",
+          "name": "address",
           "type": "Bytes"
         }
       ]
@@ -610,16 +656,16 @@
       "name": "SUDTTransfer",
       "fields": [
         {
-          "name": "to",
+          "name": "to_address",
           "type": "Bytes"
         },
         {
           "name": "amount",
-          "type": "Uint128"
+          "type": "Uint256"
         },
         {
           "name": "fee",
-          "type": "Uint128"
+          "type": "Fee"
         }
       ]
     },
@@ -695,8 +741,42 @@
     },
     {
       "type": "table",
-      "name": "VerifyTransactionContext",
+      "name": "CKBMerkleProof",
       "fields": [
+        {
+          "name": "indices",
+          "type": "Uint32Vec"
+        },
+        {
+          "name": "lemmas",
+          "type": "Byte32Vec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "CCTransactionWitness",
+      "fields": [
+        {
+          "name": "l2tx",
+          "type": "L2Transaction"
+        },
+        {
+          "name": "raw_l2block",
+          "type": "RawL2Block"
+        },
+        {
+          "name": "tx_proof",
+          "type": "CKBMerkleProof"
+        },
+        {
+          "name": "kv_state_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "block_hashes_proof",
+          "type": "Bytes"
+        },
         {
           "name": "account_count",
           "type": "Uint32"
@@ -725,80 +805,64 @@
     },
     {
       "type": "table",
-      "name": "CKBMerkleProof",
+      "name": "CCTransactionSignatureWitness",
       "fields": [
-        {
-          "name": "indices",
-          "type": "Uint32Vec"
-        },
-        {
-          "name": "lemmas",
-          "type": "Byte32Vec"
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "name": "VerifyTransactionWitness",
-      "fields": [
-        {
-          "name": "l2tx",
-          "type": "L2Transaction"
-        },
         {
           "name": "raw_l2block",
           "type": "RawL2Block"
         },
         {
+          "name": "l2tx",
+          "type": "L2Transaction"
+        },
+        {
           "name": "tx_proof",
           "type": "CKBMerkleProof"
-        },
-        {
-          "name": "kv_state_proof",
-          "type": "Bytes"
-        },
-        {
-          "name": "block_hashes_proof",
-          "type": "Bytes"
-        },
-        {
-          "name": "context",
-          "type": "VerifyTransactionContext"
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "name": "VerifyTransactionSignatureContext",
-      "fields": [
-        {
-          "name": "account_count",
-          "type": "Uint32"
         },
         {
           "name": "kv_state",
           "type": "KVPairVec"
         },
         {
-          "name": "scripts",
-          "type": "ScriptVec"
+          "name": "kv_state_proof",
+          "type": "Bytes"
+        },
+        {
+          "name": "account_count",
+          "type": "Uint32"
+        },
+        {
+          "name": "sender",
+          "type": "Script"
+        },
+        {
+          "name": "receiver",
+          "type": "Script"
         }
       ]
     },
     {
       "type": "table",
-      "name": "VerifyTransactionSignatureWitness",
+      "name": "CCWithdrawalWitness",
       "fields": [
         {
           "name": "raw_l2block",
           "type": "RawL2Block"
         },
         {
-          "name": "l2tx",
-          "type": "L2Transaction"
+          "name": "withdrawal",
+          "type": "WithdrawalRequest"
         },
         {
-          "name": "tx_proof",
+          "name": "sender",
+          "type": "Script"
+        },
+        {
+          "name": "owner_lock",
+          "type": "Script"
+        },
+        {
+          "name": "withdrawal_proof",
           "type": "CKBMerkleProof"
         },
         {
@@ -806,26 +870,12 @@
           "type": "Bytes"
         },
         {
-          "name": "context",
-          "type": "VerifyTransactionSignatureContext"
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "name": "VerifyWithdrawalWitness",
-      "fields": [
-        {
-          "name": "raw_l2block",
-          "type": "RawL2Block"
+          "name": "kv_state",
+          "type": "KVPairVec"
         },
         {
-          "name": "withdrawal_request",
-          "type": "WithdrawalRequest"
-        },
-        {
-          "name": "withdrawal_proof",
-          "type": "CKBMerkleProof"
+          "name": "account_count",
+          "type": "Uint32"
         }
       ]
     },
@@ -877,6 +927,10 @@
         {
           "name": "reverted_block_proof",
           "type": "Bytes"
+        },
+        {
+          "name": "new_tip_block",
+          "type": "RawL2Block"
         }
       ]
     },
@@ -888,6 +942,70 @@
         "RollupEnterChallenge",
         "RollupCancelChallenge",
         "RollupRevert"
+      ]
+    },
+    {
+      "type": "array",
+      "name": "Byte20",
+      "item": "byte",
+      "item_count": 20
+    },
+    {
+      "type": "union",
+      "name": "ETHAddrRegArgs",
+      "items": [
+        "EthToGw",
+        "GwToEth",
+        "SetMapping",
+        "BatchSetMapping"
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "EthToGw",
+      "fields": [
+        {
+          "name": "eth_address",
+          "type": "Byte20"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "GwToEth",
+      "fields": [
+        {
+          "name": "gw_script_hash",
+          "type": "Byte32"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "SetMapping",
+      "fields": [
+        {
+          "name": "gw_script_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "fee",
+          "type": "Fee"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "BatchSetMapping",
+      "fields": [
+        {
+          "name": "gw_script_hashes",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "fee",
+          "type": "Fee"
+        }
       ]
     },
     {

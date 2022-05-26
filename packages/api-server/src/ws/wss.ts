@@ -1,3 +1,4 @@
+import { envConfig } from "../base/env-config";
 import { logger } from "../base/logger";
 
 export function middleware(ws: any) {
@@ -10,7 +11,7 @@ export function middleware(ws: any) {
 
       if (Array.isArray(obj)) {
         // log request
-        if (process.env.WEB3_LOG_REQUEST_BODY) {
+        if (envConfig.logRequestBody) {
           logger.info("websocket request.body:", obj);
         } else {
           logger.info(
@@ -27,7 +28,7 @@ export function middleware(ws: any) {
       }
 
       // log request
-      if (process.env.WEB3_LOG_REQUEST_BODY) {
+      if (envConfig.logRequestBody) {
         logger.info("websocket request.body:", obj);
       } else {
         logger.info("websocket request.method:", obj.method);

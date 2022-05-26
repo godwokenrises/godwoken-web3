@@ -6,7 +6,9 @@ import {
   L2Transaction,
   L2TransactionReceipt,
   L2TransactionWithStatus,
+  NodeInfo,
   RawL2Transaction,
+  RegistryAddress,
   RunResult,
   U128,
   U32,
@@ -16,6 +18,7 @@ import {
   NormalizeL2Transaction,
   NormalizeRawL2Transaction,
 } from "./normalizers";
+import { logger } from "./logger";
 
 export class GodwokenClient {
   private rpc: RPC;
@@ -26,7 +29,7 @@ export class GodwokenClient {
     this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
-  public async getScriptHash(accountId: U32): Promise<Hash | undefined> {
+  public async getScriptHash(accountId: U32): Promise<Hash> {
     const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
   }
@@ -34,31 +37,46 @@ export class GodwokenClient {
   public async getAccountIdByScriptHash(
     scriptHash: Hash
   ): Promise<U32 | undefined> {
-    const accountId: HexNumber = await this.rpcCall(
+    const accountId: HexNumber | undefined = await this.rpcCall(
       "get_account_id_by_script_hash",
       scriptHash
     );
+    if (accountId == null) {
+      return undefined;
+    }
     return +accountId;
   }
 
-  public async getScriptHashByShortAddress(
-    shortAddress: HexString
+  public async getRegistryAddressByScriptHash(
+    scriptHash: Hash,
+    registryId: U32
+  ): Promise<RegistryAddress | undefined> {
+    const registryAddress = await this.rpcCall(
+      "get_registry_address_by_script_hash",
+      scriptHash,
+      toHex(registryId)
+    );
+    return registryAddress;
+  }
+
+  public async getScriptHashByRegistryAddress(
+    serializedRegistryAddress: HexString
   ): Promise<Hash | undefined> {
-    const scriptHash: Hash | undefined = await this.rpcCall(
-      "get_script_hash_by_short_address",
-      shortAddress
+    const scriptHash = await this.rpcCall(
+      "get_script_hash_by_registry_address",
+      serializedRegistryAddress
     );
     return scriptHash;
   }
 
   public async getBalance(
-    short_address: HexString,
+    serializedRegistryAddress: HexString,
     sudtId: U32,
     blockParameter?: BlockParameter
   ): Promise<U128> {
     const balance: HexNumber = await this.rpcCall(
       "get_balance",
-      short_address,
+      serializedRegistryAddress,
       toHex(sudtId),
       toHex(blockParameter)
     );
@@ -101,6 +119,19 @@ export class GodwokenClient {
     return await this.rpcCall("get_data", dataHash, toHex(blockParameter));
   }
 
+  // Don't log `invalid exit code 83` error
+  public async executeForGetAccountScriptHash(
+    rawL2tx: RawL2Transaction,
+    blockParameter?: BlockParameter
+  ): Promise<RunResult> {
+    const data: HexString = new Reader(
+      SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
+    ).serializeJson();
+    const name = "gw_execute_raw_l2transaction";
+    const result = await this.readonlyRpc[name](data, toHex(blockParameter));
+    return result;
+  }
+
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
     blockParameter?: BlockParameter
@@ -141,6 +172,10 @@ export class GodwokenClient {
     return await this.rpcCall("get_transaction_receipt", hash);
   }
 
+  public async getNodeInfo(): Promise<NodeInfo> {
+    return await this.rpcCall("get_node_info");
+  }
+
   public async getTipBlockHash(): Promise<HexString> {
     return await this.rpcCall("get_tip_block_hash");
   }
@@ -155,7 +190,7 @@ export class GodwokenClient {
       const result = await this.readonlyRpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }
@@ -166,7 +201,7 @@ export class GodwokenClient {
       const result = await this.rpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }

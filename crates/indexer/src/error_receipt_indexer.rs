@@ -104,7 +104,11 @@ impl From<ErrorTxReceipt> for ErrorReceiptRecord {
             status_reason: receipt.return_data[..status_reason_len].to_vec(),
         };
 
-        let gw_log = match receipt.last_log.map(|log| parse_log(&log)).transpose() {
+        let gw_log = match receipt
+            .last_log
+            .map(|log| parse_log(&log, &basic_record.tx_hash))
+            .transpose()
+        {
             Ok(Some(log)) => log,
             Err(err) => {
                 log::error!("[error receipt]: parse log error {}", err);
@@ -125,23 +129,25 @@ impl From<ErrorTxReceipt> for ErrorReceiptRecord {
                 };
 
                 // First 4 bytes are func signature
-                let status_reason =
-                    match ethabi::decode(&[ethabi::ParamType::String], &receipt.return_data[4..]) {
-                        Ok(tokens) if tokens.iter().all(is_string) => {
-                            let mut reason = tokens
-                                .into_iter()
-                                .flat_map(ethabi::token::Token::into_string)
-                                .collect::<Vec<String>>()
-                                .join("");
+                // receipt.return_data may empty
+                let decode_data = receipt.return_data.get(4..).unwrap_or(&[]);
+                let status_reason = match ethabi::decode(&[ethabi::ParamType::String], decode_data)
+                {
+                    Ok(tokens) if tokens.iter().all(is_string) => {
+                        let mut reason = tokens
+                            .into_iter()
+                            .flat_map(ethabi::token::Token::into_string)
+                            .collect::<Vec<String>>()
+                            .join("");
 
-                            reason.truncate(MAX_RETURN_DATA);
-                            reason.as_bytes().to_vec()
-                        }
-                        _ => {
-                            log::warn!("unsupported polyjuice reason {:?}", receipt.return_data);
-                            basic_record.status_reason
-                        }
-                    };
+                        reason.truncate(MAX_RETURN_DATA);
+                        reason.as_bytes().to_vec()
+                    }
+                    _ => {
+                        log::warn!("unsupported polyjuice reason {:?}", receipt.return_data);
+                        basic_record.status_reason
+                    }
+                };
 
                 ErrorReceiptRecord {
                     gas_used,

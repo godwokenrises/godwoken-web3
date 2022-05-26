@@ -1,5 +1,6 @@
 import { createClient } from "redis";
 import { RedisClientType } from "redis/dist/lib/client";
+import { logger } from "../base/logger";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 
 // redis SET type
@@ -35,7 +36,7 @@ export class Store {
     this.client = createClient({
       url: url,
     });
-    this.client.on("error", (err) => console.log("Redis Client Error", err));
+    this.client.on("error", (err) => logger.error("Redis Client Error", err));
 
     if (enableExpired == null) {
       enableExpired = false;
@@ -57,10 +58,11 @@ export class Store {
     value: string | number,
     expiredTimeMilSecs?: number
   ) {
-    const setOptions = {
-      ...this.setOptions,
-      PX: expiredTimeMilSecs || this.setOptions.PX,
-    };
+    let setOptions = this.setOptions;
+    const PX = expiredTimeMilSecs || this.setOptions.PX;
+    if (PX) {
+      setOptions.PX = PX;
+    }
 
     return await this.client.set(key, value.toString(), setOptions);
   }

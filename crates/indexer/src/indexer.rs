@@ -1,10 +1,7 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr};
 
 use crate::{
-    helper::{
-        account_script_hash_to_eth_address, hex, parse_log, GwLog, PolyjuiceArgs,
-        GW_LOG_POLYJUICE_SYSTEM,
-    },
+    helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
     pool::POOL,
     types::{
         Block as Web3Block, Log as Web3Log, Transaction as Web3Transaction,
@@ -14,16 +11,20 @@ use crate::{
 use anyhow::{anyhow, Result};
 use ckb_hash::blake2b_256;
 use ckb_types::H256;
-use gw_common::builtins::CKB_SUDT_ACCOUNT_ID;
+use gw_common::{builtins::CKB_SUDT_ACCOUNT_ID, registry_address::RegistryAddress};
 use gw_types::{
     bytes::Bytes,
-    packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script},
+    packed::{L2Block, SUDTArgs, SUDTArgsUnion, Script, TxReceipt},
     prelude::Unpack as GwUnpack,
     prelude::*,
+    U256,
 };
 use gw_web3_rpc_client::{convertion, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
+use sqlx::types::{
+    chrono::{DateTime, NaiveDateTime, Utc},
+    BigDecimal,
+};
 
 const MILLIS_PER_SEC: u64 = 1_000;
 pub struct Web3Indexer {
@@ -32,6 +33,7 @@ pub struct Web3Indexer {
     rollup_type_hash: H256,
     allowed_eoa_hashes: HashSet<H256>,
     godwoken_rpc_client: GodwokenRpcClient,
+    chain_id: u64,
 }
 
 impl Web3Indexer {
@@ -40,14 +42,11 @@ impl Web3Indexer {
         polyjuice_type_script_hash: H256,
         rollup_type_hash: H256,
         eth_account_lock_hash: H256,
-        tron_account_lock_hash: Option<H256>,
         gw_rpc_url: &str,
+        chain_id: u64,
     ) -> Self {
         let mut allowed_eoa_hashes = HashSet::default();
         allowed_eoa_hashes.insert(eth_account_lock_hash);
-        if let Some(code_hash) = tron_account_lock_hash {
-            allowed_eoa_hashes.insert(code_hash);
-        };
         let godwoken_rpc_client = GodwokenRpcClient::new(gw_rpc_url);
 
         Web3Indexer {
@@ -56,6 +55,7 @@ impl Web3Indexer {
             rollup_type_hash,
             allowed_eoa_hashes,
             godwoken_rpc_client,
+            chain_id,
         }
     }
 
@@ -95,75 +95,71 @@ impl Web3Indexer {
 
         let pool = &*POOL;
         let mut tx = pool.begin().await?;
-        sqlx::query("INSERT INTO blocks (number, hash, parent_hash, logs_bloom, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+        sqlx::query(
+            "INSERT INTO blocks (number, hash, parent_hash, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+        )
             .bind(Decimal::from(web3_block.number))
-            .bind(hex(web3_block.hash.as_slice())?)
-            .bind(hex(web3_block.parent_hash.as_slice())?)
-            .bind(hex(&web3_block.logs_bloom)?)
-            .bind(Decimal::from(web3_block.gas_limit))
-            .bind(Decimal::from(web3_block.gas_used))
+            .bind(web3_block.hash.as_slice())
+            .bind(web3_block.parent_hash.as_slice())
+            .bind(u128_to_big_decimal(&web3_block.gas_limit)?)
+            .bind(u128_to_big_decimal(&web3_block.gas_used)?)
             .bind(web3_block.timestamp)
-            .bind(hex(&web3_block.miner)?)
+            .bind(&web3_block.miner.as_ref())
             .bind(Decimal::from(web3_block.size))
             .execute(&mut tx).await?;
         for web3_tx_with_logs in web3_tx_with_logs_vec {
             let web3_tx = web3_tx_with_logs.tx;
-            let web3_to_address_hex = match web3_tx.to_address {
-                Some(addr) => Some(hex(&addr)?),
-                None => None,
-            };
-            let web3_contract_address_hex = match web3_tx.contract_address {
-                Some(addr) => Some(hex(&addr)?),
-                None => None,
+            let web3_to_address = web3_tx.to_address.map(|addr| addr.to_vec());
+            let web3_contract_address = match web3_tx.contract_address {
+                Some(addr) => addr.to_vec(),
+                None => vec![],
             };
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
-            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, logs_bloom, contract_address, status) 
+            (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code) 
             VALUES 
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING ID")
-            .bind(hex(web3_tx.gw_tx_hash.as_slice())?)
-            .bind(hex(web3_tx.compute_eth_tx_hash().as_slice())?)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING ID")
+            .bind(web3_tx.gw_tx_hash.as_slice())
+            .bind(web3_tx.compute_eth_tx_hash().as_slice())
             .bind(Decimal::from(web3_tx.block_number))
-            .bind(hex(web3_tx.block_hash.as_slice())?)
+            .bind(web3_tx.block_hash.as_slice())
             .bind(web3_tx.transaction_index)
-            .bind(hex(&web3_tx.from_address)?)
-            .bind(web3_to_address_hex)
-            .bind(Decimal::from(web3_tx.value))
+            .bind(web3_tx.from_address.as_ref())
+            .bind(web3_to_address)
+            .bind(u256_to_big_decimal(&web3_tx.value)?)
             .bind(Decimal::from(web3_tx.nonce))
-            .bind(Decimal::from(web3_tx.gas_limit))
-            .bind(Decimal::from(web3_tx.gas_price))
-            .bind(hex(&web3_tx.data)?)
+            .bind(u128_to_big_decimal(&web3_tx.gas_limit)?)
+            .bind(u128_to_big_decimal(&web3_tx.gas_price)?)
+            .bind(&web3_tx.data)
             .bind(Decimal::from(web3_tx.v))
-            .bind(hex(&web3_tx.r)?)
-            .bind(hex(&web3_tx.s)?)
-            .bind(Decimal::from(web3_tx.cumulative_gas_used))
-            .bind(Decimal::from(web3_tx.gas_used))
-            .bind(hex(&web3_tx.logs_bloom)?)
-            .bind(web3_contract_address_hex)
-            .bind(web3_tx.status)
+            .bind(web3_tx.r.as_ref())
+            .bind(web3_tx.s.as_ref())
+            .bind(u128_to_big_decimal(&web3_tx.cumulative_gas_used)?)
+            .bind(u128_to_big_decimal(&web3_tx.gas_used)?)
+            .bind(web3_contract_address)
+            .bind(Decimal::from(web3_tx.exit_code))
             .fetch_one(&mut tx)
             .await?;
 
             let web3_logs = web3_tx_with_logs.logs;
             for log in web3_logs {
-                let mut topics_hex = vec![];
+                let mut topics = vec![];
                 for topic in log.topics {
-                    let topic_hex = hex(topic.as_slice())?;
-                    topics_hex.push(topic_hex);
+                    topics.push(topic.as_slice().to_vec());
                 }
                 sqlx::query("INSERT INTO logs
                 (transaction_id, transaction_hash, transaction_index, block_number, block_hash, address, data, log_index, topics)
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
                 .bind(transaction_id)
-                .bind(hex(log.transaction_hash.as_slice())?)
+                .bind(log.transaction_hash.as_slice())
                 .bind(log.transaction_index)
                 .bind(Decimal::from(log.block_number))
-                .bind(hex(log.block_hash.as_slice())?)
-                .bind(hex(&log.address)?)
-                .bind(hex(&log.data)?)
+                .bind(log.block_hash.as_slice())
+                .bind(log.address.as_ref())
+                .bind(&log.data)
                 .bind(log.log_index)
-                .bind(topics_hex)
+                .bind(topics)
                 .execute(&mut tx)
                 .await?;
             }
@@ -237,35 +233,35 @@ impl Web3Indexer {
                 buf.copy_from_slice(&signature[32..64]);
                 buf
             };
-            let v: u64 = signature[64].into();
+            let v: u8 = signature[64];
 
             if to_script.code_hash().as_slice() == self.polyjuice_type_script_hash.0 {
                 let l2_tx_args = l2_transaction.raw().args();
                 let polyjuice_args = PolyjuiceArgs::decode(l2_tx_args.raw_data().as_ref())?;
                 // to_address is null if it's a contract deployment transaction
-                let (to_address, polyjuice_chain_id) = if polyjuice_args.is_create {
+                let (to_address, _polyjuice_chain_id) = if polyjuice_args.is_create {
                     (None, to_id)
                 } else {
-                    let address = account_script_hash_to_eth_address(to_script_hash);
+                    let args: gw_types::bytes::Bytes = to_script.args().unpack();
+                    let address = {
+                        let mut to = [0u8; 20];
+                        to.copy_from_slice(&args[36..]);
+                        to
+                    };
                     let polyjuice_chain_id = {
                         let mut data = [0u8; 4];
-                        data.copy_from_slice(&to_script.args().raw_data()[32..36]);
+                        data.copy_from_slice(&args[32..36]);
                         u32::from_le_bytes(data)
                     };
                     (Some(address), polyjuice_chain_id)
                 };
-                // calculate chain_id
-                let chain_id: u64 = polyjuice_chain_id as u64;
+                let chain_id: u64 = self.chain_id;
                 let nonce: u32 = l2_transaction.raw().nonce().unpack();
                 let input = polyjuice_args.input.clone().unwrap_or_default();
 
                 // read logs
-                let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
-                let tx_receipt: gw_types::packed::TxReceipt = self
-                    .godwoken_rpc_client
-                    .get_transaction_receipt(&tx_hash)?
-                    .ok_or_else(|| anyhow!("tx receipt not found"))?
-                    .into();
+                let tx_receipt: TxReceipt =
+                    self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
                 let log_item_vec = tx_receipt.logs();
 
                 // read polyjuice system log
@@ -276,6 +272,7 @@ impl Web3Indexer {
                         .find(|item| u8::from(item.service_flag()) == GW_LOG_POLYJUICE_SYSTEM)
                         .as_ref()
                         .ok_or_else(|| anyhow!("no system logs"))?,
+                    &gw_tx_hash,
                 )?;
 
                 let (contract_address, tx_gas_used) = if let GwLog::PolyjuiceSystem {
@@ -301,6 +298,7 @@ impl Web3Indexer {
                     ));
                 };
 
+                let exit_code: u8 = tx_receipt.exit_code().into();
                 let web3_transaction = Web3Transaction::new(
                     gw_tx_hash,
                     Some(chain_id),
@@ -309,7 +307,7 @@ impl Web3Indexer {
                     tx_index,
                     from_address,
                     to_address,
-                    polyjuice_args.value,
+                    polyjuice_args.value.into(),
                     nonce,
                     polyjuice_args.gas_limit.into(),
                     polyjuice_args.gas_price,
@@ -319,16 +317,15 @@ impl Web3Indexer {
                     v,
                     cumulative_gas_used,
                     tx_gas_used,
-                    Vec::new(),
                     contract_address,
-                    true,
+                    exit_code,
                 );
 
                 let web3_logs = {
                     let mut logs: Vec<Web3Log> = vec![];
                     let mut log_index = 0;
                     for log_item in log_item_vec {
-                        let log = parse_log(&log_item)?;
+                        let log = parse_log(&log_item, &gw_tx_hash)?;
                         match log {
                             GwLog::PolyjuiceSystem { .. } => {
                                 // we already handled this
@@ -374,15 +371,22 @@ impl Web3Indexer {
                 match sudt_args.to_enum() {
                     SUDTArgsUnion::SUDTTransfer(sudt_transfer) => {
                         // Since we can transfer to any non-exists account, we can not check the script.code_hash.
-                        let to_address_data: Bytes = sudt_transfer.to().unpack();
-                        if to_address_data.len() != 20 {
+                        let to_address_registry_address =
+                            RegistryAddress::from_slice(sudt_transfer.to_address().as_slice());
+
+                        let mut to_address = [0u8; 20];
+                        if let Some(registry_address) = to_address_registry_address {
+                            let address = registry_address.address;
+                            if address.len() != 20 {
+                                continue;
+                            }
+                            to_address.copy_from_slice(address.as_slice());
+                        } else {
                             continue;
                         }
-                        let mut to_address = [0u8; 20];
-                        to_address.copy_from_slice(to_address_data.as_ref());
 
-                        let amount: u128 = sudt_transfer.amount().unpack();
-                        let fee: u128 = sudt_transfer.fee().unpack();
+                        let amount: U256 = sudt_transfer.amount().unpack();
+                        let fee: u128 = sudt_transfer.fee().amount().unpack();
                         let value = amount;
 
                         // Represent SUDTTransfer fee in web3 style, set gas_price as 1 temporary.
@@ -392,6 +396,10 @@ impl Web3Indexer {
 
                         let nonce: u32 = l2_transaction.raw().nonce().unpack();
 
+                        let tx_receipt: TxReceipt =
+                            self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
+
+                        let exit_code: u8 = tx_receipt.exit_code().into();
                         let web3_transaction = Web3Transaction::new(
                             gw_tx_hash,
                             None,
@@ -410,9 +418,8 @@ impl Web3Indexer {
                             v,
                             cumulative_gas_used,
                             gas_limit,
-                            Vec::new(),
                             None,
-                            true,
+                            exit_code,
                         );
 
                         let web3_tx_with_logs = Web3TransactionWithLogs {
@@ -429,6 +436,30 @@ impl Web3Indexer {
         Ok(web3_tx_with_logs_vec)
     }
 
+    fn get_transaction_receipt(
+        &self,
+        gw_tx_hash: gw_common::H256,
+        block_number: u64,
+        tx_index: u32,
+    ) -> Result<TxReceipt> {
+        let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
+        let tx_hash_hex = hex(tx_hash.as_bytes())
+            .unwrap_or_else(|_| format!("convert tx hash: {:?} to hex format failed", tx_hash));
+        let tx_receipt: TxReceipt = self
+            .godwoken_rpc_client
+            .get_transaction_receipt(&tx_hash)?
+            .ok_or_else(|| {
+                anyhow!(
+                    "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
+                    tx_hash_hex,
+                    block_number,
+                    tx_index
+                )
+            })?
+            .into();
+        Ok(tx_receipt)
+    }
+
     async fn build_web3_block(
         &self,
         l2_block: &L2Block,
@@ -443,10 +474,24 @@ impl Web3Indexer {
             gas_limit += web3_tx_with_logs.tx.gas_limit;
             gas_used += web3_tx_with_logs.tx.gas_used;
         }
-        let block_producer_id: u32 = l2_block.raw().block_producer_id().unpack();
-        let block_producer_script_hash =
-            get_script_hash(&self.godwoken_rpc_client, block_producer_id).await?;
-        let miner_address = account_script_hash_to_eth_address(block_producer_script_hash);
+        let block_producer: Bytes = l2_block.raw().block_producer().unpack();
+        let block_producer_registry_address = RegistryAddress::from_slice(&block_producer);
+
+        // If registry_address is None, set miner address to zero-address
+        let mut miner_address = [0u8; 20];
+        if let Some(registry_address) = block_producer_registry_address {
+            let address = registry_address.address;
+            if address.is_empty() {
+                log::warn!("Block producer address is empty");
+            } else if address.len() != 20 {
+                log::error!("Block producer address len not equal to 20: {:?}", address);
+            } else {
+                miner_address.copy_from_slice(address.as_slice());
+            }
+        } else {
+            log::warn!("Block producer address is None");
+        };
+
         let epoch_time_as_millis: u64 = l2_block.raw().timestamp().unpack();
         let timestamp =
             NaiveDateTime::from_timestamp((epoch_time_as_millis / MILLIS_PER_SEC) as i64, 0);
@@ -455,7 +500,6 @@ impl Web3Indexer {
             number: block_number,
             hash: block_hash,
             parent_hash,
-            logs_bloom: Vec::new(),
             gas_limit,
             gas_used,
             miner: miner_address,
@@ -491,4 +535,14 @@ async fn get_script(
         .map(convertion::to_script);
 
     Ok(script_opt)
+}
+
+fn u128_to_big_decimal(value: &u128) -> Result<BigDecimal> {
+    let result = BigDecimal::from_str(&value.to_string())?;
+    Ok(result)
+}
+
+fn u256_to_big_decimal(value: &U256) -> Result<BigDecimal> {
+    let result = BigDecimal::from_str(&value.to_string())?;
+    Ok(result)
 }

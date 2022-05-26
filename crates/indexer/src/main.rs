@@ -1,6 +1,4 @@
-use gw_web3_indexer::{
-    config::read_indexer_config, runner::Runner, ws_client::start_listen_error_tx_receipt,
-};
+use gw_web3_indexer::{config::read_indexer_config, runner::Runner};
 
 use anyhow::Result;
 use sentry_log::LogFilter;
@@ -22,12 +20,8 @@ fn main() -> Result<()> {
         None => sentry::init(()),
     };
 
-    let listener_task = start_listen_error_tx_receipt(&indexer_config);
-
     let mut runner = Runner::new(indexer_config)?;
-
     smol::block_on(runner.run())?;
-    smol::block_on(listener_task);
     Ok(())
 }
 

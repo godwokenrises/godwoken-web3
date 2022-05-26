@@ -1,20 +1,7 @@
-import { AbiItems } from "@polyjuice-provider/base";
-import { Set } from "immutable";
-import fs from "fs";
-import path from "path";
+import { HexString } from "@ckb-lumos/base";
+import InputDataDecoder from "ethereum-input-data-decoder";
 
-const dir = "../allowed-addresses.json";
-
-let allowedAddresses = Set();
-if (fs.existsSync(path.resolve(__dirname, dir))) {
-  // should be an array
-  const addresses: string[] = require("../allowed-addresses.json");
-  allowedAddresses = Set(addresses.map((addr) => addr.toLowerCase()));
-}
-
-export { allowedAddresses };
-
-export const SUDT_ERC20_PROXY_ABI: AbiItems = [
+export const SUDT_ERC20_PROXY_ABI: any = [
   {
     inputs: [
       { internalType: "string", name: "name_", type: "string" },
@@ -169,3 +156,14 @@ export const SUDT_ERC20_PROXY_ABI: AbiItems = [
     type: "function",
   },
 ];
+
+export const decoder = new InputDataDecoder(SUDT_ERC20_PROXY_ABI);
+
+export function isErc20Transfer(encodedTxCallObjInputData: HexString): boolean {
+  try {
+    const inputData = decoder.decodeData(encodedTxCallObjInputData);
+    return inputData?.method === "transfer";
+  } catch {
+    return false;
+  }
+}

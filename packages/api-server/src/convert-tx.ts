@@ -1,10 +1,22 @@
-import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
-import { RPC } from "@ckb-lumos/toolkit";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import {
+  GodwokenClient,
+  RawL2Transaction,
+  L2Transaction,
+} from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
+import {
+  ethAddressToAccountId,
+  ethEoaAddressToScriptHash,
+} from "./base/address";
+import { gwConfig } from "./base";
+import { logger } from "./base/logger";
+import { COMPATIBLE_DOCS_URL } from "./methods/constant";
+import { verifyGasLimit } from "./methods/validator";
 
-export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
+export const DEPLOY_TO_ADDRESS = "0x";
 
 export interface PolyjuiceTransaction {
   nonce: HexNumber;
@@ -18,34 +30,6 @@ export interface PolyjuiceTransaction {
   s: HexString;
 }
 
-export interface GodwokenL2Transaction {
-  raw: GodwokenRawL2Transaction;
-  signature: HexString;
-}
-
-export interface GodwokenRawL2Transaction {
-  from_id: HexNumber;
-  to_id: HexNumber;
-  nonce: HexNumber;
-  args: HexString;
-}
-
-export interface AccountInfo {
-  script: Script;
-  script_hash: Hash;
-  id: HexNumber;
-}
-
-function logger(level: string, ...messages: any[]) {
-  console.log(`[${level}] `, ...messages);
-}
-
-function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === "true") {
-    logger("debug", "@convert-tx:", ...messages);
-  }
-}
-
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -55,11 +39,11 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 
 export async function generateRawTransaction(
   data: HexString,
-  rpc: RPC
-): Promise<GodwokenL2Transaction> {
-  debugLogger("origin data:", data);
+  rpc: GodwokenClient
+): Promise<L2Transaction> {
+  logger.debug("convert-tx, origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
-  debugLogger("decoded polyjuice tx:", polyjuiceTx);
+  logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
   const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
@@ -89,7 +73,7 @@ function decodeRawTransactionData(dataParams: HexString) {
   return tx;
 }
 
-function numberToRlpEncode(num: HexString) {
+function numberToRlpEncode(num: HexString): HexString {
   if (num === "0x0" || num === "0x") {
     return "0x";
   }
@@ -100,6 +84,13 @@ function numberToRlpEncode(num: HexString) {
 function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
+
+  if (vInt === 27 || vInt === 28) {
+    throw new Error(
+      `only EIP155 transaction is allowed, illegal transaction recId ${tx.v}. more info: ${COMPATIBLE_DOCS_URL}`
+    );
+  }
+
   if (vInt % 2 === 0) {
     finalVInt = "0x" + BigInt((vInt - 36) / 2).toString(16);
   } else {
@@ -134,15 +125,26 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   return "0x" + result.toString("hex");
 }
 
-async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
-  const { nonce, gasPrice, gasLimit, to: toA, value, data, v, r, s } = rawTx;
+async function parseRawTransactionData(
+  rawTx: PolyjuiceTransaction,
+  rpc: GodwokenClient
+): Promise<L2Transaction> {
+  const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+
+  const gasLimitErr = verifyGasLimit(gasLimit, 0);
+  if (gasLimitErr) {
+    throw gasLimitErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+    );
+  }
+
+  const r = "0x" + rA.slice(2).padStart(64, "0");
+  const s = "0x" + sA.slice(2).padStart(64, "0");
 
   let real_v = "0x00";
   if (+v % 2 === 0) {
     real_v = "0x01";
   }
-
-  const to = toA === "0x" ? EMPTY_ETH_ADDRESS : toA;
 
   const signature = r + s.slice(2) + real_v.slice(2);
 
@@ -150,7 +152,16 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
 
   const publicKey = recoverPublicKey(signature, message);
   const fromEthAddress = publicKeyToEthAddress(publicKey);
-  const fromId = await getAccountIdByEthAddress(fromEthAddress, rpc);
+  const fromId: HexNumber | undefined = await getAccountIdByEthAddress(
+    fromEthAddress,
+    rpc
+  );
+
+  if (fromId == null) {
+    throw new Error(
+      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    );
+  }
 
   // header
   const args_0_7 =
@@ -175,13 +186,26 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const args_data = data;
 
   let args_7 = "";
-  let toId = await getAccountIdByEthAddress(to, rpc);
-  if (to === EMPTY_ETH_ADDRESS) {
+  let toId: HexNumber | undefined;
+  if (to === DEPLOY_TO_ADDRESS) {
     args_7 = "0x03";
-    toId = "0x" + BigInt(process.env.CREATOR_ACCOUNT_ID!).toString(16);
+    toId = gwConfig.accounts.polyjuiceCreator.id;
   } else {
     args_7 = "0x00";
-    toId = getToIdFromCallContract(to);
+    toId = await getAccountIdByEthAddress(to, rpc);
+  }
+
+  if (toId == null) {
+    throw new Error(`to id not found by address: ${to}`);
+  }
+
+  // disable to address is eoa case
+  const toScriptHash = await rpc.getScriptHash(Number(toId));
+  const eoaScriptHash = ethEoaAddressToScriptHash(to);
+  if (toScriptHash === eoaScriptHash) {
+    throw new Error(
+      `to_address can not be EOA address! more info: ${COMPATIBLE_DOCS_URL}`
+    );
   }
 
   const args =
@@ -194,14 +218,15 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
     args_48_52.slice(2) +
     args_data.slice(2);
 
-  const godwokenRawL2Tx: GodwokenRawL2Transaction = {
+  const godwokenRawL2Tx: RawL2Transaction = {
+    chain_id: gwConfig.web3ChainId,
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,
     args,
   };
 
-  const godwokenL2Tx: GodwokenL2Transaction = {
+  const godwokenL2Tx: L2Transaction = {
     raw: godwokenRawL2Tx,
     signature,
   };
@@ -209,71 +234,15 @@ async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   return godwokenL2Tx;
 }
 
-export async function ethAddressToPolyjuiceAddress(
-  ethAddress: HexString,
-  rpc: RPC
-): Promise<HexString> {
-  if (ethAddress === EMPTY_ETH_ADDRESS) {
-    return EMPTY_ETH_ADDRESS;
-  }
-  const accountInfo = await getAccountInfoByEthAddress(ethAddress, rpc);
-  const toAddress =
-    "0x" +
-    accountInfo.script_hash.slice(2, 16 * 2 + 2) +
-    UInt32ToLeBytes(+accountInfo.id);
-  return toAddress;
-}
-
-export async function polyjuiceAddressToEthAddress(
-  polyjuiceAddress: HexString,
-  rpc: RPC
-): Promise<HexString> {
-  if (polyjuiceAddress === EMPTY_ETH_ADDRESS) {
-    return EMPTY_ETH_ADDRESS;
-  }
-  const accountIdLe = "0x" + polyjuiceAddress.slice(-8);
-  const accountId = LeBytesToUInt32(accountIdLe);
-  const scriptHash = await rpc.get_script_hash("0x" + accountId.toString(16));
-  const script = await rpc.get_script(scriptHash);
-  const ethAddress = "0x" + script.args.slice(-40);
-  return ethAddress;
-}
-
 async function getAccountIdByEthAddress(
   to: HexString,
-  rpc: RPC
-): Promise<HexNumber> {
-  const info = await getAccountInfoByEthAddress(to, rpc);
-  return info.id;
-}
-
-// to address => account id
-// only for create account
-async function getAccountInfoByEthAddress(
-  to: HexString,
-  rpc: RPC
-): Promise<AccountInfo> {
-  const toScript: Script = {
-    code_hash: process.env.ETH_ACCOUNT_LOCK_HASH as string,
-    hash_type: "type",
-    args: process.env.ROLLUP_TYPE_HASH + to.slice(2),
-  };
-
-  const toScriptHash = utils.computeScriptHash(toScript);
-
-  const accountId = await rpc.get_account_id_by_script_hash(toScriptHash);
-
-  return {
-    script: toScript,
-    script_hash: toScriptHash,
-    id: accountId,
-  };
-}
-
-function getToIdFromCallContract(toAddress: HexString): HexNumber {
-  const toIdLe = "0x" + toAddress.slice(-8);
-  const toId = LeBytesToUInt32(toIdLe);
-  return "0x" + toId.toString(16);
+  rpc: GodwokenClient
+): Promise<HexNumber | undefined> {
+  const id: number | undefined = await ethAddressToAccountId(to, rpc);
+  if (id == null) {
+    return undefined;
+  }
+  return "0x" + id.toString(16);
 }
 
 function UInt32ToLeBytes(num: number): HexString {
@@ -304,11 +273,6 @@ function UInt128ToLeBytes(u128: bigint): HexString {
   return "0x" + buf.toString("hex");
 }
 
-function LeBytesToUInt32(hex: HexString): number {
-  const buf = Buffer.from(hex.slice(2), "hex");
-  return buf.readUInt32LE();
-}
-
 function recoverPublicKey(signature: HexString, message: HexString) {
   const sigBuffer = Buffer.from(signature.slice(2), "hex");
   const msgBuffer = Buffer.from(message.slice(2), "hex");
@@ -321,7 +285,7 @@ function recoverPublicKey(signature: HexString, message: HexString) {
   );
   const publicKeyHex = "0x" + Buffer.from(publicKey).toString("hex");
 
-  debugLogger("recovered public key:", publicKeyHex);
+  logger.debug("recovered public key:", publicKeyHex);
 
   return publicKeyHex;
 }

@@ -2,6 +2,7 @@ import http from "http";
 import https from "https";
 import { RPC as Rpc } from "@ckb-lumos/toolkit";
 
+// don't import from envConfig
 const maxSockets: number = process.env.MAX_SOCKETS
   ? +process.env.MAX_SOCKETS
   : 10;

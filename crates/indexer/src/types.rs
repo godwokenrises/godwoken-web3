@@ -1,4 +1,5 @@
 use gw_common::H256;
+use gw_types::U256;
 use sha3::{Digest, Keccak256};
 use sqlx::types::chrono::{DateTime, Utc};
 
@@ -9,7 +10,6 @@ pub struct Block {
     pub number: u64,
     pub hash: H256,
     pub parent_hash: H256,
-    pub logs_bloom: Vec<u8>,
     pub gas_limit: u128,
     pub gas_used: u128,
     pub miner: Address,
@@ -26,19 +26,18 @@ pub struct Transaction {
     pub transaction_index: u32,
     pub from_address: Address,
     pub to_address: Option<Address>,
-    pub value: u128,
+    pub value: U256,
     pub nonce: u32,
     pub gas_limit: u128,
     pub gas_price: u128,
     pub data: Vec<u8>,
-    pub v: u64,
+    pub v: u8,
     pub r: [u8; 32],
     pub s: [u8; 32],
     pub cumulative_gas_used: u128,
     pub gas_used: u128,
-    pub logs_bloom: Vec<u8>,
     pub contract_address: Option<Address>,
-    pub status: bool,
+    pub exit_code: u8,
 }
 
 impl Transaction {
@@ -51,19 +50,18 @@ impl Transaction {
         transaction_index: u32,
         from_address: Address,
         to_address: Option<Address>,
-        value: u128,
+        value: U256,
         nonce: u32,
         gas_limit: u128,
         gas_price: u128,
         data: Vec<u8>,
         r: [u8; 32],
         s: [u8; 32],
-        v: u64,
+        v: u8,
         cumulative_gas_used: u128,
         gas_used: u128,
-        logs_bloom: Vec<u8>,
         contract_address: Option<Address>,
-        status: bool,
+        exit_code: u8,
     ) -> Transaction {
         Transaction {
             gw_tx_hash,
@@ -83,9 +81,8 @@ impl Transaction {
             s,
             cumulative_gas_used,
             gas_used,
-            logs_bloom,
             contract_address,
-            status,
+            exit_code,
         }
     }
 

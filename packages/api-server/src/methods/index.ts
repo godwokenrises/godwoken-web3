@@ -3,6 +3,7 @@ import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
 import { INVALID_PARAMS } from "./error-code";
 import { RpcError } from "./error";
+import { envConfig } from "../base/env-config";
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -36,7 +37,7 @@ function getMethods(argsList: ModConstructorArgs = {}) {
             const result = await mod[methodName].bind(mod)(args);
             return cb(null, result);
           } catch (err: any) {
-            if (process.env.SENTRY_DNS && err.code !== INVALID_PARAMS) {
+            if (envConfig.sentryDns && err.code !== INVALID_PARAMS) {
               Sentry.captureException(err, {
                 extra: { method: concatedMethodName, params: args },
               });
@@ -64,7 +65,4 @@ function getMethods(argsList: ModConstructorArgs = {}) {
   return methods;
 }
 
-const ethWalletMode = true;
-
 export const methods = getMethods();
-export const ethWalletMethods = getMethods({ eth: [ethWalletMode] });

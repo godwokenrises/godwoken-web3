@@ -39,8 +39,8 @@ export class AccountMerkleState {
   getCount(): Uint32;
 }
 
-export function SerializeGlobalState(value: object): ArrayBuffer;
-export class GlobalState {
+export function SerializeGlobalStateV0(value: object): ArrayBuffer;
+export class GlobalStateV0 {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   static size(): Number;
@@ -51,6 +51,39 @@ export class GlobalState {
   getTipBlockHash(): Byte32;
   getLastFinalizedBlockNumber(): Uint64;
   getStatus(): number;
+}
+
+export function SerializeGlobalState(value: object): ArrayBuffer;
+export class GlobalState {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getRollupConfigHash(): Byte32;
+  getAccount(): AccountMerkleState;
+  getBlock(): BlockMerkleState;
+  getRevertedBlockRoot(): Byte32;
+  getTipBlockHash(): Byte32;
+  getTipBlockTimestamp(): Uint64;
+  getLastFinalizedBlockNumber(): Uint64;
+  getStatus(): number;
+  getVersion(): number;
+}
+
+export function SerializeAllowedTypeHash(value: object): ArrayBuffer;
+export class AllowedTypeHash {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getType(): number;
+  getHash(): Byte32;
+}
+
+export function SerializeAllowedTypeHashVec(value: Array<object>): ArrayBuffer;
+export class AllowedTypeHashVec {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  indexAt(i: number): AllowedTypeHash;
+  length(): number;
 }
 
 export function SerializeRollupConfig(value: object): ArrayBuffer;
@@ -69,14 +102,16 @@ export class RollupConfig {
   getChallengeMaturityBlocks(): Uint64;
   getFinalityBlocks(): Uint64;
   getRewardBurnRate(): number;
-  getAllowedEoaTypeHashes(): Byte32Vec;
-  getAllowedContractTypeHashes(): Byte32Vec;
+  getChainId(): Uint64;
+  getAllowedEoaTypeHashes(): AllowedTypeHashVec;
+  getAllowedContractTypeHashes(): AllowedTypeHashVec;
 }
 
 export function SerializeRawL2Transaction(value: object): ArrayBuffer;
 export class RawL2Transaction {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
+  getChainId(): Uint64;
   getFromId(): Uint32;
   getToId(): Uint32;
   getNonce(): Uint32;
@@ -103,6 +138,7 @@ export function SerializeSubmitTransactions(value: object): ArrayBuffer;
 export class SubmitTransactions {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
+  static size(): Number;
   getTxWitnessRoot(): Byte32;
   getTxCount(): Uint32;
   getPrevStateCheckpoint(): Byte32;
@@ -122,7 +158,7 @@ export class RawL2Block {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   getNumber(): Uint64;
-  getBlockProducerId(): Uint32;
+  getBlockProducer(): Bytes;
   getParentBlockHash(): Byte32;
   getStakeCellOwnerLockHash(): Byte32;
   getTimestamp(): Uint64;
@@ -161,6 +197,7 @@ export class DepositRequest {
   getAmount(): Uint128;
   getSudtScriptHash(): Byte32;
   getScript(): Script;
+  getRegistryId(): Uint32;
 }
 
 export function SerializeDepositRequestVec(value: Array<object>): ArrayBuffer;
@@ -177,15 +214,14 @@ export class RawWithdrawalRequest {
   validate(compatible?: boolean): void;
   static size(): Number;
   getNonce(): Uint32;
+  getChainId(): Uint64;
   getCapacity(): Uint64;
   getAmount(): Uint128;
   getSudtScriptHash(): Byte32;
   getAccountScriptHash(): Byte32;
-  getSellAmount(): Uint128;
-  getSellCapacity(): Uint64;
+  getRegistryId(): Uint32;
   getOwnerLockHash(): Byte32;
-  getPaymentLockHash(): Byte32;
-  getFee(): Fee;
+  getFee(): Uint128;
 }
 
 export function SerializeWithdrawalRequestVec(value: Array<object>): ArrayBuffer;
@@ -208,6 +244,7 @@ export function SerializeKVPair(value: object): ArrayBuffer;
 export class KVPair {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
+  static size(): Number;
   getK(): Byte32;
   getV(): Byte32;
 }
@@ -224,8 +261,7 @@ export function SerializeBlockInfo(value: object): ArrayBuffer;
 export class BlockInfo {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
-  static size(): Number;
-  getBlockProducerId(): Uint32;
+  getBlockProducer(): Bytes;
   getNumber(): Uint64;
   getTimestamp(): Uint64;
 }
@@ -237,15 +273,16 @@ export class DepositLockArgs {
   getOwnerLockHash(): Byte32;
   getLayer2Lock(): Script;
   getCancelTimeout(): Uint64;
+  getRegistryId(): Uint32;
 }
 
 export function SerializeCustodianLockArgs(value: object): ArrayBuffer;
 export class CustodianLockArgs {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
-  getDepositLockArgs(): DepositLockArgs;
   getDepositBlockHash(): Byte32;
   getDepositBlockNumber(): Uint64;
+  getDepositLockArgs(): DepositLockArgs;
 }
 
 export function SerializeUnlockCustodianViaRevertWitness(value: object): ArrayBuffer;
@@ -261,14 +298,10 @@ export class WithdrawalLockArgs {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   static size(): Number;
-  getAccountScriptHash(): Byte32;
   getWithdrawalBlockHash(): Byte32;
   getWithdrawalBlockNumber(): Uint64;
-  getSudtScriptHash(): Byte32;
-  getSellAmount(): Uint128;
-  getSellCapacity(): Uint64;
+  getAccountScriptHash(): Byte32;
   getOwnerLockHash(): Byte32;
-  getPaymentLockHash(): Byte32;
 }
 
 export function SerializeUnlockWithdrawalWitness(value: UnionType): ArrayBuffer;
@@ -293,13 +326,6 @@ export class UnlockWithdrawalViaRevert {
   getCustodianLockHash(): Byte32;
 }
 
-export function SerializeUnlockWithdrawalViaTrade(value: object): ArrayBuffer;
-export class UnlockWithdrawalViaTrade {
-  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
-  validate(compatible?: boolean): void;
-  getOwnerLock(): Script;
-}
-
 export function SerializeStakeLockArgs(value: object): ArrayBuffer;
 export class StakeLockArgs {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
@@ -322,7 +348,7 @@ export class Fee {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   static size(): Number;
-  getSudtId(): Uint32;
+  getRegistryId(): Uint32;
   getAmount(): Uint128;
 }
 
@@ -346,16 +372,16 @@ export function SerializeSUDTQuery(value: object): ArrayBuffer;
 export class SUDTQuery {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
-  getShortAddress(): Bytes;
+  getAddress(): Bytes;
 }
 
 export function SerializeSUDTTransfer(value: object): ArrayBuffer;
 export class SUDTTransfer {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
-  getTo(): Bytes;
-  getAmount(): Uint128;
-  getFee(): Uint128;
+  getToAddress(): Bytes;
+  getAmount(): Uint256;
+  getFee(): Fee;
 }
 
 export function SerializeChallengeTarget(value: object): ArrayBuffer;
@@ -409,18 +435,6 @@ export class BlockHashEntryVec {
   length(): number;
 }
 
-export function SerializeVerifyTransactionContext(value: object): ArrayBuffer;
-export class VerifyTransactionContext {
-  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
-  validate(compatible?: boolean): void;
-  getAccountCount(): Uint32;
-  getKvState(): KVPairVec;
-  getLoadData(): BytesVec;
-  getScripts(): ScriptVec;
-  getReturnDataHash(): Byte32;
-  getBlockHashes(): BlockHashEntryVec;
-}
-
 export function SerializeCKBMerkleProof(value: object): ArrayBuffer;
 export class CKBMerkleProof {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
@@ -429,8 +443,8 @@ export class CKBMerkleProof {
   getLemmas(): Byte32Vec;
 }
 
-export function SerializeVerifyTransactionWitness(value: object): ArrayBuffer;
-export class VerifyTransactionWitness {
+export function SerializeCCTransactionWitness(value: object): ArrayBuffer;
+export class CCTransactionWitness {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   getL2Tx(): L2Transaction;
@@ -438,36 +452,40 @@ export class VerifyTransactionWitness {
   getTxProof(): CKBMerkleProof;
   getKvStateProof(): Bytes;
   getBlockHashesProof(): Bytes;
-  getContext(): VerifyTransactionContext;
-}
-
-export function SerializeVerifyTransactionSignatureContext(value: object): ArrayBuffer;
-export class VerifyTransactionSignatureContext {
-  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
-  validate(compatible?: boolean): void;
   getAccountCount(): Uint32;
   getKvState(): KVPairVec;
+  getLoadData(): BytesVec;
   getScripts(): ScriptVec;
+  getReturnDataHash(): Byte32;
+  getBlockHashes(): BlockHashEntryVec;
 }
 
-export function SerializeVerifyTransactionSignatureWitness(value: object): ArrayBuffer;
-export class VerifyTransactionSignatureWitness {
+export function SerializeCCTransactionSignatureWitness(value: object): ArrayBuffer;
+export class CCTransactionSignatureWitness {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   getRawL2Block(): RawL2Block;
   getL2Tx(): L2Transaction;
   getTxProof(): CKBMerkleProof;
+  getKvState(): KVPairVec;
   getKvStateProof(): Bytes;
-  getContext(): VerifyTransactionSignatureContext;
+  getAccountCount(): Uint32;
+  getSender(): Script;
+  getReceiver(): Script;
 }
 
-export function SerializeVerifyWithdrawalWitness(value: object): ArrayBuffer;
-export class VerifyWithdrawalWitness {
+export function SerializeCCWithdrawalWitness(value: object): ArrayBuffer;
+export class CCWithdrawalWitness {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
   getRawL2Block(): RawL2Block;
-  getWithdrawalRequest(): WithdrawalRequest;
+  getWithdrawal(): WithdrawalRequest;
+  getSender(): Script;
+  getOwnerLock(): Script;
   getWithdrawalProof(): CKBMerkleProof;
+  getKvStateProof(): Bytes;
+  getKvState(): KVPairVec;
+  getAccountCount(): Uint32;
 }
 
 export function SerializeRollupSubmitBlock(value: object): ArrayBuffer;
@@ -499,6 +517,7 @@ export class RollupRevert {
   getRevertedBlocks(): RawL2BlockVec;
   getBlockProof(): Bytes;
   getRevertedBlockProof(): Bytes;
+  getNewTipBlock(): RawL2Block;
 }
 
 export function SerializeRollupAction(value: UnionType): ArrayBuffer;
@@ -507,6 +526,56 @@ export class RollupAction {
   validate(compatible?: boolean): void;
   unionType(): string;
   value(): any;
+}
+
+export function SerializeByte20(value: CanCastToArrayBuffer): ArrayBuffer;
+export class Byte20 {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  indexAt(i: number): number;
+  raw(): ArrayBuffer;
+  static size(): Number;
+}
+
+export function SerializeETHAddrRegArgs(value: UnionType): ArrayBuffer;
+export class ETHAddrRegArgs {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  unionType(): string;
+  value(): any;
+}
+
+export function SerializeEthToGw(value: object): ArrayBuffer;
+export class EthToGw {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getEthAddress(): Byte20;
+}
+
+export function SerializeGwToEth(value: object): ArrayBuffer;
+export class GwToEth {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getGwScriptHash(): Byte32;
+}
+
+export function SerializeSetMapping(value: object): ArrayBuffer;
+export class SetMapping {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  static size(): Number;
+  getGwScriptHash(): Byte32;
+  getFee(): Fee;
+}
+
+export function SerializeBatchSetMapping(value: object): ArrayBuffer;
+export class BatchSetMapping {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getGwScriptHashes(): Byte32Vec;
+  getFee(): Fee;
 }
 
 export function SerializeUint16(value: CanCastToArrayBuffer): ArrayBuffer;

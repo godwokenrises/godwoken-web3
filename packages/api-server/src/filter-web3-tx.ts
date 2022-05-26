@@ -11,22 +11,24 @@ import {
   U64,
 } from "@godwoken-web3/godwoken";
 import { Reader } from "@ckb-lumos/toolkit";
-import { envConfig } from "./base/env-config";
 import { EthTransaction, EthTransactionReceipt } from "./base/types/api";
-import { Uint128, Uint32, Uint64 } from "./base/types/uint";
+import { Uint128, Uint256, Uint32, Uint64 } from "./base/types/uint";
 import { PolyjuiceSystemLog, PolyjuiceUserLog } from "./base/types/gw-log";
 import {
   CKB_SUDT_ID,
-  DEFAULT_EMPTY_ETH_ADDRESS,
+  ZERO_ETH_ADDRESS,
   DEFAULT_LOGS_BLOOM,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
+import { gwConfig } from "./base/index";
+import { logger } from "./base/logger";
+import { EthRegistryAddress } from "./base/address";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
 export async function filterWeb3Transaction(
-  txHash: Hash,
+  ethTxHash: Hash,
   rpc: GodwokenClient,
   tipBlockNumber: U64,
   tipBlockHash: Hash,
@@ -46,22 +48,17 @@ export async function filterWeb3Transaction(
     return undefined;
   }
 
-  // skip tx with non eth_account_lock or non tron_account_lock from_id
-  if (fromScript.code_hash !== envConfig.ethAccountLockHash) {
-    if (envConfig.tronAccountLockHash == null) {
-      return undefined;
-    }
-    if (fromScript.code_hash !== envConfig.tronAccountLockHash) {
-      return undefined;
-    }
+  // skip tx with non eth_account_lock from_id
+  if (fromScript.code_hash !== gwConfig.eoaScripts.eth.typeHash) {
+    return undefined;
   }
 
   const fromScriptArgs: HexString = fromScript.args;
   if (
     fromScriptArgs.length !== 106 ||
-    fromScriptArgs.slice(0, 66) !== envConfig.rollupTypeHash
+    fromScriptArgs.slice(0, 66) !== gwConfig.rollupCell.typeHash
   ) {
-    console.error("Wrong from_address's script args:", fromScriptArgs);
+    logger.error("Wrong from_address's script args:", fromScriptArgs);
     return undefined;
   }
 
@@ -87,7 +84,9 @@ export async function filterWeb3Transaction(
 
   const nonce: HexU32 = l2Tx.raw.nonce;
 
-  if (toScript.code_hash === envConfig.polyjuiceValidatorTypeHash) {
+  if (
+    toScript.code_hash === gwConfig.backends.polyjuice.validatorScriptTypeHash
+  ) {
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
 
@@ -96,7 +95,8 @@ export async function filterWeb3Transaction(
     if (polyjuiceArgs.isCreate) {
       // polyjuiceChainId = toIdHex;
     } else {
-      toAddress = toScriptHash.slice(0, 42);
+      // 74 = 2 + (32 + 4) * 2
+      toAddress = "0x" + toScript.args.slice(74);
       // 32..36 bytes
       // const data = "0x" + toScript.args.slice(66, 74);
       // polyjuiceChainId = "0x" + readUInt32LE(data).toString(16);
@@ -111,7 +111,7 @@ export async function filterWeb3Transaction(
       from: fromAddress,
       gas: polyjuiceArgs.gasLimit,
       gasPrice: polyjuiceArgs.gasPrice,
-      hash: txHash,
+      hash: ethTxHash,
       input,
       nonce,
       to: toAddress || null,
@@ -135,10 +135,7 @@ export async function filterWeb3Transaction(
     const logInfo = parsePolyjuiceSystemLog(polyjuiceSystemLog.data);
 
     let contractAddress = undefined;
-    if (
-      polyjuiceArgs.isCreate &&
-      logInfo.createdAddress !== DEFAULT_EMPTY_ETH_ADDRESS
-    ) {
+    if (polyjuiceArgs.isCreate && logInfo.createdAddress !== ZERO_ETH_ADDRESS) {
       contractAddress = logInfo.createdAddress;
     }
 
@@ -159,7 +156,7 @@ export async function filterWeb3Transaction(
       });
 
     const receipt: EthTransactionReceipt = {
-      transactionHash: txHash,
+      transactionHash: ethTxHash,
       transactionIndex: PENDING_TRANSACTION_INDEX,
       blockHash: pendingBlockHash,
       blockNumber: pendingBlockNumber,
@@ -175,33 +172,38 @@ export async function filterWeb3Transaction(
           blockHash: pendingBlockHash,
           blockNumber: pendingBlockNumber,
           transactionIndex: PENDING_TRANSACTION_INDEX,
-          transactionHash: txHash,
+          transactionHash: ethTxHash,
           removed: false,
         };
       }),
       contractAddress: contractAddress || null,
-      status: "0x1",
+      status: l2TxReceipt.exit_code === "0x0" ? "0x1" : "0x0",
     };
 
     return [ethTx, receipt];
   } else if (
     toId === +CKB_SUDT_ID &&
-    toScript.code_hash === envConfig.l2SudtValidatorScriptTypeHash
+    toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash
   ) {
     const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
     if (sudtArgs.unionType() === "SUDTTransfer") {
       const sudtTransfer: schemas.SUDTTransfer = sudtArgs.value();
-      const toAddress = new Reader(sudtTransfer.getTo().raw()).serializeJson();
+      const toAddressRegistryAddress = new Reader(
+        sudtTransfer.getToAddress().raw()
+      ).serializeJson();
+      const toAddress = EthRegistryAddress.Deserialize(
+        toAddressRegistryAddress
+      ).address;
       if (toAddress.length !== 42) {
         return undefined;
       }
-      const amount = Uint128.fromLittleEndian(
+      const amount = Uint256.fromLittleEndian(
         new Reader(sudtTransfer.getAmount().raw()).serializeJson()
       );
       const fee = Uint128.fromLittleEndian(
-        new Reader(sudtTransfer.getFee().raw()).serializeJson()
+        new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
       );
-      const value: Uint128 = amount;
+      const value: Uint256 = amount;
       const gasPrice: Uint128 = new Uint128(1n);
       const gasLimit: Uint128 = fee;
 
@@ -212,7 +214,7 @@ export async function filterWeb3Transaction(
         from: fromAddress,
         gas: gasLimit.toHex(),
         gasPrice: gasPrice.toHex(),
-        hash: txHash,
+        hash: ethTxHash,
         input: "0x",
         nonce,
         to: toAddress,
@@ -223,7 +225,7 @@ export async function filterWeb3Transaction(
       };
 
       const receipt: EthTransactionReceipt = {
-        transactionHash: txHash,
+        transactionHash: ethTxHash,
         transactionIndex: PENDING_TRANSACTION_INDEX,
         blockHash: pendingBlockHash,
         blockNumber: pendingBlockNumber,

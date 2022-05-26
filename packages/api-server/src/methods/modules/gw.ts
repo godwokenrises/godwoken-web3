@@ -5,6 +5,7 @@ import { HexNumber } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
+import { logger } from "../../base/logger";
 
 export class Gw {
   private rpc: RPC;
@@ -67,6 +68,7 @@ export class Gw {
       this.get_last_submitted_info.bind(this),
       0
     );
+    this.get_node_info = middleware(this.get_node_info.bind(this), 0);
   }
 
   async ping(args: any[]) {
@@ -177,13 +179,13 @@ export class Gw {
       const scriptHash = args[0];
       let result = await this.gwCache.get(`${GW_RPC_KEY}_${scriptHash}`);
       if (result != null) {
-        console.debug(`using cache: ${scriptHash} -> ${result}`);
+        logger.debug(`using cache: ${scriptHash} -> ${result}`);
         return result;
       }
 
       result = await this.readonlyRpc.gw_get_account_id_by_script_hash(...args);
       if (result != null) {
-        console.debug(`update cache: ${scriptHash} -> ${result}`);
+        logger.debug(`update cache: ${scriptHash} -> ${result}`);
         this.gwCache.insert(`${GW_RPC_KEY}_${scriptHash}`, result);
       }
       return result;
@@ -345,27 +347,42 @@ export class Gw {
 
   /**
    *
-   * @param args [short_address]
+   * @param args [scriptHash(Hash), registryId(HexNumber)]
    * @returns
    */
-  async get_script_hash_by_short_address(args: any[]) {
+  async get_registry_address_by_script_hash(args: any[]) {
     try {
-      const shortAddress = args[0];
-      const key = `${GW_RPC_KEY}_addr_${shortAddress}`;
+      const result = await this.rpc.gw_get_registry_address_by_script_hash(
+        ...args
+      );
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  /**
+   *
+   * @param args [registryAddress(HexString)]
+   * @returns
+   */
+  async get_script_hash_by_registry_address(args: any[]) {
+    try {
+      const registryAddress: string = args[0];
+      const key = `${GW_RPC_KEY}_addr_${registryAddress}`;
       const value = await this.gwCache.get(key);
       if (value != null) {
-        console.debug(
-          `using cache : shortAddress(${shortAddress}) -> scriptHash(${value})`
+        logger.debug(
+          `using cache : registryAddress(${registryAddress}) -> scriptHash(${value})`
         );
         return value;
       }
 
-      const result = await this.readonlyRpc.gw_get_script_hash_by_short_address(
-        ...args
-      );
+      const result =
+        await this.readonlyRpc.gw_get_script_hash_by_registry_address(...args);
       if (result != null) {
-        console.debug(
-          `update cache: shortAddress(${shortAddress}) -> scriptHash(${result})`
+        logger.debug(
+          `update cache: registryAddress(${registryAddress}) -> scriptHash(${result})`
         );
         this.gwCache.insert(key, result);
       }
@@ -412,9 +429,9 @@ export class Gw {
     }
   }
 
-  async get_mem_pool_state_root(args: any[]) {
+  async get_node_info(args: any[]) {
     try {
-      const result = await this.readonlyRpc.gw_get_mem_pool_state_root(...args);
+      const result = await this.readonlyRpc.gw_get_node_info(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);

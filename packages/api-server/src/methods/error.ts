@@ -1,4 +1,5 @@
 import { JSONRPCError } from "jayson";
+import { logger } from "../base/logger";
 import { HEADER_NOT_FOUND_ERR_MESSAGE } from "./constant";
 import {
   HEADER_NOT_FOUND_ERROR,
@@ -31,6 +32,22 @@ export class Web3Error extends RpcError {
 export class InvalidParamsError extends RpcError {
   constructor(message: string) {
     super(INVALID_PARAMS, message);
+  }
+
+  padContext(context: string): InvalidParamsError {
+    const msgs = this.message.split(/(invalid argument .: )/);
+    // [ '', 'invalid argument <number>: ', 'message' ]
+    if (msgs.length !== 3) {
+      logger.error(
+        `[InvalidParamsError] padContext parse message failed: ${
+          this.message
+        }, split array: ${JSON.stringify(msgs)}, will return origin error.`
+      );
+      return this;
+    }
+    const newMsg = `${msgs[1]}${context} -> ${msgs[2]}`;
+    this.message = newMsg;
+    return this;
   }
 }
 

@@ -54,19 +54,20 @@
 
 ### Usage
 
-you can find most usage guidelines from Ethereum Rpc docs like <https://eth.wiki/json-rpc/API> ;
+You can find most usage guidelines from Ethereum RPC docs like <https://eth.wiki/json-rpc/API>
 
 ### Unsupported Methods
 
-- eth_accounts (only wallet client can do this)
-- eth_sign (only wallet client can do this)
-- eth_signTransaction (only wallet client can do this)
-- eth_sendTransaction (only wallet client can do this)
-- eth_sendRawTransaction (for compatible reason, we use `gw_submit_l2Transaction` and `poly_submitL2Transaction` for submitting transactions)
+- eth_accounts (only supported by wallet client)
+- eth_sign (only supported by wallet client)
+- eth_signTransaction (only supported by wallet client)
+- eth_sendTransaction (only supported by wallet client)
 
 ## Additional Modules
 
 ### gw (Godwoken RPCs)
+
+#### Methods
 
 - gw_ping
 - gw_get_tip_block_hash
@@ -81,52 +82,33 @@ you can find most usage guidelines from Ethereum Rpc docs like <https://eth.wiki
 - gw_get_script_hash
 - gw_get_data
 - gw_get_transaction_receipt
+- gw_get_transaction
 - gw_execute_l2transaction
 - gw_execute_raw_l2transaction
 - gw_submit_l2transaction
 - gw_submit_withdrawal_request
+- gw_get_registry_address_by_script_hash
+- gw_get_script_hash_by_registry_address
+- gw_get_fee_config
+- gw_get_withdrawal
+- gw_get_last_submitted_info
+- gw_get_node_info
 
-### Usage
+#### Usage
 
-checkout [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md)
+Get details at [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md)
 
 ### poly (Polyjuice RPCs)
 
-- poly_getEthAddressByGodwokenShortAddress
-- poly_getChainInfo
-- poly_getDefaultFromAddress
+#### Methods
+
+- poly_getCreatorId
+- poly_getDefaultFromId
 - poly_getContractValidatorTypeHash
 - poly_getRollupTypeHash
-- poly_getRollupConfigHash
 - poly_getEthAccountLockHash
-- poly_getCreatorId
-- poly_submitL2Transaction
-- poly_executeRawL2Transaction
+- poly_version
 
-### Usage
+#### Usage
 
-#### poly_executeRawL2Transaction
-
-> This method is similar to the concept of `"eth_call"` in Ethereum.
-
-`poly_executeRawL2Transaction` is almost the same with `gw_execute_raw_l2Transaction`, but its first param `serializedRawL2TransactionWithAddressMapping` uses different molecule structure with an additional `addressMapping` filed.
-
-- gw_execute_raw_l2Transaction
-  - params: [serializedRawL2Transaction, blockNumber]
-  - how to serialize: [code](https://github.com/nervosnetwork/polyjuice-provider/blob/main/packages/base/src/util.ts#L465-L468)
-- poly_executeRawL2Transaction
-  - params: [serializedRawL2TransactionWithAddressMapping, blockNumber]
-  - how ot serialize: [code](https://github.com/nervosnetwork/polyjuice-provider/blob/main/packages/base/src/util.ts#L326-L335)
-
-#### poly_submitL2Transaction
-
-> This method is similar to the concept of `"eth_sendRawTransaction"` in Ethereum.
-
-`poly_submitL2Transaction` is almost the same with `gw_submit_l2Transaction`, but its first param `serializedL2TransactionWithAddressMapping` use different molecule structure with an additional `addressMapping` filed.
-
-- gw_submit_l2Transaction
-  - params: [serializedL2Transaction]
-  - how to serialize: [code](https://github.com/nervosnetwork/polyjuice-provider/blob/main/packages/base/src/util.ts#L460-L463)
-- poly_submitL2Transaction
-  - params: [serializedL2TransactionWithAddressMapping]
-  - how ot serialize: [code](https://github.com/nervosnetwork/polyjuice-provider/blob/main/packages/base/src/util.ts#L374-L383)
+Get details at [Poly APIs doc](poly-apis.md)
