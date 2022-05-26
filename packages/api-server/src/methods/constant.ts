@@ -23,6 +23,6 @@ export const POLYJUICE_USER_LOG_FLAG = "0x3";
 export const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
 
 export const COMPATIBLE_DOCS_URL =
-  "https://github.com/nervosnetwork/godwoken-web3/blob/compatibility-breaking-changes/docs/compatibility.md";
+  "https://github.com/nervosnetwork/godwoken-web3/blob/main/docs/compatibility.md";
 
 export const QUERY_OFFSET_REACHED_END = "query offset reached end";
