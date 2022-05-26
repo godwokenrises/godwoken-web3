@@ -28,7 +28,10 @@ import {
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
   client: "postgresql",
-  connection: envConfig.databaseUrl,
+  connection: {
+    connectionString: envConfig.databaseUrl,
+    keepAlive: true,
+  },
   pool: { min: 2, max: +poolMax },
 });
 
