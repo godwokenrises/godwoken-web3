@@ -2,7 +2,7 @@ name: Docker Build Push (Web3)
 
 on:
   push:
-    branches: [main, hot-fix, compatibility-breaking-changes, bump-pg-version]
+    branches: [main, hot-fix, compatibility-breaking-changes, bump-pg-version, fix-migration-table-already-exists]
     # Publish semver tags as releases.
     tags: ["v*.*.*"]
   pull_request:
