@@ -24,6 +24,7 @@ import {
   POLY_MAX_BLOCK_GAS_LIMIT,
   POLY_MIN_GAS_PRICE,
   COMPATIBLE_DOCS_URL,
+  MIN_ESTIMATE_GAS,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -557,7 +558,11 @@ export class Eth {
       );
 
       const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
-      const result = "0x" + gasUsed.toString(16);
+
+      let result: HexNumber = "0x" + gasUsed.toString(16);
+      if (gasUsed < MIN_ESTIMATE_GAS) {
+        result = "0x" + MIN_ESTIMATE_GAS.toString(16);
+      }
 
       if (isTransfer) {
         // no await
