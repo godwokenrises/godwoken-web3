@@ -10,7 +10,10 @@ on:
 
 jobs:
   godwoken-tests:
-    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
+    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@simplify-workflow
     with:
-      web3_ref: "${{ github.sha }}"
-      kicker_ref: "refs/pull/253/head"
+      extra_github_env: |
+        MANUAL_BUILD_WEB3=true
+        MANUAL_BUILD_WEB3_INDEXER=true
+        WEB3_GIT_URL=https://github.com/${{ github.repository }}
+        WEB3_GIT_CHECKOUT=${{ github.ref }}
