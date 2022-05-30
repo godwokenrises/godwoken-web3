@@ -110,10 +110,8 @@ impl Web3Indexer {
         for web3_tx_with_logs in web3_tx_with_logs_vec {
             let web3_tx = web3_tx_with_logs.tx;
             let web3_to_address = web3_tx.to_address.map(|addr| addr.to_vec());
-            let web3_contract_address = match web3_tx.contract_address {
-                Some(addr) => addr.to_vec(),
-                None => vec![],
-            };
+            let web3_contract_address = web3_tx.contract_address.map(|addr| addr.to_vec());
+
             let  (transaction_id,): (i64,) =
             sqlx::query_as("INSERT INTO transactions
             (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code) 
