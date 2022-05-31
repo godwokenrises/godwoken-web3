@@ -1,7 +1,10 @@
-use std::{fmt, fmt::Display, fs, path::Path};
+use std::{env, fmt, fmt::Display, path::Path};
 
 use anyhow::Result;
 use ckb_types::H256;
+use dotenv;
+use gw_jsonrpc_types::godwoken::{BackendType, EoaScriptType, GwScriptType};
+use gw_web3_rpc_client::godwoken_rpc_client::GodwokenRpcClient;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -55,9 +58,80 @@ impl Display for IndexerConfig {
     }
 }
 
-// Read indexer-config.toml
-pub fn read_indexer_config<P: AsRef<Path>>(path: P) -> Result<IndexerConfig> {
-    let content = fs::read(&path)?;
-    let config = toml::from_slice(&content)?;
-    Ok(config)
+// TODO: rename the configuration file from "indexer-config.toml" to ".env"
+// TODO: uppercase the environment variables name "pg_url", "godwoken_rpc_url", etc
+pub fn load_indexer_config<P: AsRef<Path>>(path: P) -> Result<IndexerConfig> {
+    if path.as_ref().exists() {
+        log::info!(
+            "Loading configuration file {}",
+            path.as_ref().to_string_lossy().to_string()
+        );
+        dotenv::from_path(path)?;
+    } else {
+        log::info!(
+            "Cannot find configuration file {}, continue",
+            path.as_ref().to_string_lossy().to_string()
+        );
+    }
+
+    // Load components configurations from environment variables
+    let pg_url = env::var("pg_url")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/".to_string());
+    let godwoken_rpc_url =
+        env::var("godwoken_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8119".to_string());
+    let ws_rpc_url = env::var("ws_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8120".to_string());
+    let sentry_dsn = env::var("sentry_dsn").ok();
+    let sentry_environment = env::var("sentry_environment").ok();
+
+    // Load chain spec via gw_get_node_info
+    let godwoken_rpc_client = GodwokenRpcClient::new(&godwoken_rpc_url);
+    let godwoken_node_info = godwoken_rpc_client.get_node_info()?;
+    let l2_sudt_type_script_hash = godwoken_node_info
+        .gw_scripts
+        .iter()
+        .find_map(|gw_script| {
+            if gw_script.script_type == GwScriptType::L2Sudt {
+                Some(gw_script.type_hash.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let polyjuice_type_script_hash = godwoken_node_info
+        .backends
+        .iter()
+        .find_map(|backend_info| {
+            if backend_info.backend_type == BackendType::Polyjuice {
+                Some(backend_info.validator_script_type_hash.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let eth_account_lock_hash = godwoken_node_info
+        .eoa_scripts
+        .iter()
+        .find_map(|eoa_script| {
+            if eoa_script.eoa_type == EoaScriptType::Eth {
+                Some(eoa_script.type_hash.clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let rollup_type_hash = godwoken_node_info.rollup_cell.type_hash.clone();
+    let chain_id = godwoken_node_info.rollup_config.chain_id.value();
+
+    Ok(IndexerConfig {
+        l2_sudt_type_script_hash,
+        polyjuice_type_script_hash,
+        rollup_type_hash,
+        eth_account_lock_hash,
+        godwoken_rpc_url,
+        ws_rpc_url,
+        pg_url,
+        chain_id,
+        sentry_dsn,
+        sentry_environment,
+    })
 }

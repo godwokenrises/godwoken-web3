@@ -1224,6 +1224,7 @@ dependencies = [
  "anyhow",
  "ckb-hash",
  "ckb-types",
+ "dotenv",
  "env_logger",
  "ethabi",
  "faster-hex 0.5.0",
