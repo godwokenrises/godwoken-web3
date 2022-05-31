@@ -2,8 +2,8 @@ use ckb_types::prelude::Entity;
 use gw_web3_rpc_client::{convertion::to_l2_block, godwoken_rpc_client::GodwokenRpcClient};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-use crate::{config::IndexerConfig, pool::POOL, Web3Indexer};
-use anyhow::{anyhow, Result};
+use crate::{config::IndexerConfig, error::IndexerError, pool::POOL, Web3Indexer};
+use anyhow::Result;
 
 pub struct Runner {
     indexer: Web3Indexer,
@@ -121,7 +121,12 @@ impl Runner {
         let current_block = self
             .godwoken_rpc_client
             .get_block_by_number(current_block_number)
-            .map_err(|e| anyhow!("block #{} error! {}", current_block_number, e))?;
+            .map_err(|e| {
+                IndexerError::ConnectionError(
+                    format!("get_block_by_number({})", current_block_number),
+                    e,
+                )
+            })?;
 
         if let Some(b) = current_block {
             let l2_block = to_l2_block(b);
@@ -157,12 +162,30 @@ impl Runner {
 
     pub async fn run(&mut self) -> Result<()> {
         loop {
-            let result = self.insert().await?;
-
-            if !result {
-                let sleep_time = std::time::Duration::from_secs(3);
-                smol::Timer::after(sleep_time).await;
-            }
+            match self.insert().await {
+                Ok(result) => {
+                    if !result {
+                        let sleep_time = std::time::Duration::from_secs(1);
+                        smol::Timer::after(sleep_time).await;
+                    }
+                }
+                Err(err) => {
+                    let is_indexer_error = err.is::<IndexerError>();
+                    if is_indexer_error {
+                        let err_ref = err.downcast_ref::<IndexerError>();
+                        match err_ref {
+                            Some(IndexerError::ConnectionError(_, _)) => {
+                                log::error!("{}", err);
+                                // wait for 1s
+                                let sleep_time = std::time::Duration::from_secs(1);
+                                smol::Timer::after(sleep_time).await;
+                                continue;
+                            }
+                            _ => return Err(err),
+                        };
+                    };
+                }
+            };
         }
     }
 }
