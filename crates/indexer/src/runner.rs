@@ -173,17 +173,15 @@ impl Runner {
                     let is_indexer_error = err.is::<IndexerError>();
                     if is_indexer_error {
                         let err_ref = err.downcast_ref::<IndexerError>();
-                        match err_ref {
-                            Some(IndexerError::ConnectionError(_, _)) => {
-                                log::error!("{}", err);
-                                // wait for 1s
-                                let sleep_time = std::time::Duration::from_secs(1);
-                                smol::Timer::after(sleep_time).await;
-                                continue;
-                            }
-                            _ => return Err(err),
+                        if let Some(IndexerError::ConnectionError(_, _)) = err_ref {
+                            log::error!("{}", err);
+                            // wait for 1s
+                            let sleep_time = std::time::Duration::from_secs(1);
+                            smol::Timer::after(sleep_time).await;
+                            continue;
                         };
                     };
+                    return Err(err);
                 }
             };
         }
