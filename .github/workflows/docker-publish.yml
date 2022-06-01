@@ -2,7 +2,7 @@ name: Docker Build Push (Web3)
 
 on:
   push:
-    branches: ["main", "rc*"]
+    branches: ["main", "[0-9]+.[0-9]+-rc[0-9]*"]
     tags: ["v*.*.*"]
   workflow_dispatch:
 
