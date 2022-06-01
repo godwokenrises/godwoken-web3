@@ -26,3 +26,5 @@ export const COMPATIBLE_DOCS_URL =
   "https://github.com/nervosnetwork/godwoken-web3/blob/main/docs/compatibility.md";
 
 export const QUERY_OFFSET_REACHED_END = "query offset reached end";
+
+export const MIN_ESTIMATE_GAS = BigInt("21000");
