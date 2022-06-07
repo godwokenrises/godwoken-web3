@@ -1,7 +1,7 @@
 -- Add migration script here
 CREATE TABLE logs (
     id BIGSERIAL PRIMARY KEY,
-    transaction_id BIGSERIAL REFERENCES transactions(id) NOT NULL,
+    transaction_id BIGINT REFERENCES transactions(id) NOT NULL,
     transaction_hash TEXT NOT NULL,
     transaction_index INTEGER NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
@@ -15,3 +15,4 @@ CREATE TABLE logs (
 CREATE INDEX ON logs (transaction_hash);
 CREATE INDEX ON logs (block_hash);
 CREATE INDEX ON logs (address);
+CREATE INDEX ON logs (block_number);
