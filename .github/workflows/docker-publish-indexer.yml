@@ -2,11 +2,9 @@ name: Docker Build Push (Indexer)
 
 on:
   push:
-    branches: [main, hot-fix, compatibility-breaking-changes]
-    # Publish semver tags as releases.
+    branches: ["main", "[0-9]+.[0-9]+-rc[0-9]*"]
     tags: ["v*.*.*"]
-  pull_request:
-    branches: [main, hot-fix, compatibility-breaking-changes]
+  workflow_dispatch:
 
 env:
   # Use docker.io for Docker Hub if empty
