@@ -24,7 +24,7 @@ CREATE TABLE blocks (
 );
 
 CREATE TABLE transactions (
-    id NUMERIC PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     hash TEXT UNIQUE NOT NULL,
     eth_tx_hash TEXT UNIQUE NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE transactions (
     gas_limit NUMERIC,
     gas_price NUMERIC,
     input TEXT,
-    v TEXT NOT NULL,
+    v NUMERIC NOT NULL,
     r TEXT NOT NULL,
     s TEXT NOT NULL,
     cumulative_gas_used NUMERIC,
@@ -56,8 +56,8 @@ CREATE UNIQUE INDEX block_number_transaction_index_idx ON transactions (block_nu
 CREATE UNIQUE INDEX block_hash_transaction_index_idx ON transactions (block_hash, transaction_index);
 
 CREATE TABLE logs (
-    id NUMERIC PRIMARY KEY,
-    transaction_id NUMERIC REFERENCES transactions(id) NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    transaction_id BIGINT REFERENCES transactions(id) NOT NULL,
     transaction_hash TEXT NOT NULL,
     transaction_index INTEGER NOT NULL,
     block_number NUMERIC REFERENCES blocks(number) NOT NULL,
