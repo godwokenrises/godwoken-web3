@@ -54,33 +54,14 @@ $ cat > ./packages/api-server/rate-limit-config.json <<EOF
 EOF
 ```
 
-### Config Indexer
-
-Sync block from godwoken.
-
-```bash
-$ cat > ./indexer-config.toml <<EOF
-l2_sudt_type_script_hash=<l2 sudt validator script type hash>
-polyjuice_type_script_hash=<godwoken polyjuice validator type hash>
-rollup_type_hash=<godwoken rollup type hash>
-eth_account_lock_hash=<eth account lock script hash>
-godwoken_rpc_url=<godwoken rpc>
-ws_rpc_url=<godwoken websocket rpc>
-pg_url="postgres://username:password@localhost:5432/your_db"
-chain_id=<godwoken chain_id in integer>
-EOF
-```
-
-Or just run script, generate configs from `packages/api-server/.env` file and godwoken rpc `gw_get_node_info`.
-
-```bash
-node scripts/generate-indexer-config.js <websocket rpc url>
-```
-
 ### Start Indexer
 
 ```bash
 cargo build --release
+
+godwoken_rpc_url=<godwoken rpc, e.g. "http://godwoken:8119"> \
+ws_rpc_url=<godwoken websocket rpc, e.g. "ws://godwoken:8120"> \
+pg_url=<database url, e.g. "postgres://username:password@localhost:5432/dbname"> \
 ./target/release/gw-web3-indexer
 ```
 
