@@ -5,6 +5,7 @@ import { HexNumber } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
+import { logger } from "../../base/logger";
 
 export class Gw {
   private rpc: RPC;
@@ -177,13 +178,13 @@ export class Gw {
       const scriptHash = args[0];
       let result = await this.gwCache.get(`${GW_RPC_KEY}_${scriptHash}`);
       if (result != null) {
-        console.debug(`using cache: ${scriptHash} -> ${result}`);
+        logger.debug(`using cache: ${scriptHash} -> ${result}`);
         return result;
       }
 
       result = await this.readonlyRpc.gw_get_account_id_by_script_hash(...args);
       if (result != null) {
-        console.debug(`update cache: ${scriptHash} -> ${result}`);
+        logger.debug(`update cache: ${scriptHash} -> ${result}`);
         this.gwCache.insert(`${GW_RPC_KEY}_${scriptHash}`, result);
       }
       return result;
@@ -354,7 +355,7 @@ export class Gw {
       const key = `${GW_RPC_KEY}_addr_${shortAddress}`;
       const value = await this.gwCache.get(key);
       if (value != null) {
-        console.debug(
+        logger.debug(
           `using cache : shortAddress(${shortAddress}) -> scriptHash(${value})`
         );
         return value;
@@ -364,7 +365,7 @@ export class Gw {
         ...args
       );
       if (result != null) {
-        console.debug(
+        logger.debug(
           `update cache: shortAddress(${shortAddress}) -> scriptHash(${result})`
         );
         this.gwCache.insert(key, result);

@@ -22,6 +22,7 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_USER_LOG_FLAG,
 } from "./methods/constant";
+import { logger } from "./base/logger";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -61,7 +62,7 @@ export async function filterWeb3Transaction(
     fromScriptArgs.length !== 106 ||
     fromScriptArgs.slice(0, 66) !== envConfig.rollupTypeHash
   ) {
-    console.error("Wrong from_address's script args:", fromScriptArgs);
+    logger.error("Wrong from_address's script args:", fromScriptArgs);
     return undefined;
   }
 

@@ -63,6 +63,7 @@ import { evmcCodeTypeMapping } from "../gw-error";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { isErc20Transfer } from "../../erc20-decoder";
+import { logger } from "../../base/logger";
 
 const Config = require("../../../config/eth.json");
 
@@ -364,7 +365,7 @@ export class Eth {
       if (shortAddress == null) {
         return "0x0";
       }
-      console.log(`eth_address: ${address}, short_address: ${shortAddress}`);
+      logger.info(`eth_address: ${address}, short_address: ${shortAddress}`);
       const balance = await this.rpc.getBalance(
         shortAddress,
         +CKB_SUDT_ID,
@@ -499,7 +500,7 @@ export class Eth {
         throw new RpcError(gwErr.code, errorMessage, errorData);
       }
 
-      console.log("RunResult:", runResult);
+      logger.debug("RunResult:", runResult);
       return runResult.return_data;
     } catch (error) {
       throw new Web3Error(error.message, error.data);
@@ -547,9 +548,7 @@ export class Eth {
         runResult.logs
       ) as PolyjuiceSystemLog;
 
-      console.log(polyjuiceSystemLog);
-
-      console.log(
+      logger.debug(
         "eth_estimateGas RunResult:",
         runResult,
         "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
@@ -736,9 +735,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -850,9 +849,9 @@ export class Eth {
         godwokenTxReceipt
       );
     } catch (err) {
-      console.error("filterWeb3Transaction:", err);
-      console.log("godwoken tx:", godwokenTxWithStatus);
-      console.log("godwoken receipt:", godwokenTxReceipt);
+      logger.error("filterWeb3Transaction:", err);
+      logger.info("godwoken tx:", godwokenTxWithStatus);
+      logger.info("godwoken receipt:", godwokenTxReceipt);
       throw err;
     }
     if (ethTxInfo != null) {
@@ -1177,7 +1176,7 @@ async function ethContractAddressToAccountId(
       return undefined;
     }
     const accountId = await rpc.getAccountIdByScriptHash(scriptHash);
-    console.log(`eth contract address: ${address}, account id: ${accountId}`);
+    logger.info(`eth contract address: ${address}, account id: ${accountId}`);
     return accountId == null ? undefined : +accountId;
   } catch (error: any) {
     return undefined;
@@ -1282,7 +1281,7 @@ function buildStorageKey(storagePosition: string) {
   if (key.length < 64) {
     key = "0".repeat(64 - key.length) + key;
   }
-  console.log("storage position:", key);
+  logger.debug("storage position:", key);
   return "0x" + key;
 }
 
@@ -1387,7 +1386,7 @@ async function buildEthCallTx(
   ) {
     const fromScriptHash = ethAddressToScriptHash(fromAddress);
     fromId = await rpc.getAccountIdByScriptHash(fromScriptHash);
-    console.log(`fromId: ${fromId}`);
+    logger.debug(`fromId: ${fromId}`);
   }
 
   if (fromId == null) {
@@ -1412,7 +1411,9 @@ async function buildEthCallTx(
     nonce,
     polyjuiceArgs
   );
-  console.log(`rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`);
+  logger.debug(
+    `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
+  );
   return rawL2Transaction;
 }
 

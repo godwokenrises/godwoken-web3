@@ -60,7 +60,6 @@ function getMethods(argsList: ModConstructorArgs = {}) {
       });
   });
 
-  // console.log(methods);
   return methods;
 }
 

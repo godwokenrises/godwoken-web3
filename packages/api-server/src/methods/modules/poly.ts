@@ -28,6 +28,7 @@ import { parseGwRpcError } from "../gw-error";
 import { keccakFromHexString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { BlockParameter } from "../types";
+import { logger } from "../../base/logger";
 
 type GodwokenBlockParameter = U64 | undefined;
 
@@ -64,12 +65,11 @@ export class Poly {
         gwShortAddress
       );
       let ethAddress = account?.eth_address;
-      console.log(
+      logger.debug(
         `[from hash_map] eth address: ${ethAddress}, short_address: ${gwShortAddress}`
       );
       return ethAddress;
     } catch (error) {
-      console.log(error);
       if (error.notFound) {
         throw new InvalidParamsError(
           "gw_short_address as key is not found on database."
@@ -106,7 +106,6 @@ export class Poly {
   private async parseBlockParameter(
     blockParameter: BlockParameter
   ): Promise<GodwokenBlockParameter> {
-    console.log(blockParameter);
     switch (blockParameter) {
       // The most recently produced block
       case "latest":
@@ -135,7 +134,7 @@ export class Poly {
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
 
-      console.log(
+      logger.debug(
         "[poly_executeRawL2Transaction] blockParameter: ",
         blockParameter,
         "blockNumber: ",
@@ -217,12 +216,11 @@ export class Poly {
 
       await this.query.accounts.save(ethAddress, godwokenShortAddress);
 
-      console.log(
+      logger.info(
         `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
       );
       return "ok";
     } catch (error) {
-      console.log(error);
       throw new InvalidParamsError(error.message);
     }
   }
@@ -293,18 +291,18 @@ async function saveAddressMapping(
     | L2TransactionWithAddressMapping
     | RawL2TransactionWithAddressMapping
 ) {
-  console.log(JSON.stringify(txWithAddressMapping, null, 2));
+  logger.info(JSON.stringify(txWithAddressMapping, null, 2));
 
   if (
     txWithAddressMapping.addresses.length === "0x0" ||
     txWithAddressMapping.addresses.data.length === 0
   ) {
-    console.log(`empty addressMapping, abort saving.`);
+    logger.info(`empty addressMapping, abort saving.`);
     return;
   }
 
   if (txWithAddressMapping.extra === EMPTY_ABI_ITEM_SERIALIZE_STR) {
-    console.log(`addressMapping without abiItem, abort saving.`);
+    logger.info(`addressMapping without abiItem, abort saving.`);
     return;
   }
 
@@ -326,7 +324,7 @@ async function saveAddressMapping(
     "0x" + BigInt(envConfig.creatorAccountId).toString(16);
   if (abiItem.type === "constructor" && rawTx.to_id === creatorIdHexNumber) {
     if (!containsAddressType(abiItem)) {
-      console.log(
+      logger.info(
         `constructor abiItem ${JSON.stringify(
           abiItem
         )} doesn't contains address type, abort saving.`
@@ -348,7 +346,7 @@ async function saveAddressMapping(
     abiItem
   );
   if (addressesFromEthTxData.length === 0) {
-    console.log(
+    logger.info(
       `eth tx data ${ethTxData} contains no valid address, abort saving.`
     );
     return;
@@ -360,7 +358,7 @@ async function saveAddressMapping(
       const godwokenShortAddress: HexString = item.gw_short_address;
 
       if (!addressesFromEthTxData.includes(godwokenShortAddress)) {
-        console.log(
+        logger.info(
           `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
             addressesFromEthTxData,
             null,
@@ -376,7 +374,7 @@ async function saveAddressMapping(
           godwokenShortAddress
         );
         if (exists) {
-          console.log(
+          logger.info(
             `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
           );
           return;
@@ -391,19 +389,19 @@ async function saveAddressMapping(
           godwokenShortAddress
         );
         if (isExistOnChain) {
-          console.log(
+          logger.info(
             `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
           );
           return;
         }
 
         await query.accounts.save(ethAddress, godwokenShortAddress);
-        console.log(
+        logger.info(
           `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
         );
         return;
       } catch (error) {
-        console.log(
+        logger.info(
           `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
           error
         );
@@ -426,7 +424,7 @@ async function saveConstructorArgsAddressMapping(
       const godwokenShortAddress: HexString = item.gw_short_address;
 
       if (!ethTxData.includes(godwokenShortAddress.slice(2))) {
-        console.log(
+        logger.info(
           `illegal address mapping, since godwoken_short_address ${godwokenShortAddress} is not in the ethTxData. expected addresses: ${JSON.stringify(
             ethTxData,
             null,
@@ -442,7 +440,7 @@ async function saveConstructorArgsAddressMapping(
           godwokenShortAddress
         );
         if (exists) {
-          console.log(
+          logger.info(
             `abort saving, since godwoken_short_address ${godwokenShortAddress} is already saved on database.`
           );
           return;
@@ -457,19 +455,19 @@ async function saveConstructorArgsAddressMapping(
           godwokenShortAddress
         );
         if (isExistOnChain) {
-          console.log(
+          logger.info(
             `abort saving, since godwoken_short_address ${godwokenShortAddress} is already on chain.`
           );
           return;
         }
 
         await query.accounts.save(ethAddress, godwokenShortAddress);
-        console.log(
+        logger.info(
           `poly_save: insert one record, [${godwokenShortAddress}]: ${ethAddress}`
         );
         return;
       } catch (error) {
-        console.log(
+        logger.info(
           `abort saving addressMapping [${godwokenShortAddress}]: ${ethAddress} , will keep saving the rest. =>`,
           error
         );

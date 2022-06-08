@@ -16,6 +16,7 @@ import {
   NormalizeL2Transaction,
   NormalizeRawL2Transaction,
 } from "./normalizers";
+import { logger } from "./logger";
 
 export class GodwokenClient {
   private rpc: RPC;
@@ -155,7 +156,7 @@ export class GodwokenClient {
       const result = await this.readonlyRpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }
@@ -166,7 +167,7 @@ export class GodwokenClient {
       const result = await this.rpc[name](...args);
       return result;
     } catch (err: any) {
-      console.log(`Call gw rpc "${name}" error:`, err.message);
+      logger.info(`Call gw rpc "${name}" error:`, err.message);
       throw err;
     }
   }
