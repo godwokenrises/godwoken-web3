@@ -75,8 +75,7 @@ pub fn load_indexer_config<P: AsRef<Path>>(path: P) -> Result<IndexerConfig> {
     }
 
     // Load components configurations from environment variables
-    let pg_url = env::var("pg_url")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/".to_string());
+    let pg_url = env::var("pg_url").expect("env var \"pg_url\" is required");
     let godwoken_rpc_url =
         env::var("godwoken_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8119".to_string());
     let ws_rpc_url = env::var("ws_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8120".to_string());
