@@ -1,11 +1,11 @@
-use gw_web3_indexer::{config::read_indexer_config, runner::Runner};
+use gw_web3_indexer::{config::load_indexer_config, runner::Runner};
 
 use anyhow::Result;
 use sentry_log::LogFilter;
 
 fn main() -> Result<()> {
     init_log();
-    let indexer_config = read_indexer_config("./indexer-config.toml")?;
+    let indexer_config = load_indexer_config("./indexer-config.toml")?;
 
     let sentry_environment = indexer_config.sentry_environment.clone().map(|e| e.into());
     let _guard = match &indexer_config.sentry_dsn {
