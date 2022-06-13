@@ -4,6 +4,7 @@ import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
 import { RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexString } from "@ckb-lumos/base";
+import { envConfig } from "../base/env-config";
 
 /**
  * middleware for parameters validation
@@ -493,6 +494,24 @@ export function verifyGasLimit(
     return invalidParamsError(
       index,
       `gas limit ${gasLimit} exceeds rpc gas limit of ${RPC_MAX_GAS_LIMIT}`
+    );
+  }
+  return undefined;
+}
+
+export function verifyGasPrice(
+  gasPrice: HexString,
+  index: number
+): InvalidParamsError | undefined {
+  const gasPriceErr = verifyHexNumber(gasPrice, index);
+  if (gasPriceErr) {
+    return gasPriceErr.padContext("gasPrice");
+  }
+
+  if (envConfig.minGasPrice != null && +gasPrice < +envConfig.minGasPrice) {
+    return invalidParamsError(
+      index,
+      `minimal gas price ${+envConfig.minGasPrice} required. got ${+gasPrice}`
     );
   }
   return undefined;

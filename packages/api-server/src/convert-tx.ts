@@ -14,7 +14,7 @@ import {
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import { COMPATIBLE_DOCS_URL } from "./methods/constant";
-import { verifyGasLimit } from "./methods/validator";
+import { verifyGasLimit, verifyGasPrice } from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -134,6 +134,13 @@ async function parseRawTransactionData(
   const gasLimitErr = verifyGasLimit(gasLimit, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+    );
+  }
+
+  const gasPriceErr = verifyGasPrice(gasPrice, 0);
+  if (gasPriceErr) {
+    throw gasPriceErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
     );
   }

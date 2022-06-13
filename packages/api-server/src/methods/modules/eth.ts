@@ -312,8 +312,9 @@ export class Eth {
     }
 
     let medianGasPrice = await this.query.getMedianGasPrice();
-    // set min to 1
-    const minGasPrice = BigInt(1);
+    const minGasPrice = envConfig.minGasPrice
+      ? BigInt(+envConfig.minGasPrice)
+      : BigInt(0);
     if (medianGasPrice < minGasPrice) {
       medianGasPrice = minGasPrice;
     }
