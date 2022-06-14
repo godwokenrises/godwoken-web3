@@ -33,3 +33,4 @@ gw-web3-rpc-client = { path = "../rpc-client" }
 lazy_static = "1.4"
 sentry = "0.23.0"
 sentry-log = "0.23.0"
+dotenv = "0.15.0"

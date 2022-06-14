@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use ckb_jsonrpc_types::Script;
 use ckb_types::H256;
+use gw_jsonrpc_types::godwoken::NodeInfo;
 use gw_jsonrpc_types::{
     ckb_jsonrpc_types::{JsonBytes, Uint128, Uint32, Uint64},
     debugger::{DumpChallengeTarget, ReprMockTransaction},
@@ -104,6 +105,11 @@ impl GodwokenRpcClient {
         let params = serde_json::to_value((Uint64::from(block_number),))?;
         self.rpc::<Option<L2BlockView>>("get_block_by_number", params)
             .map(|opt| opt.map(Into::into))
+    }
+
+    pub fn get_node_info(&self) -> Result<NodeInfo> {
+        let params = serde_json::Value::Null;
+        self.rpc::<NodeInfo>("get_node_info", params)
     }
 
     pub fn debug_dump_cancel_challenge_tx(

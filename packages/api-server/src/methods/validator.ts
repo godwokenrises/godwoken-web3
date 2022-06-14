@@ -403,15 +403,15 @@ export function verifyFilterTopic(
 ): InvalidParamsError | undefined {
   // topic type: export type FilterTopic = HexString | null | HexString[] (../src/cache/type.ts)
   if (!Array.isArray(topic)) {
-    return verifyFilterTopicString(topic, index);
+    return topic == null ? undefined : verifyFilterTopicString(topic, index);
   }
 
-  if (Array.isArray(topic)) {
-    for (const t of topic) {
-      const err = verifyFilterTopicString(t, index);
-      if (err) {
-        return err.padContext("topicString[] array");
-      }
+  for (const t of topic) {
+    if (t == null) continue;
+
+    const err = verifyFilterTopicString(t, index);
+    if (err) {
+      return err.padContext("topicString[] array");
     }
   }
 

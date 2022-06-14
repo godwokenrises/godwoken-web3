@@ -5,11 +5,11 @@ use sqlx::{
     ConnectOptions, PgPool,
 };
 
-use crate::config::read_indexer_config;
+use crate::config::load_indexer_config;
 
 lazy_static::lazy_static! {
     pub static ref POOL: PgPool = {
-        let indexer_config = read_indexer_config("./indexer-config.toml").unwrap();
+        let indexer_config = load_indexer_config("./indexer-config.toml").unwrap();
 
         let mut opts: PgConnectOptions = indexer_config.pg_url.parse().expect("pg url parse error");
         opts.log_statements(log::LevelFilter::Debug)
