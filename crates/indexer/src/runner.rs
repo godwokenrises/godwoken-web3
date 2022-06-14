@@ -1,8 +1,10 @@
 use ckb_types::prelude::Entity;
-use gw_web3_rpc_client::{convertion::to_l2_block, godwoken_rpc_client::GodwokenRpcClient};
+use gw_web3_rpc_client::{
+    convertion::to_l2_block, error::RpcClientError, godwoken_rpc_client::GodwokenRpcClient,
+};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-use crate::{config::IndexerConfig, error::IndexerError, pool::POOL, Web3Indexer};
+use crate::{config::IndexerConfig, pool::POOL, Web3Indexer};
 use anyhow::Result;
 
 pub struct Runner {
@@ -120,13 +122,7 @@ impl Runner {
         };
         let current_block = self
             .godwoken_rpc_client
-            .get_block_by_number(current_block_number)
-            .map_err(|e| {
-                IndexerError::ConnectionError(
-                    format!("get_block_by_number({})", current_block_number),
-                    e,
-                )
-            })?;
+            .get_block_by_number(current_block_number)?;
 
         if let Some(b) = current_block {
             let l2_block = to_l2_block(b);
@@ -170,16 +166,13 @@ impl Runner {
                     }
                 }
                 Err(err) => {
-                    let is_indexer_error = err.is::<IndexerError>();
-                    if is_indexer_error {
-                        let err_ref = err.downcast_ref::<IndexerError>();
-                        if let Some(IndexerError::ConnectionError(_, _)) = err_ref {
-                            log::error!("{}", err);
-                            // wait for 1s
-                            let sleep_time = std::time::Duration::from_secs(1);
-                            smol::Timer::after(sleep_time).await;
-                            continue;
-                        };
+                    let err_ref = err.downcast_ref::<RpcClientError>();
+                    if let Some(RpcClientError::ConnectionError(_, _)) = err_ref {
+                        log::error!("{}", err);
+                        // wait for 1s
+                        let sleep_time = std::time::Duration::from_secs(1);
+                        smol::Timer::after(sleep_time).await;
+                        continue;
                     };
                     return Err(err);
                 }

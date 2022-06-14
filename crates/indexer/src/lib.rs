@@ -1,5 +1,4 @@
 pub mod config;
-pub mod error;
 pub mod error_receipt_indexer;
 pub mod helper;
 pub mod indexer;

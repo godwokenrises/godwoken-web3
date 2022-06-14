@@ -1,7 +1,6 @@
 use std::{collections::HashSet, str::FromStr};
 
 use crate::{
-    error::IndexerError,
     helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
     pool::POOL,
     types::{
@@ -446,13 +445,7 @@ impl Web3Indexer {
             .unwrap_or_else(|_| format!("convert tx hash: {:?} to hex format failed", tx_hash));
         let tx_receipt: TxReceipt = self
             .godwoken_rpc_client
-            .get_transaction_receipt(&tx_hash)
-            .map_err(|e| {
-                IndexerError::ConnectionError(
-                    format!("get_transaction_receipt({})", tx_hash_hex),
-                    e,
-                )
-            })?
+            .get_transaction_receipt(&tx_hash)?
             .ok_or_else(|| {
                 anyhow!(
                     "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
@@ -519,11 +512,7 @@ async fn get_script_hash(
     godwoken_rpc_client: &GodwokenRpcClient,
     account_id: u32,
 ) -> Result<gw_common::H256> {
-    let script_hash = godwoken_rpc_client
-        .get_script_hash(account_id)
-        .map_err(|e| {
-            IndexerError::ConnectionError(format!("get_script_hash({})", account_id), e)
-        })?;
+    let script_hash = godwoken_rpc_client.get_script_hash(account_id)?;
 
     let hash: gw_common::H256 = {
         let mut s = [0u8; 32];
@@ -539,12 +528,8 @@ async fn get_script(
 ) -> Result<Option<Script>> {
     let hash = ckb_types::H256::from_slice(script_hash.as_slice())?;
 
-    let script_hash_hex = hex(script_hash.as_slice())
-        .unwrap_or_else(|_| format!("Can't convert script_hash: {:?} to hex format", script_hash));
-
     let script_opt = godwoken_rpc_client
-        .get_script(hash)
-        .map_err(|e| IndexerError::ConnectionError(format!("get_script({})", script_hash_hex), e))?
+        .get_script(hash)?
         .map(convertion::to_script);
 
     Ok(script_opt)

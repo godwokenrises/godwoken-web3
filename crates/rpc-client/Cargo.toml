@@ -18,3 +18,4 @@ gw-common = { git = "https://github.com/nervosnetwork/godwoken.git", rev = "6a24
 jsonrpc-core = "17"
 rand = "0.8"
 anyhow = "1.0"
+thiserror = "1.0"
