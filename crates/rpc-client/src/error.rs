@@ -6,5 +6,8 @@ pub enum RpcClientError {
     ConnectionError(String, anyhow::Error),
 
     #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

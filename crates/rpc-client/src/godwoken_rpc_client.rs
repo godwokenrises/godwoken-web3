@@ -38,73 +38,70 @@ impl GodwokenRpcClient {
     }
 
     pub fn get_balance(&self, registry_address: JsonBytes, sudt_id: u32) -> RpcClientResult<u128> {
-        let params = serde_json::to_value((registry_address, AccountID::from(sudt_id)))
-            .map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((registry_address, AccountID::from(sudt_id)))?;
         self.rpc::<Uint128>("get_balance", params).map(Into::into)
     }
 
     pub fn get_account_id_by_script_hash(&self, script_hash: H256) -> RpcClientResult<Option<u32>> {
-        let params = serde_json::to_value((script_hash,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((script_hash,))?;
         self.rpc::<Option<Uint32>>("get_account_id_by_script_hash", params)
             .map(|opt| opt.map(Into::into))
     }
 
     pub fn get_nonce(&self, account_id: u32) -> RpcClientResult<u32> {
-        let params =
-            serde_json::to_value((AccountID::from(account_id),)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((AccountID::from(account_id),))?;
         self.rpc::<Uint32>("get_nonce", params).map(Into::into)
     }
 
     pub fn submit_withdrawal_request(&self, withdrawal_request: JsonBytes) -> RpcClientResult<()> {
-        let params = serde_json::to_value((withdrawal_request,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((withdrawal_request,))?;
         self.rpc::<()>("submit_withdrawal_request", params)
             .map(Into::into)
     }
 
     pub fn get_script_hash(&self, account_id: u32) -> RpcClientResult<H256> {
-        let params =
-            serde_json::to_value((AccountID::from(account_id),)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((AccountID::from(account_id),))?;
         self.rpc::<H256>("get_script_hash", params).map(Into::into)
     }
 
     pub fn get_script(&self, script_hash: H256) -> RpcClientResult<Option<Script>> {
-        let params = serde_json::to_value((script_hash,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((script_hash,))?;
         self.rpc::<Option<Script>>("get_script", params)
             .map(|opt| opt.map(Into::into))
     }
 
     pub fn submit_l2transaction(&self, l2tx: JsonBytes) -> RpcClientResult<H256> {
-        let params = serde_json::to_value((l2tx,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((l2tx,))?;
         self.rpc::<H256>("submit_l2transaction", params)
             .map(Into::into)
     }
 
     pub fn execute_l2transaction(&self, l2tx: JsonBytes) -> RpcClientResult<RunResult> {
-        let params = serde_json::to_value((l2tx,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((l2tx,))?;
         self.rpc::<RunResult>("execute_l2transaction", params)
             .map(Into::into)
     }
 
     pub fn execute_raw_l2transaction(&self, raw_l2tx: JsonBytes) -> RpcClientResult<RunResult> {
-        let params = serde_json::to_value((raw_l2tx,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((raw_l2tx,))?;
         self.rpc::<RunResult>("execute_raw_l2transaction", params)
             .map(Into::into)
     }
 
     pub fn get_transaction_receipt(&self, tx_hash: &H256) -> RpcClientResult<Option<TxReceipt>> {
-        let params = serde_json::to_value((tx_hash,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((tx_hash,))?;
         self.rpc::<Option<TxReceipt>>("get_transaction_receipt", params)
             .map(|opt| opt.map(Into::into))
     }
 
     pub fn get_block(&self, block_hash: &H256) -> RpcClientResult<Option<L2BlockWithStatus>> {
-        let params = serde_json::to_value((block_hash,)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((block_hash,))?;
         self.rpc::<Option<L2BlockWithStatus>>("get_block", params)
             .map(|opt| opt.map(Into::into))
     }
 
     pub fn get_block_by_number(&self, block_number: u64) -> RpcClientResult<Option<L2BlockView>> {
-        let params = serde_json::to_value((Uint64::from(block_number),)).map_err(|e| anyhow!(e))?;
+        let params = serde_json::to_value((Uint64::from(block_number),))?;
         self.rpc::<Option<L2BlockView>>("get_block_by_number", params)
             .map(|opt| opt.map(Into::into))
     }
