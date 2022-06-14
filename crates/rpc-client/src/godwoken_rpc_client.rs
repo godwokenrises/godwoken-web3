@@ -107,7 +107,7 @@ impl GodwokenRpcClient {
             .map(|opt| opt.map(Into::into))
     }
 
-    pub fn get_node_info(&self) -> Result<NodeInfo> {
+    pub fn get_node_info(&self) -> RpcClientResult<NodeInfo> {
         let params = serde_json::Value::Null;
         self.rpc::<NodeInfo>("get_node_info", params)
     }
