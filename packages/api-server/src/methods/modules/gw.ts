@@ -1,11 +1,13 @@
 import { parseGwRpcError } from "../gw-error";
 import { RPC } from "@godwoken-web3/godwoken";
 import { middleware } from "../validator";
-import { HexNumber } from "@ckb-lumos/base";
+import { HexNumber, HexString } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
+import { keccakFromString } from "ethereumjs-util";
+import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 
 export class Gw {
   private rpc: RPC;
@@ -304,14 +306,49 @@ export class Gw {
    * @param args [raw_l2tx(HexString), (block_number)]
    * @returns
    */
-  async execute_raw_l2transaction(args: any[]) {
+  async execute_raw_l2transaction(
+    args: [HexString, HexNumber | null | undefined]
+  ) {
     try {
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
-        ...args
-      );
-      return result;
+      const executeCallResult = async () => {
+        const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
+          ...args
+        );
+        return result;
+      };
+
+      if (envConfig.enableCacheExecuteRawL2Tx === "true") {
+        // calculate raw data cache key
+        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+          this.rpc.getTipBlockHash(),
+          this.rpc.getMemPoolStateRoot(),
+        ]);
+        const serializeParams = serializeExecuteRawL2TxParameters(
+          args[0],
+          args[1]
+        );
+        const rawDataKey = getExecuteRawL2TxCacheKey(
+          serializeParams,
+          tipBlockHash,
+          memPollStateRoot
+        );
+
+        const prefixName = `${this.constructor.name}:execute_raw_l2tx`; // FIXME: ${this.call.name} is null
+        const constructArgs: DataCacheConstructor = {
+          prefixName,
+          rawDataKey,
+          executeCallResult,
+        };
+        const dataCache = new RedisDataCache(constructArgs);
+        const result = await dataCache.get();
+        return result;
+      } else {
+        // not using cache
+        const result = await executeCallResult();
+        return result;
+      }
     } catch (error) {
       parseGwRpcError(error);
     }
@@ -447,4 +484,28 @@ function formatHexNumber(
   }
 
   return num.toLowerCase();
+}
+
+function serializeExecuteRawL2TxParameters(
+  serializeRawL2Tx: HexString,
+  blockNumber: HexNumber | null | undefined
+): HexString {
+  const toSerializeObj = {
+    serializeRawL2Tx,
+    blockNumber: blockNumber || "0x",
+  };
+  return JSON.stringify(toSerializeObj);
+}
+
+function getExecuteRawL2TxCacheKey(
+  serializeRawL2Tx: string,
+  tipBlockHash: HexString,
+  memPoolStateRoot: HexString
+) {
+  const hash = "0x" + keccakFromString(serializeRawL2Tx).toString("hex");
+  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+    2,
+    18
+  )}${hash.slice(2, 18)}`;
+  return id;
 }
