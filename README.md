@@ -62,7 +62,6 @@ The default `indexer_config_path` is './indexer-config.toml'. More details about
 cargo build --release
 
 godwoken_rpc_url=<godwoken rpc, e.g. "http://godwoken:8119"> \
-ws_rpc_url=<godwoken websocket rpc, e.g. "ws://godwoken:8120"> \
 pg_url=<database url, e.g. "postgres://username:password@localhost:5432/dbname"> \
 ./target/release/gw-web3-indexer
 ```
