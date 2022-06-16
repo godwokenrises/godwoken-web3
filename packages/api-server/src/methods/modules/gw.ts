@@ -10,7 +10,7 @@ import {
   decodePolyjuiceTransactionArgs,
   isPolyjuiceTransactionArgs,
   parseSerializeL2Transaction,
-} from "../../convert-tx";
+} from "../../parse-tx";
 
 export class Gw {
   private rpc: RPC;

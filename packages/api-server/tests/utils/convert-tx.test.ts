@@ -2,7 +2,7 @@ import {
   parseSerializeL2Transaction,
   decodePolyjuiceTransactionArgs,
   isPolyjuiceTransactionArgs,
-} from "../../src/convert-tx";
+} from "../../src/parse-tx";
 import test from "ava";
 
 test("parseSerializeL2Transaction", (t) => {
