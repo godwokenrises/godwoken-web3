@@ -1,11 +1,16 @@
 import { parseGwRpcError } from "../gw-error";
 import { RPC } from "@godwoken-web3/godwoken";
-import { middleware } from "../validator";
-import { HexNumber } from "@ckb-lumos/base";
+import { middleware, verifyGasLimit, verifyGasPrice } from "../validator";
+import { HexNumber, HexString } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
+import {
+  decodePolyjuiceTransactionArgs,
+  isPolyjuiceTransactionArgs,
+  parseSerializeL2Transaction,
+} from "../../convert-tx";
 
 export class Gw {
   private rpc: RPC;
@@ -322,8 +327,38 @@ export class Gw {
    * @param args [l2tx(HexString)]
    * @returns
    */
-  async submit_l2transaction(args: any[]) {
+  async submit_l2transaction(args: [HexString]) {
     try {
+      // validate l2 tx params
+      const serialized2Tx = args[0];
+      const l2Tx = parseSerializeL2Transaction(serialized2Tx);
+
+      // 1. validate polyjuice tx params
+      if (isPolyjuiceTransactionArgs(l2Tx.raw.args)) {
+        try {
+          const decodeData = decodePolyjuiceTransactionArgs(l2Tx.raw.args);
+
+          const gasLimitErr = verifyGasLimit(decodeData.gasLimit, 0);
+          if (gasLimitErr) {
+            throw gasLimitErr.padContext(
+              `eth_sendRawTransaction ${this.submit_l2transaction.name}`
+            );
+          }
+
+          const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
+          if (gasPriceErr) {
+            throw gasPriceErr.padContext(
+              `eth_sendRawTransaction ${this.submit_l2transaction.name}`
+            );
+          }
+        } catch (error) {
+          parseGwRpcError(error);
+        }
+      }
+
+      // todo: 2. validate SUDT transfer l2 transaction min fee
+
+      // pass validate, submit l2 tx
       const result = await this.rpc.gw_submit_l2transaction(...args);
       return result;
     } catch (error) {
