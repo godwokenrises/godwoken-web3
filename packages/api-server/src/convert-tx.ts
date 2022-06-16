@@ -138,7 +138,7 @@ async function parseRawTransactionData(
     );
   }
 
-  const gasPriceErr = verifyGasPrice(gasPrice, 0);
+  const gasPriceErr = verifyGasPrice(gasPrice === "0x" ? "0x0" : gasPrice, 0);
   if (gasPriceErr) {
     throw gasPriceErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
