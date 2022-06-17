@@ -358,24 +358,16 @@ export class Gw {
           gwConfig.backends.polyjuice.validatorScriptTypeHash &&
         isPolyjuiceTransactionArgs(l2Tx.raw.args)
       ) {
-        try {
-          const decodeData = decodePolyjuiceArgs(l2Tx.raw.args);
+        const decodeData = decodePolyjuiceArgs(l2Tx.raw.args);
 
-          const gasLimitErr = verifyGasLimit(decodeData.gasLimit, 0);
-          if (gasLimitErr) {
-            throw gasLimitErr.padContext(
-              `eth_sendRawTransaction ${this.submit_l2transaction.name}`
-            );
-          }
+        const gasLimitErr = verifyGasLimit(decodeData.gasLimit, 0);
+        if (gasLimitErr) {
+          throw gasLimitErr.padContext(`gw_submit_l2transaction`);
+        }
 
-          const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
-          if (gasPriceErr) {
-            throw gasPriceErr.padContext(
-              `eth_sendRawTransaction ${this.submit_l2transaction.name}`
-            );
-          }
-        } catch (error) {
-          parseGwRpcError(error);
+        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
+        if (gasPriceErr) {
+          throw gasPriceErr.padContext(`gw_submit_l2transaction`);
         }
       }
 
