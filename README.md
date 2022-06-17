@@ -30,6 +30,7 @@ MAX_SOCKETS=<optional, max number of httpAgent sockets per host for web3 connect
 WEB3_LOG_REQUEST_BODY=<optional, boolean, if true, will log request method / body, default to false>
 PORT=<optional, the api-server running port, default to 8024>
 MIN_GAS_PRICE=<optional, decimal number, the minimal gas price required>
+MIN_SUDT_FEE=<optional, decimal number, the minimal sudt transfer fee required>
 EOF
 
 $ yarn

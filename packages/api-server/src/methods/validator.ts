@@ -516,6 +516,24 @@ export function verifyGasPrice(
   }
   return undefined;
 }
+
+export function verifySudtFee(
+  fee: HexString,
+  index: number
+): InvalidParamsError | undefined {
+  const feeErr = verifyHexNumber(fee, index);
+  if (feeErr) {
+    return feeErr.padContext("Sudt Fee");
+  }
+
+  if (envConfig.minSudtFee != null && +fee < +envConfig.minSudtFee) {
+    return invalidParamsError(
+      index,
+      `minimal sudt transfer fee ${+envConfig.minSudtFee} required. got ${+fee}`
+    );
+  }
+  return undefined;
+}
 //******* end of standalone verify function ********/
 
 // some utils function
