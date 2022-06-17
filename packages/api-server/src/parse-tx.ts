@@ -2,6 +2,54 @@ import { HexString, HexNumber } from "@ckb-lumos/base";
 import { Reader } from "@ckb-lumos/toolkit";
 import { schemas, L2Transaction } from "@godwoken-web3/godwoken";
 import { Uint64, Uint32, Uint128 } from "./base/types/uint";
+export interface PolyjuiceArgs {
+  isCreate: boolean;
+  gasLimit: HexNumber;
+  gasPrice: HexNumber;
+  value: HexNumber;
+  inputSize: HexNumber;
+  input: HexString;
+}
+
+export function isPolyjuiceTransactionArgs(polyjuiceArgs: HexString) {
+  // header
+  const args_0_7 =
+    "0x" +
+    Buffer.from("FFFFFF", "hex").toString("hex") +
+    Buffer.from("POLY", "utf8").toString("hex");
+
+  return polyjuiceArgs.slice(0, 14) !== args_0_7;
+}
+
+export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
+  const buf = Buffer.from(args.slice(2), "hex");
+
+  const isCreate = buf[7].toString(16) === "3";
+  const gasLimit = Uint64.fromLittleEndian(
+    "0x" + buf.slice(8, 16).toString("hex")
+  ).toHex();
+  const gasPrice = Uint128.fromLittleEndian(
+    "0x" + buf.slice(16, 32).toString("hex")
+  ).toHex();
+  const value = Uint128.fromLittleEndian(
+    "0x" + buf.slice(32, 48).toString("hex")
+  ).toHex();
+
+  const inputSize = Uint32.fromLittleEndian(
+    "0x" + buf.slice(48, 52).toString("hex")
+  );
+
+  const input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
+
+  return {
+    isCreate,
+    gasLimit,
+    gasPrice,
+    value,
+    inputSize: inputSize.toHex(),
+    input,
+  };
+}
 
 export function parseSerializeL2Transaction(
   serializedL2Tx: HexString
@@ -33,61 +81,4 @@ export function DenormalizeRawL2Transaction(rawL2Tx: schemas.RawL2Transaction) {
     ).toHex(),
     args: new Reader(rawL2Tx.getArgs().raw()).serializeJson(),
   };
-}
-
-export function isPolyjuiceTransactionArgs(polyjuiceArgs: HexString) {
-  // header
-  const args_0_7 =
-    "0x" +
-    Buffer.from("FFFFFF", "hex").toString("hex") +
-    Buffer.from("POLY", "utf8").toString("hex");
-
-  return polyjuiceArgs.slice(0, 14) !== args_0_7;
-}
-
-export function decodePolyjuiceTransactionArgs(polyjuiceArgs: HexString) {
-  const input = polyjuiceArgs.slice(2);
-
-  const isCreate = input.slice(14, 16) === "03";
-  const gasLimit = LeBytesToUInt64(input.slice(16, 32));
-  const gasPrice = LeBytesToUInt128(input.slice(32, 64));
-  const value = LeBytesToUInt128(input.slice(64, 96));
-  const dataLength = LeBytesToUInt32(input.slice(96, 104));
-  const data = "0x" + input.slice(104);
-  if (data.slice(2).length / 2 !== +dataLength) {
-    throw new Error("invalid data length of polyjuice tx input");
-  }
-
-  return {
-    isCreate,
-    gasLimit,
-    gasPrice,
-    value,
-    dataLength,
-    data,
-  };
-}
-
-function LeBytesToUInt32(byteStr: string): HexNumber {
-  if (!byteStr.startsWith("0x")) {
-    byteStr = "0x" + byteStr;
-  }
-
-  return Uint32.fromLittleEndian(byteStr).toHex();
-}
-
-function LeBytesToUInt64(byteStr: string): HexNumber {
-  if (!byteStr.startsWith("0x")) {
-    byteStr = "0x" + byteStr;
-  }
-
-  return Uint64.fromLittleEndian(byteStr).toHex();
-}
-
-function LeBytesToUInt128(byteStr: string): HexNumber {
-  if (!byteStr.startsWith("0x")) {
-    byteStr = "0x" + byteStr;
-  }
-
-  return Uint128.fromLittleEndian(byteStr).toHex();
 }

@@ -1,16 +1,18 @@
 import { parseGwRpcError } from "../gw-error";
 import { RPC } from "@godwoken-web3/godwoken";
 import { middleware, verifyGasLimit, verifyGasPrice } from "../validator";
-import { HexNumber, HexString } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
 import {
-  decodePolyjuiceTransactionArgs,
+  decodePolyjuiceArgs,
   isPolyjuiceTransactionArgs,
   parseSerializeL2Transaction,
 } from "../../parse-tx";
+import { InvalidParamsError } from "../error";
+import { gwConfig } from "../../base";
 
 export class Gw {
   private rpc: RPC;
@@ -333,10 +335,31 @@ export class Gw {
       const serialized2Tx = args[0];
       const l2Tx = parseSerializeL2Transaction(serialized2Tx);
 
+      const toId: HexNumber = l2Tx.raw.to_id;
+      const toScriptHash: Hash | undefined =
+        await this.readonlyRpc.gw_get_script_hash(toId);
+      if (toScriptHash == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, toScriptHash not found.`
+        );
+      }
+      const toScript: Script | undefined = await this.readonlyRpc.gw_get_script(
+        toScriptHash
+      );
+      if (toScript == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, toScript not found.`
+        );
+      }
+
       // 1. validate polyjuice tx params
-      if (isPolyjuiceTransactionArgs(l2Tx.raw.args)) {
+      if (
+        toScript.code_hash ===
+          gwConfig.backends.polyjuice.validatorScriptTypeHash &&
+        isPolyjuiceTransactionArgs(l2Tx.raw.args)
+      ) {
         try {
-          const decodeData = decodePolyjuiceTransactionArgs(l2Tx.raw.args);
+          const decodeData = decodePolyjuiceArgs(l2Tx.raw.args);
 
           const gasLimitErr = verifyGasLimit(decodeData.gasLimit, 0);
           if (gasLimitErr) {

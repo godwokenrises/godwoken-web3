@@ -24,6 +24,7 @@ import {
 import { gwConfig } from "./base/index";
 import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
+import { decodePolyjuiceArgs } from "./parse-tx";
 
 const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -244,45 +245,6 @@ export async function filterWeb3Transaction(
   }
 
   return undefined;
-}
-
-export interface PolyjuiceArgs {
-  isCreate: boolean;
-  gasLimit: HexNumber;
-  gasPrice: HexNumber;
-  value: HexNumber;
-  inputSize: HexNumber;
-  input: HexString;
-}
-
-function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
-  const buf = Buffer.from(args.slice(2), "hex");
-
-  const isCreate = buf[7].toString(16) === "3";
-  const gasLimit = Uint64.fromLittleEndian(
-    "0x" + buf.slice(8, 16).toString("hex")
-  ).toHex();
-  const gasPrice = Uint128.fromLittleEndian(
-    "0x" + buf.slice(16, 32).toString("hex")
-  ).toHex();
-  const value = Uint128.fromLittleEndian(
-    "0x" + buf.slice(32, 48).toString("hex")
-  ).toHex();
-
-  const inputSize = Uint32.fromLittleEndian(
-    "0x" + buf.slice(48, 52).toString("hex")
-  );
-
-  const input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
-
-  return {
-    isCreate,
-    gasLimit,
-    gasPrice,
-    value,
-    inputSize: inputSize.toHex(),
-    input,
-  };
 }
 
 function parsePolyjuiceSystemLog(data: HexString): PolyjuiceSystemLog {
