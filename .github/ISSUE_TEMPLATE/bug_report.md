@@ -7,14 +7,24 @@ assignees: ''
 
 ---
 
-**Version**
+## **Version**
 - Godwoken v1 or v0?
-- The prebuild-image you are using or the commit-sha1
+- (Optional) Get the versions from `poly_version` RPC
+  <details>
+  <summary>command example</summary>
 
-**Describe the bug**
+  ```sh
+  curl https://godwoken-testnet-v1.ckbapp.dev -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"jsonrpc": "2.0", "method":"poly_version", "params": [], "id": 1}'
+  ```
+  </details>
+
+## **Describe the bug**
 A clear and concise description of what the bug is.
 
 **To Reproduce**
+
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Some actions on '....'
@@ -32,5 +42,5 @@ If applicable, add screenshots or logs to help explain your problem.
 some logs...
 ```
 
-**Additional context**
+## **Additional context**
 Add any other context about the problem here.
