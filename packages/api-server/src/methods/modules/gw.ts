@@ -332,8 +332,8 @@ export class Gw {
   async submit_l2transaction(args: [HexString]) {
     try {
       // validate l2 tx params
-      const serialized2Tx = args[0];
-      const l2Tx = parseSerializeL2Transaction(serialized2Tx);
+      const serializedL2Tx = args[0];
+      const l2Tx = parseSerializeL2Transaction(serializedL2Tx);
 
       const toId: HexNumber = l2Tx.raw.to_id;
       const toScriptHash: Hash | undefined =

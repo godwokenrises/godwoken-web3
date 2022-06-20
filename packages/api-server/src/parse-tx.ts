@@ -22,7 +22,15 @@ export function isPolyjuiceTransactionArgs(polyjuiceArgs: HexString) {
 }
 
 export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
+  if (!isPolyjuiceTransactionArgs(args)) {
+    throw new Error("Invalid polyjuice tx args, header not matched!");
+  }
+
   const buf = Buffer.from(args.slice(2), "hex");
+
+  if (buf.byteLength < 52) {
+    throw new Error("Tx's length smaller than 52 bytes!");
+  }
 
   const isCreate = buf[7].toString(16) === "3";
   const gasLimit = Uint64.fromLittleEndian(
@@ -38,6 +46,10 @@ export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
   const inputSize = Uint32.fromLittleEndian(
     "0x" + buf.slice(48, 52).toString("hex")
   );
+  // check input size
+  if (buf.byteLength != 52 + inputSize.getValue()) {
+    throw new Error("Tx's input size not matched!");
+  }
 
   const input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
 
@@ -67,18 +79,12 @@ export function DenormalizeL2Transaction(l2Tx: schemas.L2Transaction) {
 
 export function DenormalizeRawL2Transaction(rawL2Tx: schemas.RawL2Transaction) {
   return {
-    chain_id: Uint64.fromLittleEndian(
-      new Reader(rawL2Tx.getChainId().raw()).serializeJson()
+    chain_id: new Uint64(
+      rawL2Tx.getChainId().toLittleEndianBigUint64()
     ).toHex(),
-    from_id: Uint32.fromLittleEndian(
-      new Reader(rawL2Tx.getFromId().raw()).serializeJson()
-    ).toHex(),
-    to_id: Uint32.fromLittleEndian(
-      new Reader(rawL2Tx.getToId().raw()).serializeJson()
-    ).toHex(),
-    nonce: Uint32.fromLittleEndian(
-      new Reader(rawL2Tx.getNonce().raw()).serializeJson()
-    ).toHex(),
+    from_id: new Uint32(rawL2Tx.getFromId().toLittleEndianUint32()).toHex(),
+    to_id: new Uint32(rawL2Tx.getToId().toLittleEndianUint32()).toHex(),
+    nonce: new Uint32(rawL2Tx.getNonce().toLittleEndianUint32()).toHex(),
     args: new Reader(rawL2Tx.getArgs().raw()).serializeJson(),
   };
 }
