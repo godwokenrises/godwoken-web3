@@ -269,7 +269,16 @@ impl Web3Indexer {
                         .into_iter()
                         .find(|item| u8::from(item.service_flag()) == GW_LOG_POLYJUICE_SYSTEM)
                         .as_ref()
-                        .ok_or_else(|| anyhow!("no system logs"))?,
+                        .ok_or_else(|| {
+                            let gw_tx_hash_hex = hex(gw_tx_hash.as_slice()).unwrap_or_else(|_| {
+                                format!("Can't convert tx_hash: {:?} to hex format", gw_tx_hash)
+                            });
+                            let message = format!(
+                                "no system logs in tx_hash: {}, block_number: {}, index: {}",
+                                gw_tx_hash_hex, block_number, tx_index
+                            );
+                            anyhow!(message)
+                        })?,
                     &gw_tx_hash,
                 )?;
 
