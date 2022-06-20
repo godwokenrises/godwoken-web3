@@ -1,13 +1,14 @@
 import { parseGwRpcError } from "../gw-error";
-import { RPC } from "@godwoken-web3/godwoken";
+import { RPC, RunResult } from "@godwoken-web3/godwoken";
 import { middleware } from "../validator";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
-import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
+
+const blake2b = require("blake2b");
 
 export class Gw {
   private rpc: RPC;
@@ -313,17 +314,17 @@ export class Gw {
       args[1] = formatHexNumber(args[1]);
 
       const executeCallResult = async () => {
-        const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
-          ...args
-        );
-        return result;
+        const result: RunResult =
+          await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
+        const stringifyResult = JSON.stringify(result);
+        return stringifyResult;
       };
 
       if (envConfig.enableCacheExecuteRawL2Tx === "true") {
         // calculate raw data cache key
         const [tipBlockHash, memPoolStateRoot] = await Promise.all([
-          this.rpc.getTipBlockHash(),
-          this.rpc.getMemPoolStateRoot(),
+          this.readonlyRpc.gw_get_tip_block_hash(),
+          this.readonlyRpc.gw_get_mem_pool_state_root(),
         ]);
         const serializeParams = serializeExecuteRawL2TxParameters(
           args[0],
@@ -341,13 +342,14 @@ export class Gw {
           rawDataKey,
           executeCallResult,
         };
+        console.log(constructArgs);
         const dataCache = new RedisDataCache(constructArgs);
-        const result = await dataCache.get();
-        return result;
+        const stringifyResult = await dataCache.get();
+        return JSON.parse(stringifyResult);
       } else {
         // not using cache
-        const result = await executeCallResult();
-        return result;
+        const stringifyResult = await executeCallResult();
+        return JSON.parse(stringifyResult);
       }
     } catch (error) {
       parseGwRpcError(error);
@@ -498,14 +500,14 @@ function serializeExecuteRawL2TxParameters(
 }
 
 function getExecuteRawL2TxCacheKey(
-  serializeRawL2Tx: string,
+  serializeParameter: string,
   tipBlockHash: HexString,
   memPoolStateRoot: HexString
 ) {
-  const hash = "0x" + keccakFromString(serializeRawL2Tx).toString("hex");
-  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+  const hash = "0x" + blake2b(16).update(serializeParameter).digest("hex");
+  const cacheKey = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
     2,
     18
   )}${hash.slice(2, 18)}`;
-  return id;
+  return cacheKey;
 }
