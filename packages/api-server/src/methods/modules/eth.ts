@@ -479,7 +479,7 @@ export class Eth {
       // using cache
       if (envConfig.enableCacheEthCall === "true") {
         // calculate raw data cache key
-        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
@@ -490,7 +490,7 @@ export class Eth {
         const rawDataKey = getEthCallCacheKey(
           serializeParams,
           tipBlockHash,
-          memPollStateRoot
+          memPoolStateRoot
         );
 
         const prefixName = `${this.constructor.name}:call`; // FIXME: ${this.call.name} is null
@@ -561,7 +561,7 @@ export class Eth {
       // using cache
       if (envConfig.enableCacheEstimateGas === "true") {
         // calculate raw data cache key
-        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
@@ -572,7 +572,7 @@ export class Eth {
         const rawDataKey = getEstimateGasCacheKey(
           serializeParams,
           tipBlockHash,
-          memPollStateRoot
+          memPoolStateRoot
         );
 
         const prefixName = `${this.constructor.name}:estimateGas`; // FIXME: ${this.call.name} is null

@@ -321,7 +321,7 @@ export class Gw {
 
       if (envConfig.enableCacheExecuteRawL2Tx === "true") {
         // calculate raw data cache key
-        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
@@ -332,7 +332,7 @@ export class Gw {
         const rawDataKey = getExecuteRawL2TxCacheKey(
           serializeParams,
           tipBlockHash,
-          memPollStateRoot
+          memPoolStateRoot
         );
 
         const prefixName = `${this.constructor.name}:execute_raw_l2tx`; // FIXME: ${this.call.name} is null
