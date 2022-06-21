@@ -1,4 +1,4 @@
-import { parseGwRpcError } from "../gw-error";
+import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
 import { RPC, RunResult } from "@godwoken-web3/godwoken";
 import { middleware } from "../validator";
 import { HexNumber, HexString } from "@ckb-lumos/base";
@@ -314,8 +314,12 @@ export class Gw {
       args[1] = formatHexNumber(args[1]);
 
       const executeCallResult = async () => {
-        const result: RunResult =
-          await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
+        let result: RunResult;
+        try {
+          result = await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
+        } catch (error) {
+          throw parseGwRunResultError(error);
+        }
         const stringifyResult = JSON.stringify(result);
         return stringifyResult;
       };
@@ -342,7 +346,6 @@ export class Gw {
           rawDataKey,
           executeCallResult,
         };
-        console.log(constructArgs);
         const dataCache = new RedisDataCache(constructArgs);
         const stringifyResult = await dataCache.get();
         return JSON.parse(stringifyResult);
