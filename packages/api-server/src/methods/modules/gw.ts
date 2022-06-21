@@ -1,14 +1,12 @@
 import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
 import { RPC, RunResult } from "@godwoken-web3/godwoken";
 import { middleware } from "../validator";
-import { HexNumber, HexString } from "@ckb-lumos/base";
+import { HexNumber, HexString, utils } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
-
-const blake2b = require("blake2b");
 
 export class Gw {
   private rpc: RPC;
@@ -507,7 +505,8 @@ function getExecuteRawL2TxCacheKey(
   tipBlockHash: HexString,
   memPoolStateRoot: HexString
 ) {
-  const hash = "0x" + blake2b(16).update(serializeParameter).digest("hex");
+  const hash =
+    "0x" + utils.ckbHash(Buffer.from(serializeParameter)).serializeJson();
   const cacheKey = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
     2,
     18
