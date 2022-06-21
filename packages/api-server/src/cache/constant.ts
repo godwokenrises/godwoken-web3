@@ -7,4 +7,4 @@ export const MAX_FILTER_TOPIC_ARRAY_LENGTH = 20;
 export const GW_RPC_KEY = "gwRPC";
 
 export const TX_HASH_MAPPING_PREFIX_KEY = "TxHashMapping";
-export const TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS = 30 * 60 * 1000; // 30 minutes
+export const TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS = 2 * 60 * 60 * 1000; // 2 hours

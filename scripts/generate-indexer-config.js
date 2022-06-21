@@ -56,8 +56,6 @@ const run = async () => {
     []
   );
 
-  const wsRpcUrl = process.argv[2];
-
   let config = {
     l2_sudt_type_script_hash: nodeInfo.gw_scripts.find(
       (s) => s.script_type === "l2_sudt"
@@ -76,10 +74,6 @@ const run = async () => {
     sentry_dsn: process.env.SENTRY_DNS,
     sentry_environment: process.env.SENTRY_ENVIRONMENT,
   };
-
-  if (wsRpcUrl) {
-    config.ws_rpc_url = wsRpcUrl;
-  }
 
   let tomlStr = "";
 

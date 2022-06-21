@@ -14,7 +14,6 @@ pub struct IndexerConfig {
     pub rollup_type_hash: H256,
     pub eth_account_lock_hash: H256,
     pub godwoken_rpc_url: String,
-    pub ws_rpc_url: String,
     pub pg_url: String,
     pub chain_id: u64,
     pub sentry_dsn: Option<String>,
@@ -41,7 +40,6 @@ impl Display for IndexerConfig {
             self.eth_account_lock_hash
         )?;
         write!(f, "godwoken_rpc_url: {}, ", self.godwoken_rpc_url)?;
-        write!(f, "ws_rpc_url: {}, ", self.ws_rpc_url)?;
         write!(f, "pg_url: {}", self.pg_url)?;
         write!(f, "chain_id: {}", self.chain_id)?;
         if let Some(t) = &self.sentry_dsn {
@@ -78,7 +76,6 @@ pub fn load_indexer_config<P: AsRef<Path>>(path: P) -> Result<IndexerConfig> {
     let pg_url = env::var("pg_url").expect("env var \"pg_url\" is required");
     let godwoken_rpc_url =
         env::var("godwoken_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8119".to_string());
-    let ws_rpc_url = env::var("ws_rpc_url").unwrap_or_else(|_| "http://127.0.0.1:8120".to_string());
     let sentry_dsn = env::var("sentry_dsn").ok();
     let sentry_environment = env::var("sentry_environment").ok();
 
@@ -127,7 +124,6 @@ pub fn load_indexer_config<P: AsRef<Path>>(path: P) -> Result<IndexerConfig> {
         rollup_type_hash,
         eth_account_lock_hash,
         godwoken_rpc_url,
-        ws_rpc_url,
         pg_url,
         chain_id,
         sentry_dsn,

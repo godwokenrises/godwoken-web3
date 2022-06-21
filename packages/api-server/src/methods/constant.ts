@@ -1,7 +1,6 @@
 // source: https://github.com/nervosnetwork/godwoken-polyjuice/blob/main/docs/EVM-compatible.md
 export const POLY_MAX_BLOCK_GAS_LIMIT = 12500000;
 export const POLY_MAX_TRANSACTION_GAS_LIMIT = 12500000;
-export const POLY_MIN_GAS_PRICE = 0;
 export const POLY_BLOCK_DIFFICULTY = BigInt("2500000000000000");
 
 export const RPC_MAX_GAS_LIMIT = 50000000;
@@ -28,3 +27,6 @@ export const COMPATIBLE_DOCS_URL =
 export const QUERY_OFFSET_REACHED_END = "query offset reached end";
 
 export const MIN_ESTIMATE_GAS = BigInt("21000");
+// 128kb
+// see also https://github.com/ethereum/go-ethereum/blob/b3b8b268eb585dfd3c1c9e9bbebc55968f3bec4b/core/tx_pool.go#L43-L53
+export const MAX_TRANSACTION_SIZE = BigInt("131072");

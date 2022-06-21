@@ -22,7 +22,6 @@ import {
   POLYJUICE_USER_LOG_FLAG,
   QUERY_OFFSET_REACHED_END,
   POLY_MAX_BLOCK_GAS_LIMIT,
-  POLY_MIN_GAS_PRICE,
   COMPATIBLE_DOCS_URL,
   MIN_ESTIMATE_GAS,
 } from "../constant";
@@ -311,8 +310,7 @@ export class Eth {
     }
 
     let medianGasPrice = await this.query.getMedianGasPrice();
-    // set min to 1
-    const minGasPrice = BigInt(1);
+    const minGasPrice = BigInt(envConfig.minGasPrice || 0);
     if (medianGasPrice < minGasPrice) {
       medianGasPrice = minGasPrice;
     }
@@ -1359,7 +1357,8 @@ async function buildEthCallTx(
   const gas =
     txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
   const gasPrice =
-    txCallObj.gasPrice || "0x" + BigInt(POLY_MIN_GAS_PRICE).toString(16);
+    txCallObj.gasPrice ||
+    "0x" + BigInt(envConfig.minGasPrice || 0).toString(16);
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
