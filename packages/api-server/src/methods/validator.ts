@@ -2,9 +2,18 @@ import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
-import { RPC_MAX_GAS_LIMIT } from "./constant";
-import { HexNumber } from "@ckb-lumos/base";
+import {
+  CKB_SUDT_ID,
+  RPC_MAX_GAS_LIMIT,
+  TX_DATA_NONE_ZERO_GAS,
+  TX_DATA_ZERO_GAS,
+  TX_GAS,
+  TX_GAS_CONTRACT_CREATION,
+} from "./constant";
+import { HexNumber, HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
+import { GodwokenClient } from "@godwoken-web3/godwoken";
+import { EthRegistryAddress } from "../base/address";
 
 /**
  * middleware for parameters validation
@@ -544,9 +553,83 @@ export function verifySudtFee(
   }
   return undefined;
 }
+
+export function verifyIntrinsicGas(
+  to: HexString | undefined,
+  input: HexString | undefined,
+  gas: HexNumber,
+  index: number
+) {
+  const intrinsicGas = calcIntrinsicGas(to, input);
+  if (BigInt(gas) < intrinsicGas) {
+    return invalidParamsError(
+      index,
+      `intrinsic Gas too low ${gas.toString()}, require ${intrinsicGas.toString()}`
+    );
+  }
+  return undefined;
+}
+
+export async function verifyEnoughBalance(
+  rpc: GodwokenClient,
+  from: HexString,
+  value: HexNumber | undefined,
+  gas: HexNumber | undefined,
+  gasPrice: HexNumber | undefined,
+  index: number
+) {
+  const registryAddress: EthRegistryAddress = new EthRegistryAddress(from);
+  const balance = await rpc.getBalance(
+    registryAddress.serialize(),
+    +CKB_SUDT_ID
+  );
+  const txValue = value == null || value === "0x" ? 0 : value;
+  const txGas = gas == null || gas === "0x" ? 0 : +gas;
+  const txGasPrice = gasPrice == null || gasPrice === "0x" ? 0 : +gasPrice;
+  const requireBalance = BigInt(txGas * txGasPrice) + BigInt(txValue);
+
+  if (balance < requireBalance) {
+    return invalidParamsError(
+      index,
+      `insufficient balance, require ${requireBalance.toString()}, got ${balance}`
+    );
+  }
+  return undefined;
+}
 //******* end of standalone verify function ********/
 
 // some utils function
 function invalidParamsError(index: number, message: string) {
   return new InvalidParamsError(`invalid argument ${index}: ${message}`);
+}
+
+export function calcIntrinsicGas(
+  to: HexString | undefined,
+  input: HexString | undefined
+) {
+  to = to === "0x" ? undefined : to;
+  const isCreate = to == null;
+  let gas: bigint;
+  if (isCreate) {
+    gas = BigInt(TX_GAS_CONTRACT_CREATION);
+  } else {
+    gas = BigInt(TX_GAS);
+  }
+
+  if (input && input.length > 0) {
+    const buf = Buffer.from(input.slice(2), "hex");
+    const byteLen = buf.byteLength;
+    let nonZeroLen = 0;
+    for (const b of buf) {
+      if (b !== 0) {
+        nonZeroLen++;
+      }
+    }
+    const zeroLen = byteLen - nonZeroLen;
+    gas =
+      gas +
+      BigInt(zeroLen) * BigInt(TX_DATA_ZERO_GAS) +
+      BigInt(nonZeroLen) * BigInt(TX_DATA_NONE_ZERO_GAS);
+  }
+  return gas;
 }
