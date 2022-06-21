@@ -63,7 +63,6 @@ import {
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../../cache/constant";
-import { isErc20Transfer } from "../../erc20";
 import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
@@ -454,10 +453,12 @@ export class Eth {
     }
   }
 
-  async call(args: [TransactionCallObject, string]): Promise<HexString> {
+  async call(
+    args: [TransactionCallObject, BlockParameter | undefined]
+  ): Promise<HexString> {
     try {
       const txCallObj = args[0];
-      const blockParameter = args[1];
+      const blockParameter = args[1] || "latest";
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
 
@@ -476,7 +477,7 @@ export class Eth {
       // using cache
       if (envConfig.enableCacheEthCall === "true") {
         // calculate raw data cache key
-        const [tipBlockHash, memPollStateRoot] = await Promise.all([
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
           this.rpc.getTipBlockHash(),
           this.rpc.getMemPoolStateRoot(),
         ]);
@@ -487,7 +488,7 @@ export class Eth {
         const rawDataKey = getEthCallCacheKey(
           serializeParams,
           tipBlockHash,
-          memPollStateRoot
+          memPoolStateRoot
         );
 
         const prefixName = `${this.constructor.name}:call`; // FIXME: ${this.call.name} is null
@@ -510,64 +511,82 @@ export class Eth {
   }
 
   async estimateGas(
-    args: [Partial<TransactionCallObject>]
+    args: [Partial<TransactionCallObject>, BlockParameter | undefined]
   ): Promise<HexNumber> {
     try {
       const txCallObj = args[0];
-
       if (txCallObj.to == null) {
         txCallObj.to = "0x";
       }
+      const blockParameter = args[1] || "latest";
+      const blockNumber: GodwokenBlockParameter =
+        await this.parseBlockParameter(blockParameter);
 
       const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
 
-      // cache erc20 transfer result
-      const cacheKey = `eth.eth_estimateGas.erc20_transfer`;
-      let isTransfer = false;
-      if (txCallObj.data != null && txCallObj.data !== "0x") {
-        isTransfer = isErc20Transfer(txCallObj.data);
-        if (isTransfer) {
-          const cachedResult = await this.cacheStore.get(cacheKey);
-          if (cachedResult != null) {
-            return cachedResult;
-          }
+      const executeCallResult = async () => {
+        let runResult: RunResult | undefined;
+        try {
+          runResult = await ethCallTx(
+            txCallObj as TransactionCallObject,
+            this.rpc,
+            blockNumber
+          );
+        } catch (error) {
+          throw parseGwRunResultError(error);
         }
-      }
 
-      let runResult: RunResult | undefined;
-      try {
-        runResult = await ethCallTx(
-          txCallObj as TransactionCallObject,
-          this.rpc,
-          undefined
+        const polyjuiceSystemLog = extractPolyjuiceSystemLog(
+          runResult.logs
+        ) as PolyjuiceSystemLog;
+
+        logger.debug(
+          "eth_estimateGas RunResult:",
+          runResult,
+          "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
         );
-      } catch (error) {
-        throw parseGwRunResultError(error);
+
+        const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
+
+        let result: HexNumber = "0x" + gasUsed.toString(16);
+        if (gasUsed < MIN_ESTIMATE_GAS) {
+          result = "0x" + MIN_ESTIMATE_GAS.toString(16);
+        }
+
+        return result;
+      };
+
+      // using cache
+      if (envConfig.enableCacheEstimateGas === "true") {
+        // calculate raw data cache key
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
+          this.rpc.getTipBlockHash(),
+          this.rpc.getMemPoolStateRoot(),
+        ]);
+        const serializeParams = serializeEstimateGasParameters(
+          txCallObj,
+          blockNumber
+        );
+        const rawDataKey = getEstimateGasCacheKey(
+          serializeParams,
+          tipBlockHash,
+          memPoolStateRoot
+        );
+
+        const prefixName = `${this.constructor.name}:estimateGas`; // FIXME: ${this.call.name} is null
+        const constructArgs: DataCacheConstructor = {
+          prefixName,
+          rawDataKey,
+          executeCallResult,
+        };
+        const dataCache = new RedisDataCache(constructArgs);
+        const result = await dataCache.get();
+        return result;
+      } else {
+        // not using cache
+        const result = await executeCallResult();
+        return result;
       }
-
-      const polyjuiceSystemLog = extractPolyjuiceSystemLog(
-        runResult.logs
-      ) as PolyjuiceSystemLog;
-
-      logger.debug(
-        "eth_estimateGas RunResult:",
-        runResult,
-        "0x" + BigInt(polyjuiceSystemLog.gasUsed).toString(16)
-      );
-
-      const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
-
-      let result: HexNumber = "0x" + gasUsed.toString(16);
-      if (gasUsed < MIN_ESTIMATE_GAS) {
-        result = "0x" + MIN_ESTIMATE_GAS.toString(16);
-      }
-
-      if (isTransfer) {
-        // no await
-        this.cacheStore.insert(cacheKey, result);
-      }
-
-      return result;
     } catch (error: any) {
       throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
     }
@@ -1504,18 +1523,17 @@ function parsePolyjuiceUserLog(logItem: LogItem): PolyjuiceUserLog {
 
 function serializeEthCallParameters(
   ethCallObj: TransactionCallObject,
-  blockNumber: GodwokenBlockParameter
+  blockNumber?: GodwokenBlockParameter
 ): HexString {
   // the gasPrice did not effect eth_call result, so we can remove it from cache key
   const toSerializeObj = {
-    from: ethCallObj.from,
+    from: ethCallObj.from || "0x",
     to: ethCallObj.to,
     gas: ethCallObj.gas || "0x",
     data: ethCallObj.data || "0x",
     value: ethCallObj.value || "0x",
-    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x",
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
   };
-  //console.log("to serialize eth_call cache obj", toSerializeObj);
   return JSON.stringify(toSerializeObj);
 }
 
@@ -1525,6 +1543,36 @@ function getEthCallCacheKey(
   memPoolStateRoot: HexString
 ) {
   const hash = "0x" + keccakFromString(serializeEthCallParams).toString("hex");
+  const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+    2,
+    18
+  )}${hash.slice(2, 18)}`;
+  return id;
+}
+
+function serializeEstimateGasParameters(
+  estimateGasObj: Partial<TransactionCallObject>,
+  blockNumber?: GodwokenBlockParameter
+): HexString {
+  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  const toSerializeObj = {
+    from: estimateGasObj.from || "0x",
+    to: estimateGasObj.to || "0x",
+    gas: estimateGasObj.gas || "0x",
+    data: estimateGasObj.data || "0x",
+    value: estimateGasObj.value || "0x",
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
+  };
+  return JSON.stringify(toSerializeObj);
+}
+
+function getEstimateGasCacheKey(
+  serializeEstimateGasParams: string,
+  tipBlockHash: HexString,
+  memPoolStateRoot: HexString
+) {
+  const hash =
+    "0x" + keccakFromString(serializeEstimateGasParams).toString("hex");
   const id = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
     2,
     18

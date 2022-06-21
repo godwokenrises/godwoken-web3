@@ -16,6 +16,8 @@ export const envConfig = {
   sentryEnvironment: getOptional("SENTRY_ENVIRONMENT"),
   godwokenReadonlyJsonRpc: getOptional("GODWOKEN_READONLY_JSON_RPC"),
   enableCacheEthCall: getOptional("ENABLE_CACHE_ETH_CALL"),
+  enableCacheEstimateGas: getOptional("ENABLE_CACHE_ESTIMATE_GAS"),
+  enableCacheExecuteRawL2Tx: getOptional("ENABLE_CACHE_EXECUTE_RAW_L2_TX"),
   logLevel: getOptional("LOG_LEVEL"),
   logFormat: getOptional("LOG_FORMAT"),
   logRequestBody: getOptional("WEB3_LOG_REQUEST_BODY"),
