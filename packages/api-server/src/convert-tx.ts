@@ -1,8 +1,8 @@
 import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import {
   GodwokenClient,
-  RawL2Transaction,
   L2Transaction,
+  RawL2Transaction,
 } from "@godwoken-web3/godwoken";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";

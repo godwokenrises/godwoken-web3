@@ -1,11 +1,18 @@
 import { parseGwRpcError } from "../gw-error";
 import { RPC } from "@godwoken-web3/godwoken";
-import { middleware } from "../validator";
-import { HexNumber } from "@ckb-lumos/base";
+import { middleware, verifyGasLimit, verifyGasPrice } from "../validator";
+import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
+import {
+  decodePolyjuiceArgs,
+  isPolyjuiceTransactionArgs,
+  parseSerializeL2Transaction,
+} from "../../parse-tx";
+import { InvalidParamsError } from "../error";
+import { gwConfig } from "../../base";
 
 export class Gw {
   private rpc: RPC;
@@ -322,8 +329,51 @@ export class Gw {
    * @param args [l2tx(HexString)]
    * @returns
    */
-  async submit_l2transaction(args: any[]) {
+  async submit_l2transaction(args: [HexString]) {
     try {
+      // validate l2 tx params
+      const serializedL2Tx = args[0];
+      const l2Tx = parseSerializeL2Transaction(serializedL2Tx);
+
+      const toId: HexNumber = l2Tx.raw.to_id;
+      const toScriptHash: Hash | undefined =
+        await this.readonlyRpc.gw_get_script_hash(toId);
+      if (toScriptHash == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, toScriptHash not found.`
+        );
+      }
+      const toScript: Script | undefined = await this.readonlyRpc.gw_get_script(
+        toScriptHash
+      );
+      if (toScript == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, toScript not found.`
+        );
+      }
+
+      // 1. validate polyjuice tx params
+      if (
+        toScript.code_hash ===
+          gwConfig.backends.polyjuice.validatorScriptTypeHash &&
+        isPolyjuiceTransactionArgs(l2Tx.raw.args)
+      ) {
+        const decodeData = decodePolyjuiceArgs(l2Tx.raw.args);
+
+        const gasLimitErr = verifyGasLimit(decodeData.gasLimit, 0);
+        if (gasLimitErr) {
+          throw gasLimitErr.padContext(`gw_submit_l2transaction`);
+        }
+
+        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
+        if (gasPriceErr) {
+          throw gasPriceErr.padContext(`gw_submit_l2transaction`);
+        }
+      }
+
+      // todo: 2. validate SUDT transfer l2 transaction min fee
+
+      // pass validate, submit l2 tx
       const result = await this.rpc.gw_submit_l2transaction(...args);
       return result;
     } catch (error) {
