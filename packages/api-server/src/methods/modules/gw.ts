@@ -1,16 +1,17 @@
-import { parseGwRpcError } from "../gw-error";
-import { RPC, schemas } from "@godwoken-web3/godwoken";
+import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
+import { RPC, RunResult, schemas } from "@godwoken-web3/godwoken";
 import {
   middleware,
   verifyGasLimit,
   verifyGasPrice,
   verifySudtFee,
 } from "../validator";
-import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
+import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import {
   decodePolyjuiceArgs,
   isPolyjuiceTransactionArgs,
@@ -319,14 +320,53 @@ export class Gw {
    * @param args [raw_l2tx(HexString), (block_number)]
    * @returns
    */
-  async execute_raw_l2transaction(args: any[]) {
+  async execute_raw_l2transaction(
+    args: [HexString, HexNumber | null | undefined]
+  ) {
     try {
       args[1] = formatHexNumber(args[1]);
 
-      const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
-        ...args
-      );
-      return result;
+      const executeCallResult = async () => {
+        let result: RunResult;
+        try {
+          result = await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
+        } catch (error) {
+          throw parseGwRunResultError(error);
+        }
+        const stringifyResult = JSON.stringify(result);
+        return stringifyResult;
+      };
+
+      if (envConfig.enableCacheExecuteRawL2Tx === "true") {
+        // calculate raw data cache key
+        const [tipBlockHash, memPoolStateRoot] = await Promise.all([
+          this.readonlyRpc.gw_get_tip_block_hash(),
+          this.readonlyRpc.gw_get_mem_pool_state_root(),
+        ]);
+        const serializeParams = serializeExecuteRawL2TxParameters(
+          args[0],
+          args[1]
+        );
+        const rawDataKey = getExecuteRawL2TxCacheKey(
+          serializeParams,
+          tipBlockHash,
+          memPoolStateRoot
+        );
+
+        const prefixName = `${this.constructor.name}:execute_raw_l2tx`; // FIXME: ${this.call.name} is null
+        const constructArgs: DataCacheConstructor = {
+          prefixName,
+          rawDataKey,
+          executeCallResult,
+        };
+        const dataCache = new RedisDataCache(constructArgs);
+        const stringifyResult = await dataCache.get();
+        return JSON.parse(stringifyResult);
+      } else {
+        // not using cache
+        const stringifyResult = await executeCallResult();
+        return JSON.parse(stringifyResult);
+      }
     } catch (error) {
       parseGwRpcError(error);
     }
@@ -522,4 +562,29 @@ function formatHexNumber(
   }
 
   return num.toLowerCase();
+}
+
+function serializeExecuteRawL2TxParameters(
+  serializeRawL2Tx: HexString,
+  blockNumber: HexNumber | null | undefined
+): HexString {
+  const toSerializeObj = {
+    serializeRawL2Tx,
+    blockNumber: blockNumber || "0x",
+  };
+  return JSON.stringify(toSerializeObj);
+}
+
+function getExecuteRawL2TxCacheKey(
+  serializeParameter: string,
+  tipBlockHash: HexString,
+  memPoolStateRoot: HexString
+) {
+  const hash =
+    "0x" + utils.ckbHash(Buffer.from(serializeParameter)).serializeJson();
+  const cacheKey = `0x${tipBlockHash.slice(2, 18)}${memPoolStateRoot.slice(
+    2,
+    18
+  )}${hash.slice(2, 18)}`;
+  return cacheKey;
 }
