@@ -577,7 +577,7 @@ export class Eth {
           tipBlockHash,
           memPoolStateRoot
         );
-      
+
         const prefixName = `${this.constructor.name}:estimateGas`; // FIXME: ${this.call.name} is null
         const constructArgs: DataCacheConstructor = {
           prefixName,
