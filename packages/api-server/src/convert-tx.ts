@@ -13,7 +13,7 @@ import {
 } from "./base/address";
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
-import { COMPATIBLE_DOCS_URL } from "./methods/constant";
+import { MAX_TRANSACTION_SIZE, COMPATIBLE_DOCS_URL } from "./methods/constant";
 import { verifyGasLimit, verifyGasPrice } from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
@@ -130,6 +130,15 @@ async function parseRawTransactionData(
   rpc: GodwokenClient
 ): Promise<L2Transaction> {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+
+  // Reject transactions with too large size
+  const rlpEncoded = encodePolyjuiceTransaction(rawTx);
+  const rlpEncodedSize = Buffer.from(rlpEncoded.slice(2), "hex").length;
+  if (rlpEncodedSize > MAX_TRANSACTION_SIZE) {
+    throw new Error(
+      `oversized data, MAX_TRANSACTION_SIZE: ${MAX_TRANSACTION_SIZE}`
+    );
+  }
 
   const gasLimitErr = verifyGasLimit(gasLimit, 0);
   if (gasLimitErr) {
