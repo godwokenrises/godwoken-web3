@@ -263,46 +263,50 @@ impl Web3Indexer {
                 let log_item_vec = tx_receipt.logs();
 
                 // read polyjuice system log
-                let polyjuice_system_log = parse_log(
-                    log_item_vec
-                        .clone()
-                        .into_iter()
-                        .find(|item| u8::from(item.service_flag()) == GW_LOG_POLYJUICE_SYSTEM)
-                        .as_ref()
-                        .ok_or_else(|| {
-                            let gw_tx_hash_hex = hex(gw_tx_hash.as_slice()).unwrap_or_else(|_| {
-                                format!("Can't convert tx_hash: {:?} to hex format", gw_tx_hash)
-                            });
-                            let message = format!(
-                                "no system logs in tx_hash: {}, block_number: {}, index: {}",
-                                gw_tx_hash_hex, block_number, tx_index
-                            );
-                            anyhow!(message)
-                        })?,
-                    &gw_tx_hash,
-                )?;
+                let polyjuice_system_log_item = log_item_vec
+                    .clone()
+                    .into_iter()
+                    .find(|item| u8::from(item.service_flag()) == GW_LOG_POLYJUICE_SYSTEM);
 
-                let (contract_address, tx_gas_used) = if let GwLog::PolyjuiceSystem {
-                    gas_used,
-                    cumulative_gas_used: _,
-                    created_address,
-                    status_code: _,
-                } = polyjuice_system_log
-                {
-                    let tx_gas_used = gas_used.into();
-                    cumulative_gas_used += tx_gas_used;
-                    let contract_address =
-                        if polyjuice_args.is_create && created_address != [0u8; 20] {
-                            Some(created_address)
+                let (contract_address, tx_gas_used) = match polyjuice_system_log_item {
+                    Some(item) => {
+                        let polyjuice_system_log = parse_log(&item, &gw_tx_hash)?;
+                        if let GwLog::PolyjuiceSystem {
+                            gas_used,
+                            cumulative_gas_used: _,
+                            created_address,
+                            status_code: _,
+                        } = polyjuice_system_log
+                        {
+                            let tx_gas_used: u128 = gas_used.into();
+                            cumulative_gas_used += tx_gas_used;
+                            let contract_address =
+                                if polyjuice_args.is_create && created_address != [0u8; 20] {
+                                    Some(created_address)
+                                } else {
+                                    None
+                                };
+                            (contract_address, tx_gas_used)
                         } else {
-                            None
-                        };
-                    (contract_address, tx_gas_used)
-                } else {
-                    return Err(anyhow!(
-                        "can't find polyjuice system log from logs: tx_hash: {}",
-                        hex(gw_tx_hash.as_slice())?
-                    ));
+                            return Err(anyhow!(
+                                "can't find polyjuice system log from logs: tx_hash: {}",
+                                hex(gw_tx_hash.as_slice())?
+                            ));
+                        }
+                    }
+                    None => {
+                        let gw_tx_hash_hex = hex(gw_tx_hash.as_slice()).unwrap_or_else(|_| {
+                            format!("Can't convert tx_hash: {:?} to hex format", gw_tx_hash)
+                        });
+                        log::error!(
+                            "no system logs in tx_hash: {}, block_number: {}, index: {}, exit_code: {}",
+                            gw_tx_hash_hex,
+                            block_number,
+                            tx_index,
+                            tx_receipt.exit_code()
+                        );
+                        (None, polyjuice_args.gas_limit as u128)
+                    }
                 };
 
                 let exit_code: u8 = tx_receipt.exit_code().into();
