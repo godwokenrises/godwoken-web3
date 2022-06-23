@@ -1,6 +1,11 @@
 import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
-import { RPC, RunResult } from "@godwoken-web3/godwoken";
-import { middleware, verifyGasLimit, verifyGasPrice } from "../validator";
+import { RPC, RunResult, schemas } from "@godwoken-web3/godwoken";
+import {
+  middleware,
+  verifyGasLimit,
+  verifyGasPrice,
+  verifySudtFee,
+} from "../validator";
 import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
@@ -14,6 +19,9 @@ import {
 } from "../../parse-tx";
 import { InvalidParamsError } from "../error";
 import { gwConfig } from "../../base";
+import { CKB_SUDT_ID } from "../constant";
+import { Reader } from "@ckb-lumos/toolkit";
+import { Uint128 } from "../../base/types/uint";
 
 export class Gw {
   private rpc: RPC;
@@ -411,7 +419,24 @@ export class Gw {
         }
       }
 
-      // todo: 2. validate SUDT transfer l2 transaction min fee
+      // 2. validate SUDT transfer l2 transaction fee
+      if (
+        l2Tx.raw.to_id === CKB_SUDT_ID &&
+        toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash
+      ) {
+        const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
+        if (sudtArgs.unionType() === "SUDTTransfer") {
+          const sudtTransfer: schemas.SUDTTransfer = sudtArgs.value();
+          const fee: HexNumber = Uint128.fromLittleEndian(
+            new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
+          ).toHex();
+
+          const feeErr = verifySudtFee(fee, 0);
+          if (feeErr) {
+            throw feeErr.padContext(`gw_submit_l2transaction`);
+          }
+        }
+      }
 
       // pass validate, submit l2 tx
       const result = await this.rpc.gw_submit_l2transaction(...args);

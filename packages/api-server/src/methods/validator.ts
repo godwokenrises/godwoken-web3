@@ -3,7 +3,7 @@ import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
 import { RPC_MAX_GAS_LIMIT } from "./constant";
-import { HexString } from "@ckb-lumos/base";
+import { HexNumber } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
 
 /**
@@ -482,7 +482,7 @@ export function verifyNewFilterObj(
 }
 
 export function verifyGasLimit(
-  gasLimit: HexString,
+  gasLimit: HexNumber,
   index: number
 ): InvalidParamsError | undefined {
   const gasLimitErr = verifyHexNumber(gasLimit, index);
@@ -500,7 +500,7 @@ export function verifyGasLimit(
 }
 
 export function verifyGasPrice(
-  gasPrice: HexString,
+  gasPrice: HexNumber,
   index: number
 ): InvalidParamsError | undefined {
   const gasPriceErr = verifyHexNumber(gasPrice, index);
@@ -508,10 +508,38 @@ export function verifyGasPrice(
     return gasPriceErr.padContext("gasPrice");
   }
 
-  if (envConfig.minGasPrice != null && +gasPrice < +envConfig.minGasPrice) {
+  if (
+    envConfig.minGasPrice != null &&
+    BigInt(gasPrice) < BigInt(envConfig.minGasPrice)
+  ) {
     return invalidParamsError(
       index,
-      `minimal gas price ${+envConfig.minGasPrice} required. got ${+gasPrice}`
+      `minimal gas price ${envConfig.minGasPrice} required. got ${BigInt(
+        gasPrice
+      ).toString(10)}`
+    );
+  }
+  return undefined;
+}
+
+export function verifySudtFee(
+  fee: HexNumber,
+  index: number
+): InvalidParamsError | undefined {
+  const feeErr = verifyHexNumber(fee, index);
+  if (feeErr) {
+    return feeErr.padContext("Sudt Fee");
+  }
+
+  if (
+    envConfig.minSudtFee != null &&
+    BigInt(fee) < BigInt(envConfig.minSudtFee)
+  ) {
+    return invalidParamsError(
+      index,
+      `minimal sudt transfer fee ${envConfig.minSudtFee} required. got ${BigInt(
+        fee
+      ).toString(10)}`
     );
   }
   return undefined;
