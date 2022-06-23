@@ -419,7 +419,7 @@ export class Gw {
         await this.readonlyRpc.gw_get_script(fromScriptHash);
       if (fromScript == null) {
         throw new InvalidParamsError(
-          `invalid l2Transaction, toScript not found.`
+          `invalid l2Transaction, fromScript not found.`
         );
       }
 
