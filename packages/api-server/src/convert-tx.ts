@@ -146,7 +146,7 @@ async function parseRawTransactionData(
     );
   }
 
-  const gasLimitErr = verifyGasLimit(gasLimit, 0);
+  const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
@@ -186,7 +186,12 @@ async function parseRawTransactionData(
   }
 
   // check intrinsic gas and enough fund
-  const intrinsicGasErr = verifyIntrinsicGas(to, data, gasLimit, 0);
+  const intrinsicGasErr = verifyIntrinsicGas(
+    to,
+    data,
+    gasLimit === "0x" ? "0x0" : gasLimit,
+    0
+  );
   if (intrinsicGasErr) {
     throw intrinsicGasErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
@@ -196,9 +201,9 @@ async function parseRawTransactionData(
   const enoughBalanceErr = await verifyEnoughBalance(
     rpc,
     fromEthAddress,
-    value,
-    gasLimit,
-    gasPrice,
+    value === "0x" ? "0x0" : value,
+    gasLimit === "0x" ? "0x0" : gasLimit,
+    gasPrice === "0x" ? "0x0" : gasPrice,
     0
   );
   if (enoughBalanceErr) {

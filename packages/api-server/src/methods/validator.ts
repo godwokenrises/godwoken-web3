@@ -560,6 +560,7 @@ export function verifyIntrinsicGas(
   gas: HexNumber,
   index: number
 ) {
+  console.log(gas);
   const intrinsicGas = calcIntrinsicGas(to, input);
   if (BigInt(gas) < intrinsicGas) {
     return invalidParamsError(
