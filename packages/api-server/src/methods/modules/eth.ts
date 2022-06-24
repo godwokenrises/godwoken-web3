@@ -8,7 +8,12 @@ import {
   SudtPayFeeLog,
   BlockParameter,
 } from "../types";
-import { middleware, validators, verifyGasLimit } from "../validator";
+import {
+  calcIntrinsicGas,
+  middleware,
+  validators,
+  verifyGasLimit,
+} from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
@@ -23,7 +28,6 @@ import {
   QUERY_OFFSET_REACHED_END,
   POLY_MAX_BLOCK_GAS_LIMIT,
   COMPATIBLE_DOCS_URL,
-  MIN_ESTIMATE_GAS,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -549,8 +553,9 @@ export class Eth {
         const gasUsed: bigint = polyjuiceSystemLog.gasUsed + extraGas;
 
         let result: HexNumber = "0x" + gasUsed.toString(16);
-        if (gasUsed < MIN_ESTIMATE_GAS) {
-          result = "0x" + MIN_ESTIMATE_GAS.toString(16);
+        const intrinsicGas = calcIntrinsicGas(txCallObj.to, txCallObj.data);
+        if (gasUsed < intrinsicGas) {
+          result = "0x" + intrinsicGas.toString(16);
         }
 
         return result;

@@ -1,9 +1,16 @@
 import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
-import { RPC, RunResult, schemas } from "@godwoken-web3/godwoken";
+import {
+  RPC,
+  RunResult,
+  schemas,
+  GodwokenClient,
+} from "@godwoken-web3/godwoken";
 import {
   middleware,
+  verifyEnoughBalance,
   verifyGasLimit,
   verifyGasPrice,
+  verifyIntrinsicGas,
   verifySudtFee,
 } from "../validator";
 import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
@@ -400,6 +407,22 @@ export class Gw {
         );
       }
 
+      const fromId: HexNumber = l2Tx.raw.from_id;
+      const fromScriptHash: Hash | undefined =
+        await this.readonlyRpc.gw_get_script_hash(fromId);
+      if (fromScriptHash == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, fromScriptHash not found.`
+        );
+      }
+      const fromScript: Script | undefined =
+        await this.readonlyRpc.gw_get_script(fromScriptHash);
+      if (fromScript == null) {
+        throw new InvalidParamsError(
+          `invalid l2Transaction, fromScript not found.`
+        );
+      }
+
       // 1. validate polyjuice tx params
       if (
         toScript.code_hash ===
@@ -416,6 +439,34 @@ export class Gw {
         const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
         if (gasPriceErr) {
           throw gasPriceErr.padContext(`gw_submit_l2transaction`);
+        }
+
+        // check intrinsic gas and enough fund
+        const from = "0x" + fromScript.args.slice(2).slice(64, 104);
+        const to = decodeData.isCreate
+          ? undefined
+          : "0x" + toScript.args.slice(2).slice((32 + 4) * 2);
+        const value = decodeData.value;
+        const input = decodeData.input;
+        const gas = decodeData.gasLimit;
+        const gasPrice = decodeData.gasPrice;
+
+        const intrinsicGasErr = verifyIntrinsicGas(to, input, gas, 0);
+        if (intrinsicGasErr) {
+          throw intrinsicGasErr.padContext(`gw_submit_l2transaction`);
+        }
+
+        const client = new GodwokenClient(envConfig.godwokenJsonRpc);
+        const enoughBalanceErr = await verifyEnoughBalance(
+          client,
+          from,
+          value,
+          gas,
+          gasPrice,
+          0
+        );
+        if (enoughBalanceErr) {
+          throw enoughBalanceErr.padContext(`gw_submit_l2transaction`);
         }
       }
 

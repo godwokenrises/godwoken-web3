@@ -14,7 +14,12 @@ import {
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import { MAX_TRANSACTION_SIZE, COMPATIBLE_DOCS_URL } from "./methods/constant";
-import { verifyGasLimit, verifyGasPrice } from "./methods/validator";
+import {
+  verifyEnoughBalance,
+  verifyGasLimit,
+  verifyGasPrice,
+  verifyIntrinsicGas,
+} from "./methods/validator";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -50,6 +55,7 @@ export async function generateRawTransaction(
 
 function decodeRawTransactionData(dataParams: HexString) {
   const result: Buffer[] = rlp.decode(dataParams) as Buffer[];
+  // todo: r might be "0x" which cause inconvenient for down-stream
   const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
 
   if (result.length !== 9) {
@@ -140,7 +146,7 @@ async function parseRawTransactionData(
     );
   }
 
-  const gasLimitErr = verifyGasLimit(gasLimit, 0);
+  const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(
       `eth_sendRawTransaction ${parseRawTransactionData.name}`
@@ -176,6 +182,33 @@ async function parseRawTransactionData(
   if (fromId == null) {
     throw new Error(
       `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    );
+  }
+
+  // check intrinsic gas and enough fund
+  const intrinsicGasErr = verifyIntrinsicGas(
+    to,
+    data,
+    gasLimit === "0x" ? "0x0" : gasLimit,
+    0
+  );
+  if (intrinsicGasErr) {
+    throw intrinsicGasErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+    );
+  }
+
+  const enoughBalanceErr = await verifyEnoughBalance(
+    rpc,
+    fromEthAddress,
+    value === "0x" ? "0x0" : value,
+    gasLimit === "0x" ? "0x0" : gasLimit,
+    gasPrice === "0x" ? "0x0" : gasPrice,
+    0
+  );
+  if (enoughBalanceErr) {
+    throw enoughBalanceErr.padContext(
+      `eth_sendRawTransaction ${parseRawTransactionData.name}`
     );
   }
 
