@@ -24,9 +24,9 @@ export const envConfig = {
   port: getOptional("PORT"),
   minGasPrice: getOptional("MIN_GAS_PRICE"),
   minSudtFee: getOptional("MIN_SUDT_FEE"),
-  maxQueryNumber: getOptional("MAX_QUERY_NUMBER") || "10000",
-  maxQueryRounds: getOptional("MAX_QUERY_ROUNDS") || "100",
-  maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS") || "10000",
+  maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
+  maxQueryRounds: getOptional("MAX_QUERY_ROUNDS"),
+  maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
 };
 
 function getRequired(name: string): string {
