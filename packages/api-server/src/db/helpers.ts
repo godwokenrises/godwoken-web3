@@ -223,7 +223,7 @@ export function getDatabaseRateLimitingConfiguration() {
     ? +envConfig["maxQueryNumber"]
     : DEFAULT_MAX_QUERY_NUMBER;
   const MAX_QUERY_TIME_MILSECS = envConfig["maxQueryTimeInMilliseconds"]
-    ? parseInt(envConfig["maxQueryTimeInMilliseconds"], 10)
+    ? +envConfig["maxQueryTimeInMilliseconds"]
     : DEFAULT_MAX_QUERY_TIME_MILSECS;
   const MAX_QUERY_ROUNDS = envConfig["maxQueryRounds"]
     ? parseInt(envConfig["maxQueryRounds"], 10)
