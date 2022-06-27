@@ -29,6 +29,9 @@ jobs:
     - run: yarn install
     - run: yarn run build
     - run: yarn workspace @godwoken-web3/api-server run test tests/db/helpers.test.ts
+      env:
+        DATABASE_URL: http://database-url-test
+        GODWOKEN_JSON_RPC: http://godwoken-json-rpc-test
     - run: yarn workspace @godwoken-web3/api-server run test tests/utils
     - run: yarn workspace @godwoken-web3/api-server run test tests/base/types
     - run: yarn run fmt
