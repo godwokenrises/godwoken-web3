@@ -115,11 +115,14 @@ impl Runner {
     }
 
     pub async fn insert(&mut self) -> Result<bool> {
+        let start = std::time::Instant::now();
+
         let local_tip = self.tip().await?;
         let current_block_number = match local_tip {
             None => 0,
             Some(t) => t + 1,
         };
+
         let current_block = self
             .godwoken_rpc_client
             .get_block_by_number(current_block_number)?;
@@ -135,8 +138,16 @@ impl Runner {
                     // if match, insert a new block
                     // if not match, delete prev block
                     if l2_block_parent_hash.as_slice() == prev_block_hash.as_bytes() {
-                        self.indexer.store_l2_block(l2_block).await?;
-                        log::info!("Sync block {}", current_block_number);
+                        let (txs_len, logs_len) = self.indexer.store_l2_block(l2_block).await?;
+
+                        let duration = start.elapsed();
+                        log::info!(
+                            "Sync block {}, {} txs, {} logs, duration: {:?}",
+                            current_block_number,
+                            txs_len,
+                            logs_len,
+                            duration,
+                        );
                         self.bump_tip().await?;
                     } else {
                         self.delete_block(prev_block_number).await?;
@@ -145,8 +156,16 @@ impl Runner {
                     }
                 }
             } else {
-                self.indexer.store_l2_block(l2_block).await?;
-                log::info!("Sync block {}", current_block_number);
+                let (txs_len, logs_len) = self.indexer.store_l2_block(l2_block).await?;
+
+                let duration = start.elapsed();
+                log::info!(
+                    "Sync block {}, {} txs, {} logs, duration: {:?}",
+                    current_block_number,
+                    txs_len,
+                    logs_len,
+                    duration,
+                );
                 self.bump_tip().await?;
             }
 
