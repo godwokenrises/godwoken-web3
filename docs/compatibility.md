@@ -1,4 +1,4 @@
-# Eth Compatibility
+# ETH Compatibility
 
 ## RPC compatibility
 
@@ -15,7 +15,10 @@ The `to` member of a Godwoken transaction must be a contract.
 
 #### Recommend workaround
 
-- **Transfer Value From EOA To EOA**: Use the `transfer function` in [CKB_ERC20_Proxy](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b/solidity/erc20/README.md) contract [combined](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b322/solidity/erc20/SudtERC20Proxy_UserDefinedDecimals.sol#L154) with sUDT_ID = 1 (CKB a.k.a. [pCKB](https://github.com/nervosnetwork/godwoken/blob/develop/docs/life_of_a_polyjuice_transaction.md#pckb)).
+- **Transfer Value From EOA To EOA**: Use the `transfer function` in [pCKB_ERC20_Proxy](https://github.com/nervosnetwork/godwoken-polyjuice/blob/ae65ef551/solidity/erc20/README.md) contract [combined](https://github.com/nervosnetwork/godwoken-polyjuice/blob/3f1ad5b322/solidity/erc20/SudtERC20Proxy_UserDefinedDecimals.sol#L154) with sUDT_ID = 1 (CKB a.k.a. [pCKB](https://github.com/nervosnetwork/godwoken/blob/develop/docs/life_of_a_polyjuice_transaction.md#pckb)).
+   - mainnet_v1 pCKB_ERC20_Proxy contract: 0x7538C85caE4E4673253fFd2568c1F1b48A71558a (pCKB)
+   - testnet_v1 pCKB_ERC20_Proxy contract: 0xE05d380839f32bC12Fb690aa6FE26B00Bd982613 (pCKB)
+
 
 ### 2. Signing Transaction Only Support EIP155
 
