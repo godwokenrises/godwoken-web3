@@ -1,6 +1,5 @@
 const createError = require("http-errors");
 const express = require("express");
-const logger = require("morgan");
 const jaysonMiddleware = require("./middlewares/jayson");
 var cors = require("cors");
 const { wrapper } = require("./lib/ws/methods");
@@ -8,12 +7,13 @@ const expressWs = require("express-ws");
 const Sentry = require("@sentry/node");
 const { applyRateLimitByIp } = require("./lib/rate-limit");
 const { initSentry } = require("./lib/sentry");
+const { expressLogger, logger } = require("./lib/base/logger");
 
 NEW_RELIC_LICENSE_KEY = process.env.NEW_RELIC_LICENSE_KEY;
 
 let newrelic = undefined;
 if (NEW_RELIC_LICENSE_KEY) {
-  console.log("new relic init !!!");
+  logger.info("new relic init !!!");
   newrelic = require("newrelic");
 }
 
@@ -52,7 +52,7 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(logger("dev"));
+app.use(expressLogger);
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: false, limit: BODY_PARSER_LIMIT }));
 
@@ -60,18 +60,13 @@ app.use(function (req, _res, next) {
   if (NEW_RELIC_LICENSE_KEY) {
     // set new relic name
     const transactionName = `${req.method} ${req.url}#${req.body.method}`;
-    console.log("#transactionName:", transactionName);
+    logger.debug("#transactionName:", transactionName);
     newrelic.setTransactionName(transactionName);
   }
 
   // log request method / body
   if (process.env.WEB3_LOG_REQUEST_BODY) {
-    console.log("request.body:", req.body);
-  } else {
-    const name = Array.isArray(req.body)
-      ? req.body.map((o) => o.method)
-      : req.body.method;
-    console.log("request.method:", name);
+    logger.debug("request.body:", req.body);
   }
   next();
 });
@@ -100,14 +95,14 @@ app.use(function (req, res, next) {
 
 // error handler
 app.use(function (err, req, res, next) {
-  console.error(err.stack);
+  logger.error(err.stack);
 
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
 
   // render the error page
-  console.error("err.status:", err.status);
+  logger.error("err.status:", err.status);
   if (res.headersSent) {
     return next(err);
   }

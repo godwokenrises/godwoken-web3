@@ -28,6 +28,8 @@ export const envConfig = {
   enableCachePolyExecuteRawL2Tx: getOptional(
     "ENABLE_CACHE_POLY_EXECUTE_RAW_L2Tx"
   ),
+  logLevel: getOptional("LOG_LEVEL"),
+  logFormat: getOptional("LOG_FORMAT"),
 };
 
 function getRequired(name: string): string {

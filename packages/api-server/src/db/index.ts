@@ -13,6 +13,7 @@ import {
 import { LimitExceedError } from "../methods/error";
 import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import { formatDecimal } from "./helpers";
+import { logger } from "../base/logger";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -573,7 +574,7 @@ export async function limitQuery(
   for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
     const offset = index * MAX_QUERY_NUMBER;
     let executeResult = await executeOneQuery(offset);
-    // console.log(`${index}th round =>`, executeResult.data.length, executeResult.status);
+    // logger.info(`${index}th round =>`, executeResult.data.length, executeResult.status);
     results.push(...executeResult.data);
 
     // check if exceed max query number
@@ -633,10 +634,10 @@ export function testTopicMatch() {
     ["a", "b"],
   ];
 
-  console.log("f0 =>", filterLogsByTopics([log], f0));
-  console.log("f1 =>", filterLogsByTopics([log], f1));
-  console.log("f2 =>", filterLogsByTopics([log], f2));
-  console.log("f3 =>", filterLogsByTopics([log], f3));
-  console.log("f4 =>", filterLogsByTopics([log], f4));
-  console.log("f5 =>", filterLogsByTopics([log], f5));
+  logger.info("f0 =>", filterLogsByTopics([log], f0));
+  logger.info("f1 =>", filterLogsByTopics([log], f1));
+  logger.info("f2 =>", filterLogsByTopics([log], f2));
+  logger.info("f3 =>", filterLogsByTopics([log], f3));
+  logger.info("f4 =>", filterLogsByTopics([log], f4));
+  logger.info("f5 =>", filterLogsByTopics([log], f5));
 }

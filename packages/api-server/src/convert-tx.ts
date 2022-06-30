@@ -3,6 +3,7 @@ import { RPC } from "@ckb-lumos/toolkit";
 import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
+import { logger } from "./base/logger";
 
 export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
 
@@ -36,16 +37,6 @@ export interface AccountInfo {
   id: HexNumber;
 }
 
-function logger(level: string, ...messages: any[]) {
-  console.log(`[${level}] `, ...messages);
-}
-
-function debugLogger(...messages: any[]) {
-  if (process.env.DEBUG_LOG === "true") {
-    logger("debug", "@convert-tx:", ...messages);
-  }
-}
-
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -57,9 +48,9 @@ export async function generateRawTransaction(
   data: HexString,
   rpc: RPC
 ): Promise<GodwokenL2Transaction> {
-  debugLogger("origin data:", data);
+  logger.debug("origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
-  debugLogger("decoded polyjuice tx:", polyjuiceTx);
+  logger.debug("decoded polyjuice tx:", polyjuiceTx);
   const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
   return godwokenTx;
 }
@@ -321,7 +312,7 @@ function recoverPublicKey(signature: HexString, message: HexString) {
   );
   const publicKeyHex = "0x" + Buffer.from(publicKey).toString("hex");
 
-  debugLogger("recovered public key:", publicKeyHex);
+  logger.debug("recovered public key:", publicKeyHex);
 
   return publicKeyHex;
 }
