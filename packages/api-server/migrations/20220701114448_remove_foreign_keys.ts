@@ -6,9 +6,7 @@ export async function up(knex: Knex): Promise<void> {
       table.dropForeign("block_number");
     })
     .alterTable("logs", (table) => {
-      table
-        .dropForeign("block_number")
-        .dropForeign("transaction_id");
+      table.dropForeign("block_number").dropForeign("transaction_id");
     });
 }
 
