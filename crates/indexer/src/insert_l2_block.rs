@@ -13,13 +13,12 @@ use sqlx::{
 };
 use sqlx::{Postgres, QueryBuilder};
 
-use crate::{
-    pool::POOL,
-    types::{Block, Log, Transaction, TransactionWithLogs},
-};
+use crate::types::{Block, Log, Transaction, TransactionWithLogs};
 
 use itertools::Itertools;
 use rayon::prelude::*;
+
+const INSERT_LOGS_BATCH_SIZE: usize = 5000;
 
 pub struct DbBlock<'a> {
     number: Decimal,
@@ -118,7 +117,7 @@ pub struct DbLog {
 }
 
 impl DbLog {
-    fn try_from_log(log: Log, transaction_id: i64) -> Result<DbLog> {
+    pub fn try_from_log(log: Log, transaction_id: i64) -> Result<DbLog> {
         let topics = log
             .topics
             .into_iter()
@@ -140,12 +139,33 @@ impl DbLog {
     }
 }
 
-pub async fn insert_block(
+pub async fn insert_web3_block(
     web3_block: Block,
-    web3_tx_with_logs_vec: Vec<TransactionWithLogs>,
-) -> Result<(usize, usize)> {
+    pg_tx: &mut sqlx::Transaction<'_, Postgres>,
+) -> Result<()> {
     let block = DbBlock::try_from(&web3_block)?;
 
+    sqlx::query(
+        "INSERT INTO blocks (number, hash, parent_hash, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+    )
+        .bind(block.number)
+        .bind(block.hash)
+        .bind(block.parent_hash)
+        .bind(block.gas_limit)
+        .bind(block.gas_used)
+        .bind(block.timestamp)
+        .bind(block.miner)
+        .bind(block.size)
+        .execute(pg_tx)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn insert_web3_txs_and_logs(
+    web3_tx_with_logs_vec: Vec<TransactionWithLogs>,
+    pg_tx: &mut sqlx::Transaction<'_, Postgres>,
+) -> Result<(usize, usize)> {
     let (txs, logs) = web3_tx_with_logs_vec
         .into_par_iter()
         .enumerate()
@@ -166,85 +186,53 @@ pub async fn insert_block(
     let logs_len = logs.len();
     let txs_len = txs.len();
 
-    let txs_slice = txs
-        .into_iter()
-        .chunks(5000)
-        .into_iter()
-        .map(|chunk| chunk.collect())
-        .collect::<Vec<Vec<_>>>();
     let logs_slice = logs
         .into_iter()
-        .chunks(5000)
+        .chunks(INSERT_LOGS_BATCH_SIZE)
         .into_iter()
         .map(|chunk| chunk.collect())
         .collect::<Vec<Vec<_>>>();
 
-    let txs_querys = &mut txs_slice
-        .into_par_iter()
-        .map(|s| {
-            let mut txs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+    let mut txs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "INSERT INTO transactions
                 (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code) "
             );
 
-            txs_query_builder.push_values(s, |mut b, tx| {
-                b.push_bind(tx.hash)
-                    .push_bind(tx.eth_tx_hash)
-                    .push_bind(tx.block_number)
-                    .push_bind(tx.block_hash)
-                    .push_bind(tx.transaction_index)
-                    .push_bind(tx.from_address)
-                    .push_bind(tx.to_address)
-                    .push_bind(tx.value)
-                    .push_bind(tx.nonce)
-                    .push_bind(tx.gas_limit)
-                    .push_bind(tx.gas_price)
-                    .push_bind(tx.input)
-                    .push_bind(tx.v)
-                    .push_bind(tx.r)
-                    .push_bind(tx.s)
-                    .push_bind(tx.cumulative_gas_used)
-                    .push_bind(tx.gas_used)
-                    .push_bind(tx.contract_address)
-                    .push_bind(tx.exit_code);
-            }).push(" RETURNING id");
-            txs_query_builder
-        }).collect::<Vec<_>>();
+    txs_query_builder
+        .push_values(txs, |mut b, tx| {
+            b.push_bind(tx.hash)
+                .push_bind(tx.eth_tx_hash)
+                .push_bind(tx.block_number)
+                .push_bind(tx.block_hash)
+                .push_bind(tx.transaction_index)
+                .push_bind(tx.from_address)
+                .push_bind(tx.to_address)
+                .push_bind(tx.value)
+                .push_bind(tx.nonce)
+                .push_bind(tx.gas_limit)
+                .push_bind(tx.gas_price)
+                .push_bind(tx.input)
+                .push_bind(tx.v)
+                .push_bind(tx.r)
+                .push_bind(tx.s)
+                .push_bind(tx.cumulative_gas_used)
+                .push_bind(tx.gas_used)
+                .push_bind(tx.contract_address)
+                .push_bind(tx.exit_code);
+        })
+        .push(" RETURNING id");
 
-    // start db transaction
-    let pool = &*POOL;
-    let mut tx = pool.begin().await?;
+    let mut tx_ids: Vec<i64> = vec![];
 
-    // insert block
-    sqlx::query(
-        "INSERT INTO blocks (number, hash, parent_hash, gas_limit, gas_used, timestamp, miner, size) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-    )
-        .bind(block.number)
-        .bind(block.hash)
-        .bind(block.parent_hash)
-        .bind(block.gas_limit)
-        .bind(block.gas_used)
-        .bind(block.timestamp)
-        .bind(block.miner)
-        .bind(block.size)
-        .execute(&mut tx)
-        .await?;
+    let query = txs_query_builder.build();
+    let rows: Vec<PgRow> = query.fetch_all(&mut (*pg_tx)).await?;
+    let mut ids = rows
+        .iter()
+        .map(|r| r.get::<i64, _>("id"))
+        .collect::<Vec<i64>>();
+    tx_ids.append(&mut ids);
 
-    // insert transactions
-    if txs_len != 0 {
-        let mut tx_ids: Vec<i64> = vec![];
-
-        for query_builder in txs_querys {
-            let query = query_builder.build();
-            let rows: Vec<PgRow> = query.fetch_all(&mut tx).await?;
-            let mut ids = rows
-                .iter()
-                .map(|r| r.get::<i64, _>("id"))
-                .collect::<Vec<i64>>();
-            tx_ids.append(&mut ids);
-        }
-
-        let logs_querys = logs_slice
+    let logs_querys = logs_slice
             .into_par_iter()
             .map(|db_logs| {
                 let mut logs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -271,16 +259,12 @@ pub async fn insert_block(
                 logs_query_builder
             }).collect::<Vec<_>>();
 
-        if logs_len != 0 {
-            for mut query_builder in logs_querys {
-                let query = query_builder.build();
-                query.execute(&mut tx).await?;
-            }
+    if logs_len != 0 {
+        for mut query_builder in logs_querys {
+            let query = query_builder.build();
+            query.execute(&mut (*pg_tx)).await?;
         }
     }
-
-    // commit
-    tx.commit().await?;
 
     Ok((txs_len, logs_len))
 }

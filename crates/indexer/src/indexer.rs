@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
-    insert_l2_block::insert_block,
+    insert_l2_block::{insert_web3_block, insert_web3_txs_and_logs},
     pool::POOL,
     types::{
         Block as Web3Block, Log as Web3Log, Transaction as Web3Transaction,
@@ -26,11 +26,13 @@ use gw_types::{
 use gw_web3_rpc_client::{
     convertion, godwoken_async_client::GodwokenAsyncClient, godwoken_rpc_client::GodwokenRpcClient,
 };
+use itertools::Itertools;
 use rayon::prelude::*;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sqlx::types::chrono::{DateTime, NaiveDateTime, Utc};
 
 const MILLIS_PER_SEC: u64 = 1_000;
+const TX_BATCH_SIZE: usize = 100;
 
 pub struct Web3Indexer {
     l2_sudt_type_script_hash: H256,
@@ -100,18 +102,6 @@ impl Web3Indexer {
                 .fetch_optional(&*POOL)
                 .await?;
         Ok(row.and_then(|(n,)| n.to_u64()))
-    }
-
-    async fn insert_l2block(&self, l2_block: L2Block) -> Result<(usize, usize)> {
-        let web3_tx_with_logs_vec = self.filter_web3_transactions(l2_block.clone()).await?;
-
-        let web3_block = self
-            .build_web3_block(&l2_block, &web3_tx_with_logs_vec)
-            .await?;
-
-        let (txs_len, logs_len) = insert_block(web3_block, web3_tx_with_logs_vec).await?;
-
-        Ok((txs_len, logs_len))
     }
 
     fn filter_single_transaction(
@@ -445,41 +435,83 @@ impl Web3Indexer {
         Ok(hashmap)
     }
 
-    async fn filter_web3_transactions(
-        &self,
-        l2_block: L2Block,
-    ) -> Result<Vec<Web3TransactionWithLogs>> {
+    async fn insert_l2block(&self, l2_block: L2Block) -> Result<(usize, usize)> {
         let block_number = l2_block.raw().number().unpack();
         let block_hash: gw_common::H256 = blake2b_256(l2_block.raw().as_slice()).into();
         // let mut cumulative_gas_used: u128 = 0;
         let l2_transactions = l2_block.transactions();
         let l2_transactions_vec: Vec<L2Transaction> = l2_transactions.into_iter().collect();
 
+        let txs_len = l2_transactions_vec.len();
+        let mut logs_len: usize = 0;
+
         let id_script_hashmap = self.batch_from_script(&l2_transactions_vec).await?;
 
-        let l2_transaction_with_logs_vec = l2_transactions_vec
-            .into_par_iter()
-            .map(|tx| {
-                self.filter_single_transaction(tx, block_number, block_hash, 0, &id_script_hashmap)
-            })
-            .collect::<Result<Vec<Option<Web3TransactionWithLogs>>>>()?;
-
-        let mut web3_tx_with_logs_vec = vec![];
-        // let mut tx_index = 0u32;
-        let mut cumulative_gas_used = 0;
-
-        for (tx_index, mut tx) in l2_transaction_with_logs_vec
+        let txs_slice = l2_transactions_vec
             .into_iter()
-            .flatten()
-            .enumerate()
-        {
-            tx.tx.transaction_index = tx_index as u32;
-            cumulative_gas_used += tx.tx.gas_used;
-            tx.tx.cumulative_gas_used = cumulative_gas_used;
+            .chunks(TX_BATCH_SIZE)
+            .into_iter()
+            .map(|chunk| chunk.collect())
+            .collect::<Vec<Vec<_>>>();
 
-            web3_tx_with_logs_vec.push(tx);
+        // begin db transaction
+        let pool = &*POOL;
+        let mut pg_tx = pool.begin().await?;
+
+        let mut tx_index_cursor: u32 = 0;
+
+        let mut cumulative_gas_used: u128 = 0;
+        let mut total_gas_limit: u128 = 0;
+        let mut total_gas_used: u128 = 0;
+        for txs in txs_slice {
+            let l2_transaction_with_logs_vec = txs
+                .into_par_iter()
+                .map(|tx| {
+                    self.filter_single_transaction(
+                        tx,
+                        block_number,
+                        block_hash,
+                        0,
+                        &id_script_hashmap,
+                    )
+                })
+                .collect::<Result<Vec<Option<Web3TransactionWithLogs>>>>()?;
+
+            let txs_vec = l2_transaction_with_logs_vec
+                .into_iter()
+                .flatten()
+                .enumerate()
+                .map(|(tx_index, mut tx)| {
+                    tx.tx.transaction_index = tx_index as u32 + tx_index_cursor;
+                    cumulative_gas_used += tx.tx.gas_used;
+                    tx.tx.cumulative_gas_used = cumulative_gas_used;
+
+                    total_gas_limit += tx.tx.gas_limit;
+                    total_gas_used += tx.tx.gas_used;
+
+                    tx
+                })
+                .collect::<Vec<_>>();
+
+            tx_index_cursor += txs_vec.len() as u32;
+
+            // insert to db
+            let (_txs_part_len, logs_part_len) =
+                insert_web3_txs_and_logs(txs_vec, &mut pg_tx).await?;
+
+            logs_len += logs_part_len;
         }
-        Ok(web3_tx_with_logs_vec)
+
+        // insert block
+        let web3_block = self
+            .build_web3_block(&l2_block, total_gas_limit, total_gas_used)
+            .await?;
+        insert_web3_block(web3_block, &mut pg_tx).await?;
+
+        // commit
+        pg_tx.commit().await?;
+
+        Ok((txs_len, logs_len))
     }
 
     fn get_transaction_receipt(
@@ -509,17 +541,12 @@ impl Web3Indexer {
     async fn build_web3_block(
         &self,
         l2_block: &L2Block,
-        web3_tx_with_logs_vec: &[Web3TransactionWithLogs],
+        gas_limit: u128,
+        gas_used: u128,
     ) -> Result<Web3Block> {
         let block_number = l2_block.raw().number().unpack();
         let block_hash: gw_common::H256 = l2_block.hash().into();
         let parent_hash: gw_common::H256 = l2_block.raw().parent_block_hash().unpack();
-        let mut gas_limit = 0;
-        let mut gas_used = 0;
-        for web3_tx_with_logs in web3_tx_with_logs_vec {
-            gas_limit += web3_tx_with_logs.tx.gas_limit;
-            gas_used += web3_tx_with_logs.tx.gas_used;
-        }
         let block_producer: Bytes = l2_block.raw().block_producer().unpack();
         let block_producer_registry_address = RegistryAddress::from_slice(&block_producer);
 
