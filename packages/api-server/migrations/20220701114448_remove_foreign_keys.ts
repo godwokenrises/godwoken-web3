@@ -13,12 +13,12 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
   await knex.schema
     .alterTable("transactions", (table) => {
-      table.foreign("block_number");
+      table.foreign("block_number").references("blocks.number");
     })
     .alterTable("logs", (table) => {
-      table.foreign("block_number");
+      table.foreign("block_number").references("blocks.number");
     })
     .alterTable("logs", (table) => {
-      table.foreign("transaction_id");
+      table.foreign("transaction_id").references("transactions.id");
     });
 }
