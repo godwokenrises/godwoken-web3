@@ -99,6 +99,7 @@ export function formatLog(log: DBLog): Log {
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
     transaction_hash: bufferToHex(log.transaction_hash),
+    eth_tx_hash: log.eth_tx_hash ? bufferToHex(log.eth_tx_hash!) : undefined,
     block_hash: bufferToHex(log.block_hash),
     address: bufferToHex(log.address),
     data: bufferToHex(log.data),

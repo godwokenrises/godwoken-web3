@@ -315,7 +315,9 @@ export class Query {
     // results are large. Instead, logs are sorted outside the database:
     // - When the number of query results exceeds $MAX_QUERY_NUMBER, an error is returned.
     // - When the queried results are less than or equal to $MAX_QUERY_NUMBER, sorting takes only a short time
-    let logs: DBLog[] = await this.knex<DBLog>("logs")
+    //
+    // NOTE: Using CTE to SELECT "logs" then JOIN "transactions" is more efficient than directly SELECT JOIN
+    let selectLogs = this.knex<DBLog>("logs")
       .modify(buildQueryLogAddress, queryAddresses)
       .modify(buildQueryLogTopics, queryTopics)
       .where("block_number", ">=", fromBlock)
@@ -323,6 +325,11 @@ export class Query {
       .where("id", ">", queryLastPollId.toString(10))
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER + 1);
+    let selectLogsJoinTransactions = this.knex<DBLog>("transactions")
+      .with("logs", selectLogs)
+      .select("logs.*", "transactions.eth_tx_hash")
+      .join("logs", { "logs.transaction_hash": "transactions.hash" });
+    let logs: DBLog[] = await selectLogsJoinTransactions;
     return logs
       .map((log) => formatLog(log))
       .sort((aLog, bLog) => Number(aLog.id - bLog.id));

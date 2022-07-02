@@ -1035,6 +1035,7 @@ export class Eth {
     return await Promise.all(
       logs.map(async (log) => {
         const ethTxHash =
+          log.eth_tx_hash ||
           (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
           ZERO_TX_HASH;
         return toApiLog(log, ethTxHash);
@@ -1066,6 +1067,7 @@ export class Eth {
         return await Promise.all(
           logs.map(async (log) => {
             const ethTxHash =
+              log.eth_tx_hash ||
               (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
               ZERO_TX_HASH;
             return toApiLog(log, ethTxHash);
@@ -1088,6 +1090,7 @@ export class Eth {
       return await Promise.all(
         logs.map(async (log) => {
           const ethTxHash =
+            log.eth_tx_hash ||
             (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
             ZERO_TX_HASH;
           return toApiLog(log, ethTxHash);
