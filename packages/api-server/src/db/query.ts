@@ -313,7 +313,7 @@ export class Query {
       .where("id", ">", queryLastPollId.toString(10))
       .orderBy("id", "asc")
       .offset(queryOffset)
-      .limit(MAX_QUERY_NUMBER);
+      .limit(MAX_QUERY_NUMBER + 1);
     return logs.map((log) => formatLog(log));
   }
 
