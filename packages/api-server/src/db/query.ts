@@ -23,7 +23,10 @@ import {
   bufferToHex,
   hexToBuffer,
   getDatabaseRateLimitingConfiguration,
+  buildQueryLogTopics,
+  universalizeAddress,
 } from "./helpers";
+import { FilterTopic } from "../cache/types";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -299,7 +302,8 @@ export class Query {
   private async queryLogsByBlockRange(
     fromBlock: HexNumber,
     toBlock: HexNumber,
-    address?: HexString | HexString[],
+    queryAddresses: HexString[],
+    queryTopics: FilterTopic[],
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
@@ -307,7 +311,8 @@ export class Query {
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
     let logs: DBLog[] = await this.knex<DBLog>("logs")
-      .modify(buildQueryLogAddress, address)
+      .modify(buildQueryLogAddress, queryAddresses)
+      .modify(buildQueryLogTopics, queryTopics)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
@@ -323,13 +328,13 @@ export class Query {
     toBlock?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const address = normalizeLogQueryAddress(option.address);
-    const topics = option.topics || [];
+    const queryTopics: FilterTopic[] = option.topics || [];
+    const queryAddresses: HexString[] = universalizeAddress(option.address);
 
     if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
-        address,
+        queryAddresses,
         undefined,
         offset
       );
@@ -338,14 +343,15 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, queryTopics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
-        address,
+        queryAddresses,
+        queryTopics,
         undefined,
         offset
       );
@@ -354,7 +360,7 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return logs;
     }
 
     throw new Error("invalid params!");
@@ -386,10 +392,13 @@ export class Query {
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
+      const queryTopics: FilterTopic[] = option.topics || [];
+      const queryAddresses: HexString[] = universalizeAddress(option.address);
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
-        address,
+        queryAddresses,
+        queryTopics,
         lastPollId,
         offset
       );
@@ -398,7 +407,7 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return logs;
     }
 
     throw new Error("invalid params!");

@@ -128,6 +128,20 @@ export function normalizeLogQueryAddress(
   return normalizeQueryAddress(address);
 }
 
+export function universalizeAddress(
+  address: undefined | HexString | HexString[]
+) {
+  const normalizedAddress: undefined | HexString | HexString[] =
+    normalizeLogQueryAddress(address);
+  if (normalizedAddress == null) {
+    return [];
+  } else if (typeof normalizedAddress === "string") {
+    return [normalizedAddress];
+  } else {
+    return normalizedAddress;
+  }
+}
+
 /*
 return a slice of log array which satisfy the topics matching.
 matching rule:
@@ -288,4 +302,45 @@ export function buildQueryLogAddress(
       queryAddress.map((addr) => hexToBuffer(addr))
     );
   }
+}
+
+/*
+return a slice of log array which satisfy the topics matching.
+matching rule:
+      Topics are order-dependent.
+	Each topic can also be an array of DATA with “or” options.
+	[example]:
+
+	  A transaction with a log with topics [A, B],
+	  will be matched by the following topic filters:
+	    1. [] “anything”
+	    2. [A] “A in first position (and anything after)”
+	    3. [null, B] “anything in first position AND B in second position (and anything after)”
+	    4. [A, B] “A in first position AND B in second position (and anything after)”
+	    5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+
+	source: https://eth.wiki/json-rpc/API#eth_newFilter
+*/
+export function buildQueryLogTopics(
+  queryBuilder: KnexType.QueryBuilder,
+  topics: FilterTopic[]
+) {
+  if (topics.length !== 0) {
+    queryBuilder.whereRaw(`array_length(topics, 1) >= ${topics.length}`);
+  }
+
+  topics.forEach((topic, index) => {
+    if (topic == null) {
+      // discard always-matched topic
+    } else if (typeof topic === "string") {
+      const pgTopicIndex = index + 1;
+      queryBuilder.where(`topics[${pgTopicIndex}]`, "=", hexToBuffer(topic));
+    } else {
+      const pgTopicIndex = index + 1;
+      queryBuilder.whereIn(
+        `topics[${pgTopicIndex}]`,
+        topic.map((subtopic) => hexToBuffer(subtopic))
+      );
+    }
+  });
 }
