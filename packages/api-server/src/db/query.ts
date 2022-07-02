@@ -310,16 +310,22 @@ export class Query {
     const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
+
+    // NOTE: In this SQL, there is no `ORDER BY id` as combining `ORDER BY` and `LIMIT` consumes too much time when the
+    // results are large. Instead, logs are sorted outside the database:
+    // - When the number of query results exceeds $MAX_QUERY_NUMBER, an error is returned.
+    // - When the queried results are less than or equal to $MAX_QUERY_NUMBER, sorting takes only a short time
     let logs: DBLog[] = await this.knex<DBLog>("logs")
       .modify(buildQueryLogAddress, queryAddresses)
       .modify(buildQueryLogTopics, queryTopics)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "asc")
       .offset(queryOffset)
       .limit(MAX_QUERY_NUMBER + 1);
-    return logs.map((log) => formatLog(log));
+    return logs
+      .map((log) => formatLog(log))
+      .sort((aLog, bLog) => Number(aLog.id - bLog.id));
   }
 
   async getLogs(
