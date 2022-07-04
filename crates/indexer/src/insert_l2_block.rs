@@ -166,6 +166,10 @@ pub async fn insert_web3_txs_and_logs(
     web3_tx_with_logs_vec: Vec<TransactionWithLogs>,
     pg_tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> Result<(usize, usize)> {
+    if web3_tx_with_logs_vec.is_empty() {
+        return Ok((0, 0));
+    }
+
     let (txs, logs) = web3_tx_with_logs_vec
         .into_par_iter()
         .enumerate()
