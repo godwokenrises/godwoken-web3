@@ -442,8 +442,8 @@ impl Web3Indexer {
         let l2_transactions = l2_block.transactions();
         let l2_transactions_vec: Vec<L2Transaction> = l2_transactions.into_iter().collect();
 
-        let txs_len = l2_transactions_vec.len();
         let mut logs_len: usize = 0;
+        let mut web3_txs_len: usize = 0;
 
         let id_script_hashmap = self.batch_from_script(&l2_transactions_vec).await?;
 
@@ -496,9 +496,10 @@ impl Web3Indexer {
             tx_index_cursor += txs_vec.len() as u32;
 
             // insert to db
-            let (_txs_part_len, logs_part_len) =
+            let (txs_part_len, logs_part_len) =
                 insert_web3_txs_and_logs(txs_vec, &mut pg_tx).await?;
 
+            web3_txs_len += txs_part_len;
             logs_len += logs_part_len;
         }
 
@@ -511,7 +512,7 @@ impl Web3Indexer {
         // commit
         pg_tx.commit().await?;
 
-        Ok((txs_len, logs_len))
+        Ok((web3_txs_len, logs_len))
     }
 
     fn get_transaction_receipt(
