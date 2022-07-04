@@ -10,7 +10,6 @@ import {
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
-import { MAX_QUERY_NUMBER } from "./constant";
 import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import {
   formatDecimal,
@@ -23,6 +22,7 @@ import {
   filterLogsByTopics,
   bufferToHex,
   hexToBuffer,
+  getDatabaseRateLimitingConfiguration,
 } from "./helpers";
 
 const poolMax = envConfig.pgPoolMax || 20;
@@ -283,6 +283,7 @@ export class Query {
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
+    const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
     let logs: DBLog[] = await this.knex<DBLog>("logs")
@@ -302,6 +303,7 @@ export class Query {
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
+    const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
     let logs: DBLog[] = await this.knex<DBLog>("logs")

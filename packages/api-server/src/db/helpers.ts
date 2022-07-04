@@ -9,12 +9,13 @@ import {
   DBLog,
 } from "./types";
 import {
-  MAX_QUERY_NUMBER,
-  MAX_QUERY_TIME_MILSECS,
-  MAX_QUERY_ROUNDS,
+  DEFAULT_MAX_QUERY_NUMBER,
+  DEFAULT_MAX_QUERY_TIME_MILSECS,
+  DEFAULT_MAX_QUERY_ROUNDS,
 } from "./constant";
 import { LimitExceedError } from "../methods/error";
 import { Knex as KnexType } from "knex";
+import { envConfig } from "../base/env-config";
 
 export function toBigIntOpt(
   num: bigint | HexNumber | undefined
@@ -217,6 +218,24 @@ export interface ExecuteOneQueryResult {
   data: any[];
 }
 
+export function getDatabaseRateLimitingConfiguration() {
+  const MAX_QUERY_NUMBER = envConfig["maxQueryNumber"]
+    ? +envConfig["maxQueryNumber"]
+    : DEFAULT_MAX_QUERY_NUMBER;
+  const MAX_QUERY_TIME_MILSECS = envConfig["maxQueryTimeInMilliseconds"]
+    ? +envConfig["maxQueryTimeInMilliseconds"]
+    : DEFAULT_MAX_QUERY_TIME_MILSECS;
+  const MAX_QUERY_ROUNDS = envConfig["maxQueryRounds"]
+    ? +envConfig["maxQueryRounds"]
+    : DEFAULT_MAX_QUERY_ROUNDS;
+
+  return {
+    MAX_QUERY_NUMBER,
+    MAX_QUERY_TIME_MILSECS,
+    MAX_QUERY_ROUNDS,
+  };
+}
+
 /**
  * limit the query in two constraints:  query number and query time
  * with N rounds of query, calculate the number and time
@@ -226,6 +245,8 @@ export interface ExecuteOneQueryResult {
 export async function limitQuery(
   executeOneQuery: (offset: number) => Promise<ExecuteOneQueryResult>
 ) {
+  const { MAX_QUERY_NUMBER, MAX_QUERY_ROUNDS, MAX_QUERY_TIME_MILSECS } =
+    getDatabaseRateLimitingConfiguration();
   const results = [];
   const t1 = new Date();
   for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
