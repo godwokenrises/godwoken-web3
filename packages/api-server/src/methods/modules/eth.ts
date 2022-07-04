@@ -12,7 +12,9 @@ import {
   calcIntrinsicGas,
   middleware,
   validators,
+  verifyEnoughBalance,
   verifyGasLimit,
+  verifyIntrinsicGas,
 } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
@@ -1361,9 +1363,9 @@ async function buildEthCallTx(
   const toAddress = txCallObj.to;
   const gas =
     txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
-  const gasPrice =
-    txCallObj.gasPrice ||
-    "0x" + BigInt(envConfig.minGasPrice || 0).toString(16);
+  // we should set price to 0 instead of minGasPrice,
+  // otherwise read operation might fail the balance check.
+  const gasPrice = txCallObj.gasPrice || "0x0";
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
@@ -1371,6 +1373,11 @@ async function buildEthCallTx(
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(buildEthCallTx.name);
+  }
+
+  const intrinsicGasErr = verifyIntrinsicGas(toAddress, data, gas, 0);
+  if (intrinsicGasErr) {
+    throw intrinsicGasErr.padContext(buildEthCallTx.name);
   }
 
   if (!fromAddress) {
@@ -1387,6 +1394,33 @@ async function buildEthCallTx(
     throw new Error(
       `from id not found by from address: ${fromAddress}, have you deposited?`
     );
+  }
+
+  // check if from address have enough balance
+  // when gasPrice in ethCallObj is provided.
+  if (txCallObj.gasPrice != null) {
+    const defaultFromScript = await rpc.getScript(
+      gwConfig.accounts.defaultFrom.scriptHash
+    );
+    if (defaultFromScript == null) {
+      throw new Error("default from script is null");
+    }
+    const defaultFromAddress = "0x" + defaultFromScript.args.slice(2).slice(64);
+    const from = fromAddress || defaultFromAddress;
+
+    const balanceErr = await verifyEnoughBalance(
+      rpc,
+      from,
+      value,
+      gas,
+      gasPrice,
+      0
+    );
+    if (balanceErr) {
+      throw balanceErr.padContext(
+        `${buildEthCallTx.name}: from account ${from}`
+      );
+    }
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
@@ -1530,11 +1564,12 @@ function serializeEthCallParameters(
   ethCallObj: TransactionCallObject,
   blockNumber?: GodwokenBlockParameter
 ): HexString {
-  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  // since we have check enough balance in eth_call, we need to add gasPrice in cache key
   const toSerializeObj = {
     from: ethCallObj.from || "0x",
     to: ethCallObj.to,
     gas: ethCallObj.gas || "0x",
+    gasPrice: ethCallObj.gasPrice || "0x",
     data: ethCallObj.data || "0x",
     value: ethCallObj.value || "0x",
     blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
@@ -1559,11 +1594,12 @@ function serializeEstimateGasParameters(
   estimateGasObj: Partial<TransactionCallObject>,
   blockNumber?: GodwokenBlockParameter
 ): HexString {
-  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  // since we have check enough balance in eth_call, we need to add gasPrice in cache key
   const toSerializeObj = {
     from: estimateGasObj.from || "0x",
     to: estimateGasObj.to || "0x",
     gas: estimateGasObj.gas || "0x",
+    gasPrice: estimateGasObj.gasPrice || "0x",
     data: estimateGasObj.data || "0x",
     value: estimateGasObj.value || "0x",
     blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
