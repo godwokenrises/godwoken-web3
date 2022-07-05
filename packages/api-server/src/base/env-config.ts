@@ -27,6 +27,7 @@ export const envConfig = {
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryRounds: getOptional("MAX_QUERY_ROUNDS"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
+  feeRate: getOptional("FEE_RATE"),
 };
 
 function getRequired(name: string): string {

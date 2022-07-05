@@ -1,7 +1,21 @@
 import { HexString, HexNumber } from "@ckb-lumos/base";
 import { Reader } from "@ckb-lumos/toolkit";
-import { schemas, L2Transaction } from "@godwoken-web3/godwoken";
-import { Uint64, Uint32, Uint128 } from "./base/types/uint";
+import {
+  schemas,
+  L2Transaction,
+  EthAddrRegArgs,
+  normalizers,
+  EthAddrRegArgsType,
+  SetMapping,
+  BatchSetMapping,
+  EthToGw,
+  GwToEth,
+  SudtArgs,
+  SudtArgsType,
+  SudtQuery,
+  SudtTransfer,
+} from "@godwoken-web3/godwoken";
+import { Uint64, Uint32, Uint128, Uint256 } from "./base/types/uint";
 export interface PolyjuiceArgs {
   isCreate: boolean;
   gasLimit: HexNumber;
@@ -63,6 +77,7 @@ export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
   };
 }
 
+//******* parser
 export function parseSerializeL2Transaction(
   serializedL2Tx: HexString
 ): L2Transaction {
@@ -70,6 +85,40 @@ export function parseSerializeL2Transaction(
   return DenormalizeL2Transaction(l2tx);
 }
 
+export function parseSerializeEthAddrRegArgs(args: HexString) {
+  return DenormalizeEthAddrRegArgs(
+    new schemas.ETHAddrRegArgs(new Reader(args))
+  );
+}
+
+export function parseSerializeSudtArgs(args: HexString) {
+  return DenormalizeSudtArgs(new schemas.SUDTArgs(new Reader(args)));
+}
+
+//******* serializer
+export function serializeL2Transaction(l2Tx: L2Transaction): HexString {
+  return new Reader(
+    schemas.SerializeL2Transaction(normalizers.NormalizeL2Transaction(l2Tx))
+  ).serializeJson();
+}
+
+export function serializeSudtArgs(sudtArgs: SudtArgs): HexString {
+  return new Reader(
+    schemas.SerializeSUDTArgs(normalizers.NormalizeSudtArgs(sudtArgs))
+  ).serializeJson();
+}
+
+export function serializeEthAddrRegArgs(
+  ethAddrRegArgs: EthAddrRegArgs
+): HexString {
+  return new Reader(
+    schemas.SerializeETHAddrRegArgs(
+      normalizers.NormalizeEthAddrRegArgs(ethAddrRegArgs)
+    )
+  ).serializeJson();
+}
+
+//******* DeNormalizer
 export function DenormalizeL2Transaction(l2Tx: schemas.L2Transaction) {
   return {
     raw: DenormalizeRawL2Transaction(l2Tx.getRaw()),
@@ -86,5 +135,181 @@ export function DenormalizeRawL2Transaction(rawL2Tx: schemas.RawL2Transaction) {
     to_id: new Uint32(rawL2Tx.getToId().toLittleEndianUint32()).toHex(),
     nonce: new Uint32(rawL2Tx.getNonce().toLittleEndianUint32()).toHex(),
     args: new Reader(rawL2Tx.getArgs().raw()).serializeJson(),
+  };
+}
+
+export function DenormalizeSudtArgs(sudtArgs: schemas.SUDTArgs) {
+  switch (sudtArgs.unionType()) {
+    case SudtArgsType.SUDTQuery:
+      return {
+        type: sudtArgs.unionType(),
+        value: DenormalizeSudtQuery(sudtArgs.value() as schemas.SUDTQuery),
+      };
+
+    case SudtArgsType.SUDTTransfer:
+      return {
+        type: sudtArgs.unionType(),
+        value: DenormalizeSudtTransfer(
+          sudtArgs.value() as schemas.SUDTTransfer
+        ),
+      };
+
+    case EthAddrRegArgsType.GwToEth:
+      return {
+        type: sudtArgs.unionType(),
+        value: DenormalizeGwToEth(sudtArgs.value() as schemas.GwToEth),
+      };
+
+    case EthAddrRegArgsType.EthToGw:
+      return {
+        type: sudtArgs.unionType(),
+        value: DenormalizeEthToGw(sudtArgs.value() as schemas.EthToGw),
+      };
+
+    default:
+      throw new Error("unsupported type");
+  }
+}
+
+export function DenormalizeSudtQuery(sudtQuery: schemas.SUDTQuery): SudtQuery {
+  const address = new Reader(sudtQuery.getAddress().raw()).serializeJson();
+
+  return {
+    address,
+  };
+}
+
+export function DenormalizeSudtTransfer(
+  sudtTransfer: schemas.SUDTTransfer
+): SudtTransfer {
+  const toAddress = new Reader(
+    sudtTransfer.getToAddress().raw()
+  ).serializeJson();
+
+  const amount = Uint256.fromLittleEndian(
+    new Reader(sudtTransfer.getAmount().raw()).serializeJson()
+  ).toHex();
+
+  const feeAmount = Uint128.fromLittleEndian(
+    new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
+  ).toHex();
+
+  const registryId = new Uint32(
+    sudtTransfer.getFee().getRegistryId().toLittleEndianUint32()
+  ).toHex();
+
+  return {
+    to_address: toAddress,
+    amount,
+    fee: {
+      amount: feeAmount,
+      registry_id: registryId,
+    },
+  };
+}
+
+export function DenormalizeEthAddrRegArgs(
+  ethAddrRegArgs: schemas.ETHAddrRegArgs
+) {
+  switch (ethAddrRegArgs.unionType()) {
+    case EthAddrRegArgsType.BatchSetMapping:
+      return {
+        type: ethAddrRegArgs.unionType(),
+        value: DenormalizeBatchSetMapping(
+          ethAddrRegArgs.value() as schemas.BatchSetMapping
+        ),
+      };
+
+    case EthAddrRegArgsType.SetMapping:
+      return {
+        type: ethAddrRegArgs.unionType(),
+        value: DenormalizeSetMapping(
+          ethAddrRegArgs.value() as schemas.SetMapping
+        ),
+      };
+
+    case EthAddrRegArgsType.GwToEth:
+      return {
+        type: ethAddrRegArgs.unionType(),
+        value: DenormalizeGwToEth(ethAddrRegArgs.value() as schemas.GwToEth),
+      };
+
+    case EthAddrRegArgsType.EthToGw:
+      return {
+        type: ethAddrRegArgs.unionType(),
+        value: DenormalizeEthToGw(ethAddrRegArgs.value() as schemas.EthToGw),
+      };
+
+    default:
+      throw new Error("unsupported type");
+  }
+}
+
+export function DenormalizeSetMapping(
+  setMapping: schemas.SetMapping
+): SetMapping {
+  const gwScriptHash = new Reader(
+    setMapping.getGwScriptHash().raw()
+  ).serializeJson();
+
+  const amount = Uint128.fromLittleEndian(
+    new Reader(setMapping.getFee().getAmount().raw()).serializeJson()
+  ).toHex();
+
+  const registryId = new Uint32(
+    setMapping.getFee().getRegistryId().toLittleEndianUint32()
+  ).toHex();
+
+  return {
+    gw_script_hash: gwScriptHash,
+    fee: {
+      registry_id: registryId,
+      amount,
+    },
+  };
+}
+
+export function DenormalizeBatchSetMapping(
+  batchSetMapping: schemas.BatchSetMapping
+): BatchSetMapping {
+  const gwScriptHashes = [];
+  for (let i = 0; i < batchSetMapping.getGwScriptHashes().length(); i++) {
+    const gwScriptHash = new Reader(
+      batchSetMapping.getGwScriptHashes().indexAt(i).raw()
+    ).serializeJson();
+
+    gwScriptHashes.push(gwScriptHash);
+  }
+
+  const amount = Uint128.fromLittleEndian(
+    new Reader(batchSetMapping.getFee().getAmount().raw()).serializeJson()
+  ).toHex();
+
+  const registryId = new Uint32(
+    batchSetMapping.getFee().getRegistryId().toLittleEndianUint32()
+  ).toHex();
+
+  return {
+    gw_script_hashes: gwScriptHashes,
+    fee: {
+      registry_id: registryId,
+      amount,
+    },
+  };
+}
+
+export function DenormalizeEthToGw(ethToGw: schemas.EthToGw): EthToGw {
+  const ethAddress = new Reader(ethToGw.getEthAddress().raw()).serializeJson();
+  return {
+    eth_address: ethAddress,
+  };
+}
+
+export function DenormalizeGwToEth(gwToEth: schemas.GwToEth): GwToEth {
+  const gwScriptHash = new Reader(
+    gwToEth.getGwScriptHash().raw()
+  ).serializeJson();
+  return {
+    gw_script_hash: gwScriptHash,
   };
 }

@@ -1,5 +1,19 @@
 import { Reader } from "@ckb-lumos/toolkit";
-import { L2Transaction, RawL2Transaction } from "./types";
+import {
+  EthAddrRegArgs,
+  EthAddrRegArgsType,
+  EthToGw,
+  Fee,
+  BatchSetMapping,
+  SetMapping,
+  GwToEth,
+  L2Transaction,
+  RawL2Transaction,
+  SudtArgsType,
+  SudtArgs,
+  SudtTransfer,
+  SudtQuery,
+} from "./types";
 
 // Taken for now from https://github.com/xxuejie/ckb-js-toolkit/blob/68f5ff709f78eb188ee116b2887a362123b016cc/src/normalizers.js#L17-L69,
 // later we can think about exposing those functions directly.
@@ -64,6 +78,146 @@ function toNormalize(normalize: Function) {
       debugPath,
     });
   };
+}
+
+function toNormalizeArray(normalizeFunction: Function) {
+  return function (debugPath: string, array: any[]) {
+    return array.map((item, i) => {
+      return normalizeFunction(`${debugPath}[${i}]`, item);
+    });
+  };
+}
+
+export function NormalizeFee(fee: Fee, { debugPath = "fee" } = {}) {
+  return normalizeObject(debugPath, fee, {
+    registry_id: normalizeHexNumber(4),
+    amount: normalizeHexNumber(16),
+  });
+}
+
+export function NormalizeSetMapping(
+  setMapping: SetMapping,
+  { debugPath = "set_mapping" } = {}
+) {
+  return normalizeObject(debugPath, setMapping, {
+    gw_script_hash: normalizeRawData(32),
+    fee: toNormalize(NormalizeFee),
+  });
+}
+
+export function NormalizeBatchSetMapping(
+  batchSetMapping: BatchSetMapping,
+  { debugPath = "batch_set_mapping" } = {}
+) {
+  return normalizeObject(debugPath, batchSetMapping, {
+    gw_script_hashes: toNormalizeArray(normalizeRawData(32)),
+    fee: toNormalize(NormalizeFee),
+  });
+}
+
+export function NormalizeEthToGw(
+  ethToGw: EthToGw,
+  { debugPath = "eth_to_gw" } = {}
+) {
+  return normalizeObject(debugPath, ethToGw, {
+    eth_address: normalizeRawData(20),
+  });
+}
+
+export function NormalizeGwToEth(
+  gwToEth: GwToEth,
+  { debugPath = "gw_to_eth" } = {}
+) {
+  return normalizeObject(debugPath, gwToEth, {
+    gw_script_hash: normalizeRawData(32),
+  });
+}
+
+function NormalizeEthAddrRegArgsType() {
+  return function (debugPath: string, value: any) {
+    if (Object.values(EthAddrRegArgsType).includes(value)) {
+      return value;
+    }
+
+    throw new Error(`${debugPath} Unsupported type ${value}`);
+  };
+}
+
+export function NormalizeEthAddrRegArgs(
+  ethAddrRegArgs: EthAddrRegArgs,
+  { debugPath = "eth_addr_reg_args" } = {}
+) {
+  switch (ethAddrRegArgs.type) {
+    case EthAddrRegArgsType.SetMapping:
+      return normalizeObject(debugPath, ethAddrRegArgs, {
+        type: NormalizeEthAddrRegArgsType(),
+        value: toNormalize(NormalizeSetMapping),
+      });
+
+    case EthAddrRegArgsType.BatchSetMapping:
+      return normalizeObject(debugPath, ethAddrRegArgs, {
+        type: NormalizeEthAddrRegArgsType(),
+        value: toNormalize(NormalizeBatchSetMapping),
+      });
+
+    default:
+      throw new Error(
+        `normalizer for ${ethAddrRegArgs.type} is not supported yet`
+      );
+  }
+}
+
+/** SUDT */
+function NormalizeSudtArgsType() {
+  return function (debugPath: string, value: any) {
+    if (Object.values(SudtArgsType).includes(value)) {
+      return value;
+    }
+
+    throw new Error(`${debugPath} Unsupported type ${value}`);
+  };
+}
+
+export function NormalizeSudtQuery(
+  sudtQuery: SudtQuery,
+  { debugPath = "sudt_transfer" } = {}
+) {
+  return normalizeObject(debugPath, sudtQuery, {
+    address: normalizeRawData(-1),
+  });
+}
+
+export function NormalizeSudtTransfer(
+  sudtTransfer: SudtTransfer,
+  { debugPath = "sudt_transfer" } = {}
+) {
+  return normalizeObject(debugPath, sudtTransfer, {
+    to_address: normalizeRawData(-1),
+    amount: normalizeHexNumber(32),
+    fee: toNormalize(NormalizeFee),
+  });
+}
+
+export function NormalizeSudtArgs(
+  sudtArgs: SudtArgs,
+  { debugPath = "eth_addr_reg_args" } = {}
+) {
+  switch (sudtArgs.type) {
+    case SudtArgsType.SUDTQuery:
+      return normalizeObject(debugPath, sudtArgs, {
+        type: NormalizeSudtArgsType(),
+        value: toNormalize(NormalizeSudtQuery),
+      });
+
+    case SudtArgsType.SUDTTransfer:
+      return normalizeObject(debugPath, sudtArgs, {
+        type: NormalizeSudtArgsType(),
+        value: toNormalize(NormalizeSudtTransfer),
+      });
+
+    default:
+      throw new Error(`normalizer for ${sudtArgs.type} is not supported yet`);
+  }
 }
 
 export function NormalizeRawL2Transaction(

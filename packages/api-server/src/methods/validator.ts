@@ -1,15 +1,13 @@
-import { validateHexNumber, validateHexString } from "../util";
+import {
+  calcFee,
+  calcIntrinsicGas,
+  validateHexNumber,
+  validateHexString,
+} from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
-import {
-  CKB_SUDT_ID,
-  RPC_MAX_GAS_LIMIT,
-  TX_DATA_NONE_ZERO_GAS,
-  TX_DATA_ZERO_GAS,
-  TX_GAS,
-  TX_GAS_CONTRACT_CREATION,
-} from "./constant";
+import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
@@ -531,22 +529,26 @@ export function verifyGasPrice(
   return undefined;
 }
 
-export function verifySudtFee(
+export function verifyL2TxFee(
   fee: HexNumber,
+  serializedL2Tx: HexString,
   index: number
 ): InvalidParamsError | undefined {
   const feeErr = verifyHexNumber(fee, index);
   if (feeErr) {
-    return feeErr.padContext("Sudt Fee");
+    return feeErr.padContext("L2Tx Fee");
+  }
+  const txErr = verifyHexString(serializedL2Tx, index);
+  if (txErr) {
+    return txErr.padContext("L2Tx Fee");
   }
 
-  if (
-    envConfig.minSudtFee != null &&
-    BigInt(fee) < BigInt(envConfig.minSudtFee)
-  ) {
+  const feeRate = BigInt(envConfig.feeRate || 0);
+  const requiredFee = calcFee(serializedL2Tx, feeRate);
+  if (BigInt(fee) < requiredFee) {
     return invalidParamsError(
       index,
-      `minimal sudt transfer fee ${envConfig.minSudtFee} required. got ${BigInt(
+      `minimal l2tx fee ${requiredFee.toString(10)} required. got ${BigInt(
         fee
       ).toString(10)}`
     );
@@ -601,35 +603,4 @@ export async function verifyEnoughBalance(
 // some utils function
 function invalidParamsError(index: number, message: string) {
   return new InvalidParamsError(`invalid argument ${index}: ${message}`);
-}
-
-export function calcIntrinsicGas(
-  to: HexString | undefined,
-  input: HexString | undefined
-) {
-  to = to === "0x" ? undefined : to;
-  const isCreate = to == null;
-  let gas: bigint;
-  if (isCreate) {
-    gas = BigInt(TX_GAS_CONTRACT_CREATION);
-  } else {
-    gas = BigInt(TX_GAS);
-  }
-
-  if (input && input.length > 0) {
-    const buf = Buffer.from(input.slice(2), "hex");
-    const byteLen = buf.byteLength;
-    let nonZeroLen = 0;
-    for (const b of buf) {
-      if (b !== 0) {
-        nonZeroLen++;
-      }
-    }
-    const zeroLen = byteLen - nonZeroLen;
-    gas =
-      gas +
-      BigInt(zeroLen) * BigInt(TX_DATA_ZERO_GAS) +
-      BigInt(nonZeroLen) * BigInt(TX_DATA_NONE_ZERO_GAS);
-  }
-  return gas;
 }

@@ -34,3 +34,6 @@ export const QUERY_OFFSET_REACHED_END = "query offset reached end";
 // 128kb
 // see also https://github.com/ethereum/go-ethereum/blob/b3b8b268eb585dfd3c1c9e9bbebc55968f3bec4b/core/tx_pool.go#L43-L53
 export const MAX_TRANSACTION_SIZE = BigInt("131072");
+
+// https://github.com/nervosnetwork/godwoken/blob/develop/crates/eoa-mapping/src/eth_register.rs#L16
+export const MAX_ADDRESS_SIZE_PER_REGISTER_BATCH = 50;

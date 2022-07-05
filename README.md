@@ -36,6 +36,7 @@ MIN_SUDT_FEE=<optional, decimal number, the minimal sudt transfer fee required>
 MAX_QUERY_NUMBER=<optional, integer number, maximum number of records to be returned in one query from database>
 MAX_QUERY_ROUNDS=<optional, integer number, maximum number of round trips to database done by a single query for records>
 MAX_QUERY_TIME_MILSECS=<optional, integer number, maximum number of time for database query>
+FEE_RATE=<optional, decimal number, use to calculate minimal l2tx fee required, default to 0>
 EOF
 
 $ yarn

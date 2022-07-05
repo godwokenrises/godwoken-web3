@@ -7,6 +7,7 @@ export type U128 = bigint;
 export type HexU32 = HexNumber;
 export type HexU64 = HexNumber;
 export type HexU128 = HexNumber;
+export type HexU256 = HexNumber;
 
 // null means `pending`
 export type BlockParameter = U64 | null;
@@ -128,4 +129,58 @@ export interface NodeInfo {
 export interface RegistryAddress {
   registry_id: HexU32;
   address: HexString;
+}
+
+export enum SudtArgsType {
+  SUDTQuery = "SUDTQuery",
+  SUDTTransfer = "SUDTTransfer",
+}
+
+export interface SudtQuery {
+  address: HexString;
+}
+
+export interface SudtTransfer {
+  to_address: HexString;
+  amount: HexU256;
+  fee: Fee;
+}
+
+export interface SudtArgs {
+  type: SudtArgsType;
+  value: SudtQuery | SudtTransfer;
+}
+
+export enum EthAddrRegArgsType {
+  EthToGw = "EthToGw",
+  GwToEth = "GwToEth",
+  SetMapping = "SetMapping",
+  BatchSetMapping = "BatchSetMapping",
+}
+export interface EthAddrRegArgs {
+  type: EthAddrRegArgsType;
+  value: SetMapping | BatchSetMapping | EthToGw | GwToEth;
+}
+
+export interface BatchSetMapping {
+  gw_script_hashes: Hash[];
+  fee: Fee;
+}
+
+export interface SetMapping {
+  gw_script_hash: Hash;
+  fee: Fee;
+}
+
+export interface EthToGw {
+  eth_address: HexString;
+}
+
+export interface GwToEth {
+  gw_script_hash: HexString;
+}
+
+export interface Fee {
+  registry_id: HexU32;
+  amount: HexU128;
 }
