@@ -2,8 +2,12 @@ import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
 import {
   RPC,
   RunResult,
-  schemas,
   GodwokenClient,
+  EthAddrRegArgsType,
+  BatchSetMapping,
+  SetMapping,
+  SudtArgsType,
+  SudtTransfer,
 } from "@godwoken-web3/godwoken";
 import {
   middleware,
@@ -11,7 +15,7 @@ import {
   verifyGasLimit,
   verifyGasPrice,
   verifyIntrinsicGas,
-  verifySudtFee,
+  verifyL2TxFee,
 } from "../validator";
 import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
 import { Store } from "../../cache/store";
@@ -22,13 +26,12 @@ import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import {
   decodePolyjuiceArgs,
   isPolyjuiceTransactionArgs,
+  parseSerializeEthAddrRegArgs,
   parseSerializeL2Transaction,
+  parseSerializeSudtArgs,
 } from "../../parse-tx";
 import { InvalidParamsError } from "../error";
 import { gwConfig } from "../../base";
-import { CKB_SUDT_ID } from "../constant";
-import { Reader } from "@ckb-lumos/toolkit";
-import { Uint128 } from "../../base/types/uint";
 
 export class Gw {
   private rpc: RPC;
@@ -471,20 +474,37 @@ export class Gw {
       }
 
       // 2. validate SUDT transfer l2 transaction fee
-      if (
-        l2Tx.raw.to_id === CKB_SUDT_ID &&
-        toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash
-      ) {
-        const sudtArgs = new schemas.SUDTArgs(new Reader(l2Tx.raw.args));
-        if (sudtArgs.unionType() === "SUDTTransfer") {
-          const sudtTransfer: schemas.SUDTTransfer = sudtArgs.value();
-          const fee: HexNumber = Uint128.fromLittleEndian(
-            new Reader(sudtTransfer.getFee().getAmount().raw()).serializeJson()
-          ).toHex();
-
-          const feeErr = verifySudtFee(fee, 0);
+      //    since fee is all pCKB, there is no need to check to sudt id
+      if (toScript.code_hash === gwConfig.gwScripts.l2Sudt.typeHash) {
+        const sudtArgs = parseSerializeSudtArgs(l2Tx.raw.args);
+        if (sudtArgs.type === SudtArgsType.SUDTTransfer) {
+          const fee = (sudtArgs.value as SudtTransfer).fee.amount;
+          const feeErr = verifyL2TxFee(fee, serializedL2Tx, 0);
           if (feeErr) {
             throw feeErr.padContext(`gw_submit_l2transaction`);
+          }
+        }
+      }
+
+      // 3. validate ethAddrReg setMapping l2 transaction fee
+      if (
+        toId === gwConfig.accounts.ethAddrReg.id &&
+        toScript.code_hash ===
+          gwConfig.backends.ethAddrReg.validatorScriptTypeHash
+      ) {
+        const regArgs = parseSerializeEthAddrRegArgs(l2Tx.raw.args);
+
+        if (
+          regArgs.type === EthAddrRegArgsType.SetMapping ||
+          regArgs.type === EthAddrRegArgsType.BatchSetMapping
+        ) {
+          const fee = (regArgs.value as SetMapping | BatchSetMapping).fee
+            .amount;
+          const feeErr = verifyL2TxFee(fee, serializedL2Tx, 0);
+          if (feeErr) {
+            throw feeErr.padContext(
+              `gw_submit_l2transaction ethAddrReg SetMapping`
+            );
           }
         }
       }

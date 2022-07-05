@@ -1,3 +1,10 @@
+import { HexString } from "@ckb-lumos/base";
+import {
+  TX_DATA_NONE_ZERO_GAS,
+  TX_DATA_ZERO_GAS,
+  TX_GAS,
+  TX_GAS_CONTRACT_CREATION,
+} from "./methods/constant";
 import { BlockParameter } from "./methods/types";
 
 const { platform } = require("os");
@@ -96,4 +103,40 @@ export function validateHexString(hex: string): boolean {
 
 export function validateHexNumber(hex: string): boolean {
   return /^0x(0|[0-9a-fA-F]+)$/.test(hex);
+}
+
+export function calcIntrinsicGas(
+  to: HexString | undefined,
+  input: HexString | undefined
+) {
+  to = to === "0x" ? undefined : to;
+  const isCreate = to == null;
+  let gas: bigint;
+  if (isCreate) {
+    gas = BigInt(TX_GAS_CONTRACT_CREATION);
+  } else {
+    gas = BigInt(TX_GAS);
+  }
+
+  if (input && input.length > 0) {
+    const buf = Buffer.from(input.slice(2), "hex");
+    const byteLen = buf.byteLength;
+    let nonZeroLen = 0;
+    for (const b of buf) {
+      if (b !== 0) {
+        nonZeroLen++;
+      }
+    }
+    const zeroLen = byteLen - nonZeroLen;
+    gas =
+      gas +
+      BigInt(zeroLen) * BigInt(TX_DATA_ZERO_GAS) +
+      BigInt(nonZeroLen) * BigInt(TX_DATA_NONE_ZERO_GAS);
+  }
+  return gas;
+}
+
+export function calcFee(serializedL2Tx: HexString, feeRate: bigint) {
+  const byteLen = BigInt(serializedL2Tx.slice(2).length / 2);
+  return byteLen * feeRate;
 }

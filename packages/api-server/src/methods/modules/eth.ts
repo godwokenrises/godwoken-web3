@@ -9,7 +9,6 @@ import {
   BlockParameter,
 } from "../types";
 import {
-  calcIntrinsicGas,
   middleware,
   validators,
   verifyEnoughBalance,
@@ -75,6 +74,7 @@ import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
+import { calcIntrinsicGas } from "../../util";
 
 const Config = require("../../../config/eth.json");
 
