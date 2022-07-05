@@ -23,7 +23,10 @@ import {
   bufferToHex,
   hexToBuffer,
   getDatabaseRateLimitingConfiguration,
+  buildQueryLogTopics,
+  universalizeAddress,
 } from "./helpers";
+import { FilterTopic } from "../cache/types";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -299,22 +302,37 @@ export class Query {
   private async queryLogsByBlockRange(
     fromBlock: HexNumber,
     toBlock: HexNumber,
-    address?: HexString | HexString[],
+    queryAddresses: HexString[],
+    queryTopics: FilterTopic[],
     lastPollId?: bigint,
     offset?: number
   ): Promise<Log[]> {
     const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
     const queryLastPollId = lastPollId || -1;
     const queryOffset = offset || 0;
-    let logs: DBLog[] = await this.knex<DBLog>("logs")
-      .modify(buildQueryLogAddress, address)
+
+    // NOTE: In this SQL, there is no `ORDER BY id` as combining `ORDER BY` and `LIMIT` consumes too much time when the
+    // results are large. Instead, logs are sorted outside the database:
+    // - When the number of query results exceeds $MAX_QUERY_NUMBER, an error is returned.
+    // - When the queried results are less than or equal to $MAX_QUERY_NUMBER, sorting takes only a short time
+    //
+    // NOTE: Using CTE to SELECT "logs" then JOIN "transactions" is more efficient than directly SELECT JOIN
+    let selectLogs = this.knex<DBLog>("logs")
+      .modify(buildQueryLogAddress, queryAddresses)
+      .modify(buildQueryLogTopics, queryTopics)
       .where("block_number", ">=", fromBlock)
       .where("block_number", "<=", toBlock)
       .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "asc")
       .offset(queryOffset)
-      .limit(MAX_QUERY_NUMBER);
-    return logs.map((log) => formatLog(log));
+      .limit(MAX_QUERY_NUMBER + 1);
+    let selectLogsJoinTransactions = this.knex<DBLog>("transactions")
+      .with("logs", selectLogs)
+      .select("logs.*", "transactions.eth_tx_hash")
+      .join("logs", { "logs.transaction_hash": "transactions.hash" });
+    let logs: DBLog[] = await selectLogsJoinTransactions;
+    return logs
+      .map((log) => formatLog(log))
+      .sort((aLog, bLog) => Number(aLog.id - bLog.id));
   }
 
   async getLogs(
@@ -323,13 +341,13 @@ export class Query {
     toBlock?: bigint,
     offset?: number
   ): Promise<Log[]> {
-    const address = normalizeLogQueryAddress(option.address);
-    const topics = option.topics || [];
+    const queryTopics: FilterTopic[] = option.topics || [];
+    const queryAddresses: HexString[] = universalizeAddress(option.address);
 
     if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
       const logs = await this.queryLogsByBlockHash(
         blockHashOrFromBlock,
-        address,
+        queryAddresses,
         undefined,
         offset
       );
@@ -338,14 +356,15 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return filterLogsByTopics(logs, queryTopics);
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
-        address,
+        queryAddresses,
+        queryTopics,
         undefined,
         offset
       );
@@ -354,7 +373,7 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return logs;
     }
 
     throw new Error("invalid params!");
@@ -386,10 +405,13 @@ export class Query {
     }
 
     if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
+      const queryTopics: FilterTopic[] = option.topics || [];
+      const queryAddresses: HexString[] = universalizeAddress(option.address);
       const logs = await this.queryLogsByBlockRange(
         blockHashOrFromBlock.toString(),
         toBlock.toString(),
-        address,
+        queryAddresses,
+        queryTopics,
         lastPollId,
         offset
       );
@@ -398,7 +420,7 @@ export class Query {
         throw new Error(QUERY_OFFSET_REACHED_END);
       }
 
-      return filterLogsByTopics(logs, topics);
+      return logs;
     }
 
     throw new Error("invalid params!");

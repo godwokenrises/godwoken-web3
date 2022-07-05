@@ -92,7 +92,9 @@ export interface Transaction {
 export interface DBLog {
   id: string;
   transaction_id: string;
+  // TODO don't allow undefined
   transaction_hash: Buffer;
+  eth_tx_hash?: Buffer;
   transaction_index: number;
   block_number: string;
   block_hash: Buffer;
@@ -106,6 +108,7 @@ export interface Log {
   id: bigint;
   transaction_id: bigint;
   transaction_hash: Hash;
+  eth_tx_hash?: Hash;
   transaction_index: number;
   block_number: bigint;
   block_hash: Hash;
