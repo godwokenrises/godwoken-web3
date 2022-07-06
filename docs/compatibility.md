@@ -26,7 +26,7 @@ The `to` member of a Godwoken transaction must be a contract.
 
 #### Result
 
-Using outdated Ethereum toolchain like `truffle-hdwallet-provider` to send transaction will result in failure.
+Using outdated Ethereum toolchain like `truffle-hdwallet-provider` to send a transaction will result in failure.
 
 known issue: #238
 
@@ -36,7 +36,7 @@ known issue: #238
 
 ### 3. ZERO ADDRESS
 
-Godwoken do not have the corresponding "zero address"(0x0000000000000000000000000000000000000000) concept, so Polyjuice won't be able to handle zero address as well.
+Godwoken does not have the corresponding "zero address"(0x0000000000000000000000000000000000000000) concept, so Polyjuice won't be able to handle zero address as well.
 
 #### Result
 
@@ -46,7 +46,7 @@ known issue: #246
 
 #### Recommend workaround
 
-- if you are trying use zero address as a black hole to burn ethers, you can use `transfer function` in CKB_ERC20_Proxy to send ethers to zero address. more info can be found on above section `Transfer Value From EOA To EOA`.
+- if you are trying to use zero address as a black hole to burn ethers, you can use `transfer function` in `CKB_ERC20_Proxy` to send ethers to zero address. more info can be found in the above section `Transfer Value From EOA To EOA`.
 
 ### 4. GAS LIMIT
 
