@@ -924,6 +924,24 @@ export class Eth {
     return await this.getLogs([filter as FilterObject]);
   }
 
+  /**
+   * Polling method for a filter, which returns an array of events that have occurred since the last poll.
+   *
+   * @returns {array} - Array of one of the following, depending on the filter type, or empty if no changes since last poll:
+   * - `eth_newBlockFilter`
+   *   `blockHash` - The 32 byte hash of a block that meets your filter requirements, asc order by block number
+   * - `eth_newPendingTransactionFilter`
+   *   `[]` - Godwoken-Web3 doesn't support `eth_newPendingTransactionFilter` yet.
+   * - `eth_newFilter`
+   *   - `logindex` - Integer of log index position in the block encoded as a hexadecimal.
+   *   - `transactionindex` - Integer of transaction index position log was created from.
+   *   - `transactionhash` - Hash of the transactions this log was created from.
+   *   - `blockhash` - Hash of the block where this log was in.
+   *   - `blocknumber` - The block number where this log was, encoded as a hexadecimal.
+   *   - `address` - The address from which this log originated.
+   *   - `data` - Contains one or more 32 Bytes non-indexed arguments of the log.
+   *   - `topics` - Array of 0 to 4 32 Bytes of indexed log arguments.
+   */
   async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
@@ -941,7 +959,7 @@ export class Eth {
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.query.getBlocksAfterBlockNumber(
         BigInt(last_poll_block_number),
-        "desc"
+        "asc"
       );
 
       if (blocks.length === 0) return [];
