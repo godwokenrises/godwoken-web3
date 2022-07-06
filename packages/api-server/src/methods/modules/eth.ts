@@ -1,12 +1,12 @@
 import {
+  BlockParameter,
   GodwokenLog,
   LogItem,
-  SudtOperationLog,
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
-  TransactionCallObject,
+  SudtOperationLog,
   SudtPayFeeLog,
-  BlockParameter,
+  TransactionCallObject,
 } from "../types";
 import {
   middleware,
@@ -16,19 +16,23 @@ import {
   verifyIntrinsicGas,
 } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
-import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
+import { Address, Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import {
+  GodwokenClient,
+  RawL2Transaction,
+  RunResult,
+} from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
+  COMPATIBLE_DOCS_URL,
+  POLY_MAX_BLOCK_GAS_LIMIT,
   POLYJUICE_CONTRACT_CODE,
-  POLYJUICE_SYSTEM_PREFIX,
-  SUDT_OPERATION_LOG_FLAG,
-  SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
+  POLYJUICE_SYSTEM_PREFIX,
   POLYJUICE_USER_LOG_FLAG,
   QUERY_OFFSET_REACHED_END,
-  POLY_MAX_BLOCK_GAS_LIMIT,
-  COMPATIBLE_DOCS_URL,
+  SUDT_OPERATION_LOG_FLAG,
+  SUDT_PAY_FEE_LOG_FLAG,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -37,7 +41,6 @@ import {
   QueryRoundStatus,
 } from "../../db";
 import { envConfig } from "../../base/env-config";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   Log,
@@ -898,6 +901,12 @@ export class Eth {
     return isUninstalled;
   }
 
+  /**
+   * This method only works for filters creates with `eth_newFilter` not for filters created using `eth_newBlockFilter`
+   * or `eth_newPendingTransactionFilter`, which will return empty array.
+   *
+   * @returns {(Log|Array)} array of log objects, or an empty array if nothing has changed since last poll.
+   */
   async getFilterLogs(args: [string]): Promise<Array<any>> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
@@ -905,24 +914,14 @@ export class Eth {
     if (!filter) {
       throw new Web3Error("filter not found");
     }
-
-    if (filter === FilterFlag.blockFilter) {
-      // block filter
-      // return all blocks
-      const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(0),
-        "desc"
-      );
-      const block_hashes = blocks.map((block) => block.hash);
-      return block_hashes;
-    }
-
-    if (filter === FilterFlag.pendingTransaction) {
-      // pending tx filter, not supported.
+    if (
+      filter === FilterFlag.blockFilter ||
+      filter === FilterFlag.pendingTransaction
+    ) {
       return [];
     }
 
-    return await this.getLogs([filter!]);
+    return await this.getLogs([filter as FilterObject]);
   }
 
   async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
