@@ -11,12 +11,12 @@ export class Net {
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * net version as the second argument
    */
-  version(_args: []): HexNumber {
-    return gwConfig.web3ChainId!;
+  version(_args: []): string {
+    return BigInt(gwConfig.web3ChainId).toString(10);
   }
 
   /**
-   * Returns the current peer nodes number, which is always 0 since godwoken is not emplementing p2p network
+   * Returns the current peer nodes number, which is always 0 since godwoken is not implementing p2p network
    * @param  {Array<*>} [params] An empty array
    * @param  {Function} [cb] A function with an error object as the first argument and the
    * current peer nodes number as the second argument
