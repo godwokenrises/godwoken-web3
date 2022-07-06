@@ -903,9 +903,7 @@ export class Eth {
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new Web3Error("filter not found");
     }
 
     if (filter === FilterFlag.blockFilter) {
@@ -932,9 +930,7 @@ export class Eth {
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new Web3Error("filter not found");
     }
 
     //***** handle block-filter
