@@ -1001,6 +1001,9 @@ export class Eth {
         return logs;
       }
 
+      // See also:
+      // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
+      // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
         filter.fromBlock || "earliest"
       );
