@@ -1044,10 +1044,13 @@ export class Eth {
     };
 
     const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
-    // remember to update the last poll cache
-    // logsData[0] is now the highest log id(meaning it is the newest cache log id)
     if (logs.length !== 0) {
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+      // Update lastPoll.
+      // Since the returned logs is asc order, the last one is the newest log.
+      await this.filterManager.updateLastPoll(
+        filter_id,
+        logs[logs.length - 1].id
+      );
     }
 
     return await Promise.all(
