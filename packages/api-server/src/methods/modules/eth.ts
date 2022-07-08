@@ -1247,6 +1247,69 @@ export class Eth {
 
     return null;
   }
+
+  private async _rpcFilterRequestToGetLogsParams(
+    filter: RpcFilterRequest
+  ): Promise<FilterParams> {
+    if (filter.blockHash != null) {
+      if (filter.fromBlock !== undefined || filter.toBlock !== undefined) {
+        throw new Web3Error(
+          "blockHash is mutually exclusive with fromBlock/toBlock"
+        );
+      }
+
+      const block = await this.query.getBlockByHash(filter.blockHash);
+      if (block == null) {
+        throw new InvalidParamsError("blockHash cannot be found");
+      }
+
+      filter.fromBlock = "0x" + block.number.toString(16);
+      filter.toBlock = "0x" + block.number.toString(16);
+    }
+
+    const [fromBlock, toBlock] =
+      await this._normalizeBlockParameterForFilterRequest(
+        filter.fromBlock,
+        filter.toBlock
+      );
+    return {
+      fromBlock,
+      toBlock,
+      topics: filter.topics || [],
+      addresses: universalizeAddress(filter.address),
+      blockHash: filter.blockHash,
+    };
+  }
+
+  private async _normalizeBlockParameterForFilterRequest(
+    fromBlock: undefined | BlockParameter,
+    toBlock: undefined | BlockParameter
+  ): Promise<[bigint, bigint]> {
+    let normalizedFromBlock;
+    let normalizedToBlock;
+    const latestBlockNumber = await this.getTipNumber();
+
+    // See also:
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
+    if (fromBlock === "latest" || fromBlock === "pending") {
+      normalizedFromBlock = latestBlockNumber;
+    } else if (fromBlock == null || fromBlock === "earliest") {
+      normalizedFromBlock = BigInt(0);
+    } else {
+      normalizedFromBlock = BigInt(fromBlock);
+    }
+
+    if (toBlock == null || toBlock === "latest" || toBlock === "pending") {
+      normalizedToBlock = latestBlockNumber;
+    } else if (toBlock === "earliest") {
+      normalizedToBlock = BigInt(0);
+    } else {
+      normalizedToBlock = BigInt(toBlock);
+    }
+
+    return [normalizedFromBlock, normalizedToBlock];
+  }
 }
 
 function ethTxHashCacheKey(ethTxHash: string) {
