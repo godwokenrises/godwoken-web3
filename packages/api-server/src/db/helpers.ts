@@ -1,5 +1,5 @@
-import { HexNumber, HexString } from "@ckb-lumos/base";
-import { FilterTopic } from "../cache/types";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import { FilterTopic } from "../base/filter";
 import {
   Block,
   Transaction,
@@ -11,9 +11,7 @@ import {
 import {
   DEFAULT_MAX_QUERY_NUMBER,
   DEFAULT_MAX_QUERY_TIME_MILSECS,
-  DEFAULT_MAX_QUERY_ROUNDS,
 } from "./constant";
-import { LimitExceedError } from "../methods/error";
 import { Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 
@@ -223,73 +221,19 @@ export function filterLogsByAddress(
   return result;
 }
 
-export enum QueryRoundStatus {
-  keepGoing,
-  stop,
-}
-
-export interface ExecuteOneQueryResult {
-  status: QueryRoundStatus;
-  data: any[];
-}
-
 export function getDatabaseRateLimitingConfiguration() {
   const MAX_QUERY_NUMBER = envConfig["maxQueryNumber"]
     ? +envConfig["maxQueryNumber"]
     : DEFAULT_MAX_QUERY_NUMBER;
+  // TODO set query timeout
   const MAX_QUERY_TIME_MILSECS = envConfig["maxQueryTimeInMilliseconds"]
     ? +envConfig["maxQueryTimeInMilliseconds"]
     : DEFAULT_MAX_QUERY_TIME_MILSECS;
-  const MAX_QUERY_ROUNDS = envConfig["maxQueryRounds"]
-    ? +envConfig["maxQueryRounds"]
-    : DEFAULT_MAX_QUERY_ROUNDS;
 
   return {
     MAX_QUERY_NUMBER,
     MAX_QUERY_TIME_MILSECS,
-    MAX_QUERY_ROUNDS,
   };
-}
-
-/**
- * limit the query in two constraints:  query number and query time
- * with N rounds of query, calculate the number and time
- * @param executeOneQuery query in one round
- * @returns
- */
-export async function limitQuery(
-  executeOneQuery: (offset: number) => Promise<ExecuteOneQueryResult>
-) {
-  const { MAX_QUERY_NUMBER, MAX_QUERY_ROUNDS, MAX_QUERY_TIME_MILSECS } =
-    getDatabaseRateLimitingConfiguration();
-  const results = [];
-  const t1 = new Date();
-  for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
-    const offset = index * MAX_QUERY_NUMBER;
-    let executeResult = await executeOneQuery(offset);
-    // console.log(`${index}th round =>`, executeResult.data.length, executeResult.status);
-    results.push(...executeResult.data);
-
-    // check if exceed max query number
-    if (results.length > MAX_QUERY_NUMBER) {
-      throw new LimitExceedError(
-        `query returned more than ${MAX_QUERY_NUMBER} results`
-      );
-    }
-
-    // check if exceed query timeout
-    const t2 = new Date();
-    const diffTimeMs = t2.getTime() - t1.getTime();
-    if (diffTimeMs > MAX_QUERY_TIME_MILSECS) {
-      throw new LimitExceedError(`query timeout exceeded`);
-    }
-
-    if (executeResult.status === QueryRoundStatus.stop) {
-      // offset query reach end, break the loop
-      break;
-    }
-  }
-  return results;
 }
 
 export function buildQueryLogAddress(
@@ -344,4 +288,29 @@ export function buildQueryLogTopics(
       );
     }
   });
+}
+
+export function buildQueryLogBlock(
+  queryBuilder: KnexType.QueryBuilder,
+  fromBlock: bigint,
+  toBlock: bigint,
+  blockHash?: Hash
+) {
+  if (blockHash != null) {
+    queryBuilder.where("block_hash", hexToBuffer(blockHash));
+  } else {
+    queryBuilder.whereBetween("block_number", [
+      fromBlock.toString(),
+      toBlock.toString(),
+    ]);
+  }
+}
+
+export function buildQueryLogId(
+  queryBuilder: KnexType.QueryBuilder,
+  lastPollId: bigint = BigInt(-1)
+) {
+  if (lastPollId !== BigInt(-1)) {
+    queryBuilder.where("id", ">", lastPollId.toString());
+  }
 }
