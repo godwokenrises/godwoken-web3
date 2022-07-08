@@ -64,11 +64,18 @@ import { FilterManager } from "../../cache";
 import { parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
+  AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS,
   CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../../cache/constant";
-import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
+import {
+  autoCreateAccountCacheKey,
+  AutoCreateAccountCacheValue,
+  calcEthTxHash,
+  generateRawTransaction,
+  polyjuiceRawTransactionToApiTransaction,
+} from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
@@ -724,46 +731,74 @@ export class Eth {
 
   async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
     const ethTxHash: Hash = args[0];
-    const gwTxHash: Hash | null = await this.ethTxHashToGwTxHash(ethTxHash);
-    if (gwTxHash == null) {
-      return null;
-    }
+    const cacheKey = autoCreateAccountCacheKey(ethTxHash);
 
-    const tx = await this.query.getTransactionByHash(gwTxHash);
+    // 1. Find in db
+    const tx = await this.query.getTransactionByEthTxHash(ethTxHash);
     if (tx != null) {
+      // no need await
+      // delete auto create account tx if already in db
+      this.cacheStore.delete(cacheKey);
       const apiTx = toApiTransaction(tx);
       return apiTx;
     }
 
-    // if null, find pending transactions
-    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus == null) {
-      return null;
+    // 2. If null, find pending transactions
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
+    if (gwTxHash != null) {
+      const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
+      if (godwokenTxWithStatus == null) {
+        return null;
+      }
+      const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error("tip block not found!");
+      }
+      let ethTxInfo = undefined;
+      try {
+        ethTxInfo = await filterWeb3Transaction(
+          ethTxHash,
+          this.rpc,
+          tipBlock.number,
+          tipBlock.hash,
+          godwokenTxWithStatus.transaction,
+          godwokenTxReceipt
+        );
+      } catch (err) {
+        logger.error("filterWeb3Transaction:", err);
+        logger.info("godwoken tx:", godwokenTxWithStatus);
+        logger.info("godwoken receipt:", godwokenTxReceipt);
+        throw err;
+      }
+      if (ethTxInfo != null) {
+        const ethTx = ethTxInfo[0];
+        return ethTx;
+      }
     }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-    const tipBlock = await this.query.getTipBlock();
-    if (tipBlock == null) {
-      throw new Error("tip block not found!");
-    }
-    let ethTxInfo = undefined;
-    try {
-      ethTxInfo = await filterWeb3Transaction(
-        ethTxHash,
-        this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
-      );
-    } catch (err) {
-      logger.error("filterWeb3Transaction:", err);
-      logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
-      throw err;
-    }
-    if (ethTxInfo != null) {
-      const ethTx = ethTxInfo[0];
-      return ethTx;
+
+    // 3. Find by auto create account tx
+    // TODO: delete cache store if dropped by godwoken
+    // convert to tx hash mapping store if account id generated ?
+    const polyjuiceRawTx = await this.cacheStore.get(cacheKey);
+    if (polyjuiceRawTx != null) {
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error("tip block not found!");
+      }
+      // Convert polyjuice tx to api transaction
+      const { tx, fromAddress }: AutoCreateAccountCacheValue =
+        JSON.parse(polyjuiceRawTx);
+      const apiTransaction: EthTransaction =
+        polyjuiceRawTransactionToApiTransaction(
+          tx,
+          ethTxHash,
+          tipBlock.hash,
+          tipBlock.number,
+          fromAddress
+        );
+      return apiTransaction;
     }
 
     return null;
@@ -1128,25 +1163,38 @@ export class Eth {
   async sendRawTransaction(args: [string]): Promise<Hash> {
     try {
       const data = args[0];
-      const rawTx = await generateRawTransaction(data, this.rpc);
+      const [rawTx, autoCreateCacheKeyAndValue] = await generateRawTransaction(
+        data,
+        this.rpc
+      );
       const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
       logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
+      // cache auto create account tx if submit success
+      if (autoCreateCacheKeyAndValue != null) {
+        await this.cacheStore.insert(
+          autoCreateCacheKeyAndValue[0],
+          autoCreateCacheKeyAndValue[1],
+          AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS
+        );
+      }
       const ethTxHash = calcEthTxHash(data);
       logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
 
       // save the tx hash mapping for instant finality
-      const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-      await this.cacheStore.insert(
-        ethTxHashKey,
-        gwTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
-      const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-      await this.cacheStore.insert(
-        gwTxHashKey,
-        ethTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
+      if (gwTxHash != null) {
+        const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+        await this.cacheStore.insert(
+          ethTxHashKey,
+          gwTxHash,
+          TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+        );
+        const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+        await this.cacheStore.insert(
+          gwTxHashKey,
+          ethTxHash,
+          TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+        );
+      }
 
       return ethTxHash;
     } catch (error: any) {
@@ -1349,10 +1397,14 @@ async function ethCallTx(
   rpc: GodwokenClient,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
+  const [rawL2Transaction, serializedRegistryAddress] = await buildEthCallTx(
+    txCallObj,
+    rpc
+  );
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
-    blockNumber
+    blockNumber,
+    serializedRegistryAddress
   );
 
   return runResult;
@@ -1361,7 +1413,7 @@ async function ethCallTx(
 async function buildEthCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient
-): Promise<RawL2Transaction> {
+): Promise<[RawL2Transaction, HexString | undefined]> {
   const fromAddress = txCallObj.from;
   const toAddress = txCallObj.to;
   const gas =
@@ -1391,6 +1443,22 @@ async function buildEthCallTx(
   if (fromAddress != null && typeof fromAddress === "string") {
     fromId = await ethAddressToAccountId(fromAddress, rpc);
     logger.debug(`fromId: ${fromId}`);
+  }
+
+  let serializedRegistryAddress: HexString | undefined;
+  if (fromId == null && fromAddress != null) {
+    const registryAddress: EthRegistryAddress = new EthRegistryAddress(
+      fromAddress
+    );
+    const fromAddressBalance = await rpc.getBalance(
+      registryAddress.serialize(),
+      +CKB_SUDT_ID,
+      undefined
+    );
+    if (fromAddressBalance > 0) {
+      fromId = 0;
+      serializedRegistryAddress = registryAddress.serialize();
+    }
   }
 
   if (fromId == null) {
@@ -1450,7 +1518,7 @@ async function buildEthCallTx(
   logger.debug(
     `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
   );
-  return rawL2Transaction;
+  return [rawL2Transaction, serializedRegistryAddress];
 }
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {

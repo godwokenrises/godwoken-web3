@@ -134,16 +134,17 @@ export class GodwokenClient {
 
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
-    blockParameter?: BlockParameter
+    blockParameter?: BlockParameter,
+    serializedRegistryAddress?: HexString
   ): Promise<RunResult> {
     const data: HexString = new Reader(
       SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
     ).serializeJson();
-    return await this.rpcCall(
-      "execute_raw_l2transaction",
-      data,
-      toHex(blockParameter)
-    );
+    const params = [data, toHex(blockParameter)];
+    if (serializedRegistryAddress != null) {
+      params.push(serializedRegistryAddress);
+    }
+    return await this.rpcCall("execute_raw_l2transaction", ...params);
   }
 
   public async executeL2Transaction(l2tx: L2Transaction): Promise<RunResult> {
@@ -153,7 +154,9 @@ export class GodwokenClient {
     return await this.rpcCall("execute_l2transaction", data);
   }
 
-  public async submitL2Transaction(l2tx: L2Transaction): Promise<Hash> {
+  public async submitL2Transaction(
+    l2tx: L2Transaction
+  ): Promise<Hash | undefined> {
     const data: HexString = new Reader(
       SerializeL2Transaction(NormalizeL2Transaction(l2tx))
     ).serializeJson();

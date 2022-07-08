@@ -316,7 +316,7 @@ function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
   };
 }
 
-function bumpHash(hash: Hash): Hash {
+export function bumpHash(hash: Hash): Hash {
   const hashNum = BigInt(hash) + 1n;
   return "0x" + hashNum.toString(16).padStart(64, "0");
 }
