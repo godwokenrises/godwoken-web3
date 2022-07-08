@@ -107,7 +107,12 @@ export class BlockEmitter {
       const newHeads = blocks.map((b) => toApiNewHead(b));
       this.notify("newHeads", newHeads);
 
-      const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+      const logs = await this.query.getLogsByFilter({
+        fromBlock: min + BigInt(1),
+        toBlock: max,
+        addresses: [],
+        topics: [],
+      });
       const newLogs = logs.map((log) =>
         JSON.stringify(
           log,

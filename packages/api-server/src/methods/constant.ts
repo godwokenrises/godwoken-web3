@@ -29,8 +29,6 @@ export const HEADER_NOT_FOUND_ERR_MESSAGE = "header not found";
 export const COMPATIBLE_DOCS_URL =
   "https://github.com/nervosnetwork/godwoken-web3/blob/main/docs/compatibility.md";
 
-export const QUERY_OFFSET_REACHED_END = "query offset reached end";
-
 // 128kb
 // see also https://github.com/ethereum/go-ethereum/blob/b3b8b268eb585dfd3c1c9e9bbebc55968f3bec4b/core/tx_pool.go#L43-L53
 export const MAX_TRANSACTION_SIZE = BigInt("131072");
