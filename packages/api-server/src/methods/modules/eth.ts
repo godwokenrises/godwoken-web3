@@ -913,7 +913,7 @@ export class Eth {
     ) {
       return [];
     } else {
-      return await this.getLogs([filter]);
+      return await this.getFilterChanges(args);
     }
   }
 
