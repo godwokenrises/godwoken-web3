@@ -10,7 +10,7 @@ import {
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
-import { MAX_QUERY_NUMBER } from "./constant";
+import { LATEST_MEDIAN_GAS_PRICE, MAX_QUERY_NUMBER } from "./constant";
 import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import {
   formatDecimal,
@@ -402,10 +402,10 @@ export class Query {
     throw new Error("invalid params!");
   }
 
-  // Latest 500 transactions median gas_price
+  // Latest ${LATEST_MEDIAN_GAS_PRICE} transactions median gas_price
   async getMedianGasPrice(): Promise<bigint> {
     const sql = `SELECT (PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY gas_price)) AS median FROM (SELECT gas_price FROM transactions ORDER BY id DESC LIMIT ?) AS gas_price;`;
-    const result = await this.knex.raw(sql, [500]);
+    const result = await this.knex.raw(sql, [LATEST_MEDIAN_GAS_PRICE]);
 
     const median = result.rows[0]?.median;
     if (median == null) {
