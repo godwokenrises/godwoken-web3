@@ -71,7 +71,8 @@ const revertErrorMapping: RevertErrorMapping = {
   },
   // Error(string)
   "0x08c379a0": {
-    message: (args: any[]) => `Error(${args[0]})`,
+    message: (args: any[]) =>
+      `Error: VM Exception while processing transaction: reverted with reason string '${args[0]}'`,
     argTypes: ["string"],
   },
 };
@@ -284,7 +285,7 @@ export function parseGwRunResultError(err: any): RpcError {
   if (gwErr.statusReason != null) {
     failedReason.message = gwErr.statusReason;
   }
-  let errorData: any = undefined;
+  let errorData: any = {};
   if (Object.keys(failedReason).length !== 0) {
     errorData = { failed_reason: failedReason };
   }
@@ -297,5 +298,7 @@ export function parseGwRunResultError(err: any): RpcError {
       gwErr.statusReason
     }`;
   }
+  errorData.message = errorMessage;
+  errorData.data = (gwErr.data as any).return_data;
   return new RpcError(gwErr.code, errorMessage, errorData);
 }
