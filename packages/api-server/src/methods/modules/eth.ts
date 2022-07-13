@@ -1,12 +1,12 @@
 import {
+  BlockParameter,
   GodwokenLog,
   LogItem,
-  SudtOperationLog,
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
-  TransactionCallObject,
+  SudtOperationLog,
   SudtPayFeeLog,
-  BlockParameter,
+  TransactionCallObject,
 } from "../types";
 import {
   middleware,
@@ -16,19 +16,23 @@ import {
   verifyIntrinsicGas,
 } from "../validator";
 import { FilterFlag, FilterObject } from "../../cache/types";
-import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
+import { Address, Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import {
+  GodwokenClient,
+  RawL2Transaction,
+  RunResult,
+} from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
+  COMPATIBLE_DOCS_URL,
+  POLY_MAX_BLOCK_GAS_LIMIT,
   POLYJUICE_CONTRACT_CODE,
-  POLYJUICE_SYSTEM_PREFIX,
-  SUDT_OPERATION_LOG_FLAG,
-  SUDT_PAY_FEE_LOG_FLAG,
   POLYJUICE_SYSTEM_LOG_FLAG,
+  POLYJUICE_SYSTEM_PREFIX,
   POLYJUICE_USER_LOG_FLAG,
   QUERY_OFFSET_REACHED_END,
-  POLY_MAX_BLOCK_GAS_LIMIT,
-  COMPATIBLE_DOCS_URL,
+  SUDT_OPERATION_LOG_FLAG,
+  SUDT_PAY_FEE_LOG_FLAG,
 } from "../constant";
 import {
   ExecuteOneQueryResult,
@@ -37,7 +41,6 @@ import {
   QueryRoundStatus,
 } from "../../db";
 import { envConfig } from "../../base/env-config";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   Log,
@@ -898,43 +901,53 @@ export class Eth {
     return isUninstalled;
   }
 
+  /**
+   * This method only works for filters creates with `eth_newFilter` not for filters created using `eth_newBlockFilter`
+   * or `eth_newPendingTransactionFilter`, which will return empty array.
+   *
+   * @returns {(Log|Array)} array of log objects, or an empty array if nothing has changed since last poll.
+   */
   async getFilterLogs(args: [string]): Promise<Array<any>> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new Web3Error("filter not found");
     }
-
-    if (filter === FilterFlag.blockFilter) {
-      // block filter
-      // return all blocks
-      const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(0),
-        "desc"
-      );
-      const block_hashes = blocks.map((block) => block.hash);
-      return block_hashes;
-    }
-
-    if (filter === FilterFlag.pendingTransaction) {
-      // pending tx filter, not supported.
+    if (
+      filter === FilterFlag.blockFilter ||
+      filter === FilterFlag.pendingTransaction
+    ) {
       return [];
     }
 
-    return await this.getLogs([filter!]);
+    return await this.getLogs([filter as FilterObject]);
   }
 
+  /**
+   * Polling method for a filter, which returns an array of events that have occurred since the last poll.
+   *
+   * @returns {array} - Array of one of the following, depending on the filter type, or empty if no changes since last poll:
+   * - `eth_newBlockFilter`
+   *   `blockHash` - The 32 byte hash of a block that meets your filter requirements, asc order by block number
+   * - `eth_newPendingTransactionFilter`
+   *   `[]` - Godwoken-Web3 doesn't support `eth_newPendingTransactionFilter` yet.
+   * - `eth_newFilter`
+   *   - `logindex` - Integer of log index position in the block encoded as a hexadecimal.
+   *   - `transactionindex` - Integer of transaction index position log was created from.
+   *   - `transactionhash` - Hash of the transactions this log was created from.
+   *   - `blockhash` - Hash of the block where this log was in.
+   *   - `blocknumber` - The block number where this log was, encoded as a hexadecimal.
+   *   - `address` - The address from which this log originated.
+   *   - `data` - Contains one or more 32 Bytes non-indexed arguments of the log.
+   *   - `topics` - Array of 0 to 4 32 Bytes of indexed log arguments.
+   */
   async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
 
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
+      throw new Web3Error("filter not found");
     }
 
     //***** handle block-filter
@@ -946,7 +959,7 @@ export class Eth {
       // ( block_number > last_poll_cache_block_number )
       const blocks = await this.query.getBlocksAfterBlockNumber(
         BigInt(last_poll_block_number),
-        "desc"
+        "asc"
       );
 
       if (blocks.length === 0) return [];
@@ -988,6 +1001,9 @@ export class Eth {
         return logs;
       }
 
+      // See also:
+      // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
+      // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
       const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
         filter.fromBlock || "earliest"
       );
@@ -1028,10 +1044,13 @@ export class Eth {
     };
 
     const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
-    // remember to update the last poll cache
-    // logsData[0] is now the highest log id(meaning it is the newest cache log id)
     if (logs.length !== 0) {
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+      // Update lastPoll.
+      // Since the returned logs is asc order, the last one is the newest log.
+      await this.filterManager.updateLastPoll(
+        filter_id,
+        logs[logs.length - 1].id
+      );
     }
 
     return await Promise.all(
