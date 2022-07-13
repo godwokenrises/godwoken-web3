@@ -427,10 +427,12 @@ impl Web3Indexer {
         let scripts = batch_account_id_to_script(&self.godwoken_async_client, ids.clone()).await?;
 
         let mut hashmap = HashMap::<u32, Option<Script>>::new();
-        scripts.into_iter().enumerate().for_each(|(i, value)| {
-            let id = ids[i];
-            hashmap.insert(id, value);
-        });
+        scripts
+            .into_iter()
+            .zip(ids.into_iter())
+            .for_each(|(value, id)| {
+                hashmap.insert(id, value);
+            });
 
         Ok(hashmap)
     }

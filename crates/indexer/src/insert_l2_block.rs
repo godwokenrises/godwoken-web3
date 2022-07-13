@@ -247,8 +247,7 @@ pub async fn insert_web3_txs_and_logs(
                 // Get transaction id from preview insert returning
                 logs_query_builder.push_values(db_logs, |mut b, log| {
                     // transaction_id in log is transaction_id_index now
-                    let transaction_id_index = log.transaction_id as usize;
-                    let transaction_id = tx_ids[transaction_id_index];
+                    let transaction_id = tx_ids[log.transaction_id as usize];
 
                     b.push_bind(transaction_id)
                         .push_bind(log.transaction_hash)
