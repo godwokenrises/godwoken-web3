@@ -301,7 +301,7 @@ export class Eth {
   }
 
   /**
-   * Return median gas_price of latest 500 transactions
+   * Return median gas_price of latest ${LATEST_MEDIAN_GAS_PRICE} transactions
    *
    * @param _args empty
    * @returns
