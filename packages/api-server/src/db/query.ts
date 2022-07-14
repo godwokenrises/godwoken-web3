@@ -239,18 +239,18 @@ export class Query {
   // undefined means not found
   async getBlockTransactionCountByHash(blockHash: Hash): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_hash: blockHash,
+      block_hash: hexToBuffer(blockHash),
     });
   }
 
   async getBlockTransactionCountByNumber(blockNumber: bigint): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_number: blockNumber,
+      block_number: blockNumber.toString(),
     });
   }
 
   private async getBlockTransactionCount(
-    params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
+    params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
   ): Promise<number> {
     const data = await this.knex<DBTransaction>("transactions")
       .where(params)
