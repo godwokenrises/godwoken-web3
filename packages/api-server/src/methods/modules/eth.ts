@@ -942,7 +942,7 @@ export class Eth {
    *   - `data` - Contains one or more 32 Bytes non-indexed arguments of the log.
    *   - `topics` - Array of 0 to 4 32 Bytes of indexed log arguments.
    */
-  async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
+  async getFilterChanges(args: [string]): Promise<Hash[] | EthLog[]> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
 
@@ -952,23 +952,21 @@ export class Eth {
 
     //***** handle block-filter
     if (filter === FilterFlag.blockFilter) {
-      const last_poll_block_number = await this.filterManager.getLastPoll(
+      const lastPollBlockNumber = await this.filterManager.getLastPoll(
         filter_id
       );
-      // get all block occurred since last poll
-      // ( block_number > last_poll_cache_block_number )
-      const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(last_poll_block_number),
-        "asc"
-      );
-
-      if (blocks.length === 0) return [];
-
-      // remember to update the last poll cache
-      // blocks[0] is now the highest block number(meaning it is the newest cache block number)
-      await this.filterManager.updateLastPoll(filter_id, blocks[0].number);
-      const block_hashes = blocks.map((block) => block.hash);
-      return block_hashes;
+      const arrayOfHashAndNumber =
+        await this.query.getBlockHashesAndNumbersAfterBlockNumber(
+          lastPollBlockNumber,
+          "asc"
+        );
+      if (arrayOfHashAndNumber.length !== 0) {
+        await this.filterManager.updateLastPoll(
+          filter_id,
+          arrayOfHashAndNumber[arrayOfHashAndNumber.length - 1].number
+        );
+      }
+      return arrayOfHashAndNumber.map((hn) => hn.hash);
     }
 
     //***** handle pending-tx-filter, currently not supported.

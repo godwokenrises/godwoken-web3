@@ -104,14 +104,20 @@ export class Query {
     return blocks.map((block) => formatBlock(block));
   }
 
-  async getBlocksAfterBlockNumber(
+  async getBlockHashesAndNumbersAfterBlockNumber(
     number: bigint,
     order: "desc" | "asc" = "desc"
-  ): Promise<Block[]> {
-    const blocks = await this.knex<DBBlock>("blocks")
+  ): Promise<{ hash: Hash; number: bigint }[]> {
+    const arrayOfHashAndNumber = await this.knex<{
+      hash: Buffer;
+      number: bigint;
+    }>("blocks")
+      .select("hash", "number")
       .where("number", ">", number.toString())
       .orderBy("number", order);
-    return blocks.map((block) => formatBlock(block));
+    return arrayOfHashAndNumber.map((hn) => {
+      return { hash: bufferToHex(hn.hash), number: BigInt(hn.number) };
+    });
   }
 
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
