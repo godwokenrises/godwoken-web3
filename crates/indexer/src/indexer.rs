@@ -465,7 +465,6 @@ impl Web3Indexer {
 
         let mut cumulative_gas_used: u128 = 0;
         let mut total_gas_limit: u128 = 0;
-        let mut total_gas_used: u128 = 0;
         for txs in txs_slice {
             let l2_transaction_with_logs_vec = txs
                 .into_par_iter()
@@ -484,7 +483,6 @@ impl Web3Indexer {
                     tx.tx.cumulative_gas_used = cumulative_gas_used;
 
                     total_gas_limit += tx.tx.gas_limit;
-                    total_gas_used += tx.tx.gas_used;
 
                     tx
                 })
@@ -502,7 +500,7 @@ impl Web3Indexer {
 
         // insert block
         let web3_block = self
-            .build_web3_block(&l2_block, total_gas_limit, total_gas_used)
+            .build_web3_block(&l2_block, total_gas_limit, cumulative_gas_used)
             .await?;
         insert_web3_block(web3_block, &mut pg_tx).await?;
 
