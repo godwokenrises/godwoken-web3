@@ -104,16 +104,18 @@ impl Web3Indexer {
         Ok(row.and_then(|(n,)| n.to_u64()))
     }
 
+    // NOTE: remember to update `tx_index`, `cumulative_gas_used`
     fn filter_single_transaction(
         &self,
         l2_transaction: L2Transaction,
         block_number: u64,
         block_hash: gw_common::H256,
-        tx_index: u32,
         id_script_map: &std::collections::HashMap<u32, Option<Script>>,
     ) -> Result<Option<Web3TransactionWithLogs>> {
         let gw_tx_hash: gw_common::H256 = l2_transaction.hash().into();
         let from_id: u32 = l2_transaction.raw().from_id().unpack();
+
+        let mock_tx_index: u32 = 0;
 
         let from_script = id_script_map
             .get(&from_id)
@@ -198,7 +200,7 @@ impl Web3Indexer {
 
             // read logs
             let tx_receipt: TxReceipt =
-                self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
+                self.get_transaction_receipt(gw_tx_hash, block_number, mock_tx_index)?;
             let log_item_vec = tx_receipt.logs();
 
             // read polyjuice system log
@@ -238,10 +240,9 @@ impl Web3Indexer {
                         format!("Can't convert tx_hash: {:?} to hex format", gw_tx_hash)
                     });
                     log::error!(
-                        "no system logs in tx_hash: {}, block_number: {}, index: {}, exit_code: {}",
+                        "no system logs in tx_hash: {}, block_number: {}, exit_code: {}",
                         gw_tx_hash_hex,
                         block_number,
-                        tx_index,
                         tx_receipt.exit_code()
                     );
                     (None, polyjuice_args.gas_limit as u128)
@@ -254,7 +255,7 @@ impl Web3Indexer {
                 Some(chain_id),
                 block_number,
                 block_hash,
-                tx_index,
+                mock_tx_index,
                 from_address,
                 to_address,
                 polyjuice_args.value.into(),
@@ -288,7 +289,7 @@ impl Web3Indexer {
                         } => {
                             let web3_log = Web3Log::new(
                                 gw_tx_hash,
-                                tx_index,
+                                mock_tx_index,
                                 block_number,
                                 block_hash,
                                 address,
@@ -349,7 +350,7 @@ impl Web3Indexer {
                     let nonce: u32 = l2_transaction.raw().nonce().unpack();
 
                     let tx_receipt: TxReceipt =
-                        self.get_transaction_receipt(gw_tx_hash, block_number, tx_index)?;
+                        self.get_transaction_receipt(gw_tx_hash, block_number, mock_tx_index)?;
 
                     let exit_code: u8 = tx_receipt.exit_code().into();
                     let web3_transaction = Web3Transaction::new(
@@ -357,7 +358,7 @@ impl Web3Indexer {
                         None,
                         block_number,
                         block_hash,
-                        tx_index,
+                        mock_tx_index,
                         from_address,
                         Some(to_address),
                         value,
@@ -469,13 +470,7 @@ impl Web3Indexer {
             let l2_transaction_with_logs_vec = txs
                 .into_par_iter()
                 .map(|tx| {
-                    self.filter_single_transaction(
-                        tx,
-                        block_number,
-                        block_hash,
-                        0,
-                        &id_script_hashmap,
-                    )
+                    self.filter_single_transaction(tx, block_number, block_hash, &id_script_hashmap)
                 })
                 .collect::<Result<Vec<Option<Web3TransactionWithLogs>>>>()?;
 
