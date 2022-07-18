@@ -240,7 +240,7 @@ export function parseGwRpcError(error: any): void {
     }
 
     // can't find backend by script hash error
-    if (err.message?.startsWith("can't find backend for script_hash")) {
+    if (err.message?.includes("can't find backend for script_hash")) {
       throw new RpcError(
         err.code,
         `to address is not a valid contract. more info: ${COMPATIBLE_DOCS_URL}`
