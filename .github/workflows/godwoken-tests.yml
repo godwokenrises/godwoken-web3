@@ -10,7 +10,7 @@ on:
 
 jobs:
   godwoken-tests:
-    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
+    uses: nervosnetwork/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@add-estimate-gas-for-aca
     with:
       extra_github_env: |
         MANUAL_BUILD_WEB3=true
