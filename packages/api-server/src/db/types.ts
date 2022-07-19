@@ -13,7 +13,7 @@ import {
   toHexNumber,
   Uint256,
 } from "../base/types/uint";
-import { FilterTopic } from "../cache/types";
+import { FilterTopic } from "../base/filter";
 import {
   POLY_BLOCK_DIFFICULTY,
   POLY_MAX_BLOCK_GAS_LIMIT,

@@ -1,25 +1,8 @@
 import { HexString } from "@ckb-lumos/base";
-import { BlockParameter } from "../methods/types";
-
-export interface FilterObject {
-  address?: HexString;
-  fromBlock?: BlockParameter;
-  toBlock?: BlockParameter;
-  topics?: FilterTopic[];
-  blockHash?: HexString;
-}
-
-export type FilterTopic = HexString | null | HexString[];
-
-export enum FilterFlag {
-  blockFilter = 1,
-  pendingTransaction = 2,
-}
-
-export type FilterType = FilterObject | FilterFlag; // 1: block filter 2: pending transaction filter
+import { FilterFlag, RpcFilterRequest } from "../base/filter";
 
 export interface FilterCacheInDb {
-  filter: FilterType;
+  filter: FilterFlag | RpcFilterRequest;
   lastPoll: HexString;
   // the filter's last poll record:
   //          - for eth_newBlockFilter, the last poll record is the block number (bigint)
@@ -28,6 +11,6 @@ export interface FilterCacheInDb {
 }
 
 export interface FilterCache {
-  filter: FilterType;
+  filter: FilterFlag | RpcFilterRequest;
   lastPoll: bigint;
 }
