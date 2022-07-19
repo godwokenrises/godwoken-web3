@@ -233,7 +233,8 @@ async function parseRawTransactionData(
       fromEthAddress,
       rpc,
       gasLimit,
-      gasPrice
+      gasPrice,
+      value
     );
 
     if (!cacheKeyAndValue) {
@@ -414,15 +415,15 @@ async function cacheAutoCreateAccount(
   fromEthAddress: HexString,
   rpc: GodwokenClient,
   gasLimit: HexNumber,
-  gasPrice: HexNumber
+  gasPrice: HexNumber,
+  value: HexNumber
 ): Promise<[string, string] | undefined> {
   const registryAddress: EthRegistryAddress = new EthRegistryAddress(
     fromEthAddress
   );
   const fromIdBalance = await rpc.getBalance(
     registryAddress.serialize(),
-    +CKB_SUDT_ID,
-    undefined
+    +CKB_SUDT_ID
   );
   if (gasPrice === "0x") {
     gasPrice = "0x0";
@@ -430,7 +431,11 @@ async function cacheAutoCreateAccount(
   if (gasLimit === "0x") {
     gasLimit = "0x0";
   }
-  const minimalRequiredBalance: bigint = BigInt(gasLimit) * BigInt(gasPrice);
+  if (value === "0x") {
+    value = "0x0";
+  }
+  const minimalRequiredBalance: bigint =
+    BigInt(gasLimit) * BigInt(gasPrice) + BigInt(value);
   if (fromIdBalance >= minimalRequiredBalance) {
     const key = autoCreateAccountCacheKey(ethTxHash);
     const value: AutoCreateAccountCacheValue = {

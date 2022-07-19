@@ -585,10 +585,11 @@ export async function verifyEnoughBalance(
     registryAddress.serialize(),
     +CKB_SUDT_ID
   );
-  const txValue = value == null || value === "0x" ? 0 : value;
-  const txGas = gas == null || gas === "0x" ? 0 : +gas;
-  const txGasPrice = gasPrice == null || gasPrice === "0x" ? 0 : +gasPrice;
-  const requireBalance = BigInt(txGas * txGasPrice) + BigInt(txValue);
+  const txValue: bigint = value == null || value === "0x" ? 0n : BigInt(value);
+  const txGas: bigint = gas == null || gas === "0x" ? 0n : BigInt(gas);
+  const txGasPrice: bigint =
+    gasPrice == null || gasPrice === "0x" ? 0n : BigInt(gasPrice);
+  const requireBalance = txGas * txGasPrice + txValue;
 
   if (balance < requireBalance) {
     return invalidParamsError(
