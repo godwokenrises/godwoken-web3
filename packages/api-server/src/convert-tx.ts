@@ -27,8 +27,9 @@ import {
 } from "./methods/validator";
 import { AUTO_CREATE_ACCOUNT_PREFIX_KEY } from "./cache/constant";
 import { EthTransaction } from "./base/types/api";
-import { bumpHash } from "./filter-web3-tx";
+import { bumpHash, PENDING_TRANSACTION_INDEX } from "./filter-web3-tx";
 import { Uint64 } from "./base/types/uint";
+import { AutoCreateAccountCacheValue } from "./cache/types";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -59,7 +60,7 @@ export function polyjuiceRawTransactionToApiTransaction(
     hash: ethTxHash,
     blockHash: pendingBlockHash,
     blockNumber: pendingBlockNumber,
-    transactionIndex: "0x0",
+    transactionIndex: PENDING_TRANSACTION_INDEX,
     from: fromEthAddress,
     to: tx.to == "0x" ? null : tx.to,
     gas: tx.gasLimit === "0x" ? "0x0" : "0x" + BigInt(tx.gasLimit).toString(16),
@@ -230,7 +231,9 @@ async function parseRawTransactionData(
       polyjuiceRawTx,
       ethTxHash,
       fromEthAddress,
-      rpc
+      rpc,
+      gasLimit,
+      gasPrice
     );
 
     if (!cacheKeyAndValue) {
@@ -405,16 +408,13 @@ function publicKeyToEthAddress(publicKey: HexString): HexString {
   return ethAddress;
 }
 
-export interface AutoCreateAccountCacheValue {
-  tx: HexString;
-  fromAddress: HexString;
-}
-
 async function cacheAutoCreateAccount(
   polyjuiceRawTx: HexString,
   ethTxHash: Hash,
   fromEthAddress: HexString,
-  rpc: GodwokenClient
+  rpc: GodwokenClient,
+  gasLimit: HexNumber,
+  gasPrice: HexNumber
 ): Promise<[string, string] | undefined> {
   const registryAddress: EthRegistryAddress = new EthRegistryAddress(
     fromEthAddress
@@ -424,7 +424,14 @@ async function cacheAutoCreateAccount(
     +CKB_SUDT_ID,
     undefined
   );
-  if (fromIdBalance >= 0) {
+  if (gasPrice === "0x") {
+    gasPrice = "0x0";
+  }
+  if (gasLimit === "0x") {
+    gasLimit = "0x0";
+  }
+  const minimalRequiredBalance: bigint = BigInt(gasLimit) * BigInt(gasPrice);
+  if (fromIdBalance >= minimalRequiredBalance) {
     const key = autoCreateAccountCacheKey(ethTxHash);
     const value: AutoCreateAccountCacheValue = {
       tx: polyjuiceRawTx,

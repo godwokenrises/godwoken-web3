@@ -15,7 +15,11 @@ import {
   verifyGasLimit,
   verifyIntrinsicGas,
 } from "../validator";
-import { FilterFlag, FilterObject } from "../../cache/types";
+import {
+  AutoCreateAccountCacheValue,
+  FilterFlag,
+  FilterObject,
+} from "../../cache/types";
 import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
 import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
 import {
@@ -71,7 +75,6 @@ import {
 } from "../../cache/constant";
 import {
   autoCreateAccountCacheKey,
-  AutoCreateAccountCacheValue,
   calcEthTxHash,
   generateRawTransaction,
   polyjuiceRawTransactionToApiTransaction,

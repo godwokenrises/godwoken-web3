@@ -31,3 +31,8 @@ export interface FilterCache {
   filter: FilterType;
   lastPoll: bigint;
 }
+
+export interface AutoCreateAccountCacheValue {
+  tx: HexString;
+  fromAddress: HexString;
+}

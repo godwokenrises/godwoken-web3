@@ -26,7 +26,7 @@ import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
 import { decodePolyjuiceArgs } from "./parse-tx";
 
-const PENDING_TRANSACTION_INDEX = "0x0";
+export const PENDING_TRANSACTION_INDEX = "0x0";
 
 export async function filterWeb3Transaction(
   ethTxHash: Hash,
