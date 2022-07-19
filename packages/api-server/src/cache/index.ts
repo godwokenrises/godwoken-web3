@@ -1,10 +1,4 @@
-import {
-  FilterCacheInDb,
-  FilterFlag,
-  FilterTopic,
-  FilterType,
-  FilterCache,
-} from "./types";
+import { FilterCacheInDb, FilterCache } from "./types";
 import { Store } from "./store";
 import crypto from "crypto";
 import { HexString } from "@ckb-lumos/base";
@@ -14,6 +8,7 @@ import {
 } from "./constant";
 import { validators } from "../methods/validator";
 import { envConfig } from "../base/env-config";
+import { FilterFlag, FilterTopic, RpcFilterRequest } from "../base/filter";
 
 export class FilterManager {
   public store: Store;
@@ -38,7 +33,7 @@ export class FilterManager {
   }
 
   async install(
-    filter: FilterType,
+    filter: FilterFlag | RpcFilterRequest,
     initialPollIdx: bigint
   ): Promise<HexString> {
     verifyFilterType(filter);
@@ -51,7 +46,7 @@ export class FilterManager {
     return id;
   }
 
-  async get(id: string): Promise<FilterType | undefined> {
+  async get(id: string): Promise<FilterFlag | RpcFilterRequest | undefined> {
     const data = await this.store.get(id);
     if (data == null) return undefined;
 

@@ -4,9 +4,9 @@ import {
   filterLogsByTopics,
   buildQueryLogTopics,
 } from "../../src/db";
-import { FilterTopic } from "../../src/cache/types";
 import { Log } from "../../src/db/types";
 import knex from "knex";
+import { FilterTopic } from "../../src/base/filter";
 
 test("formatDecimal", (t) => {
   const testCase: { [key: string]: bigint } = {

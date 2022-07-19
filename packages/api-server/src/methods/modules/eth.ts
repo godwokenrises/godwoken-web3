@@ -15,11 +15,7 @@ import {
   verifyGasLimit,
   verifyIntrinsicGas,
 } from "../validator";
-import {
-  AutoCreateAccountCacheValue,
-  FilterFlag,
-  FilterObject,
-} from "../../cache/types";
+import { AutoCreateAccountCacheValue } from "../../cache/types";
 import { Address, Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import {
   GodwokenClient,
@@ -34,21 +30,14 @@ import {
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_SYSTEM_PREFIX,
   POLYJUICE_USER_LOG_FLAG,
-  QUERY_OFFSET_REACHED_END,
   SUDT_OPERATION_LOG_FLAG,
   SUDT_PAY_FEE_LOG_FLAG,
 } from "../constant";
-import {
-  ExecuteOneQueryResult,
-  limitQuery,
-  Query,
-  QueryRoundStatus,
-} from "../../db";
+import { Query, universalizeAddress } from "../../db";
 import { envConfig } from "../../base/env-config";
 import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   Log,
-  LogQueryOption,
   toApiBlock,
   toApiLog,
   toApiTransaction,
@@ -88,6 +77,7 @@ import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
 import { calcIntrinsicGas } from "../../util";
+import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
 
 const Config = require("../../../config/eth.json");
 
@@ -95,7 +85,6 @@ type U32 = number;
 type U64 = bigint;
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
-const ZERO_TX_HASH = "0x" + "00".repeat(32);
 
 type GodwokenBlockParameter = U64 | undefined;
 
@@ -908,9 +897,9 @@ export class Eth {
   }
 
   /* #region filter-related api methods */
-  async newFilter(args: [FilterObject]): Promise<HexString> {
+  async newFilter(args: [RpcFilterRequest]): Promise<HexString> {
     const tipLog: Log | null = await this.query.getTipLog();
-    let initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
+    const initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
     const filter_id = await this.filterManager.install(args[0], initialLogId);
     return filter_id;
   }
@@ -944,22 +933,23 @@ export class Eth {
    * or `eth_newPendingTransactionFilter`, which will return empty array.
    *
    * @returns {(Log|Array)} array of log objects, or an empty array if nothing has changed since last poll.
+   *
+   * @throws {Web3Error} - filter not found
    */
   async getFilterLogs(args: [string]): Promise<Array<any>> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
 
-    if (!filter) {
+    if (filter == null) {
       throw new Web3Error("filter not found");
-    }
-    if (
+    } else if (
       filter === FilterFlag.blockFilter ||
       filter === FilterFlag.pendingTransaction
     ) {
       return [];
+    } else {
+      return await this.getFilterChanges(args);
     }
-
-    return await this.getLogs([filter as FilterObject]);
   }
 
   /**
@@ -979,17 +969,15 @@ export class Eth {
    *   - `address` - The address from which this log originated.
    *   - `data` - Contains one or more 32 Bytes non-indexed arguments of the log.
    *   - `topics` - Array of 0 to 4 32 Bytes of indexed log arguments.
+   *
+   * @throws {Web3Error} - filter not found
    */
   async getFilterChanges(args: [string]): Promise<Hash[] | EthLog[]> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
-
     if (!filter) {
       throw new Web3Error("filter not found");
-    }
-
-    //***** handle block-filter
-    if (filter === FilterFlag.blockFilter) {
+    } else if (filter === FilterFlag.blockFilter) {
       const lastPollBlockNumber = await this.filterManager.getLastPoll(
         filter_id
       );
@@ -1005,178 +993,37 @@ export class Eth {
         );
       }
       return arrayOfHashAndNumber.map((hn) => hn.hash);
-    }
-
-    //***** handle pending-tx-filter, currently not supported.
-    if (filter === FilterFlag.pendingTransaction) {
+    } else if (filter === FilterFlag.pendingTransaction) {
       return [];
-    }
+    } else {
+      const lastPollLogId = await this.filterManager.getLastPoll(filter_id);
+      const logs = await this.query.getLogsByFilter(
+        await this._rpcFilterRequestToGetLogsParams(filter),
+        lastPollLogId
+      );
 
-    //***** handle normal-filter
-    const lastPollLogId = await this.filterManager.getLastPoll(filter_id);
-    const blockHash = filter.blockHash;
-    const address = filter.address;
-    const topics = filter.topics;
-    const queryOption: LogQueryOption = {
-      address,
-      topics,
-    };
-
-    const execOneQuery = async (offset: number) => {
-      // if blockHash exits, fromBlock and toBlock is not allowed.
-      if (blockHash) {
-        const logs = await this.query.getLogsAfterLastPoll(
-          lastPollLogId,
-          queryOption,
-          blockHash,
-          undefined,
-          offset
+      if (logs.length !== 0) {
+        await this.filterManager.updateLastPoll(
+          filter_id,
+          logs[logs.length - 1].id
         );
-        if (logs.length === 0) return [];
-
-        return logs;
       }
 
-      // See also:
-      // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
-      // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
-      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "earliest"
-      );
-      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.toBlock || "latest"
-      );
-      const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId!,
-        queryOption,
-        fromBlockNumber,
-        toBlockNumber,
-        offset
-      );
-      if (logs.length === 0) return [];
-
-      return logs;
-    };
-
-    const executeOneQuery = async (offset: number) => {
-      try {
-        const data = await execOneQuery(offset);
-
-        return {
-          status: QueryRoundStatus.keepGoing,
-          data: data,
-        } as ExecuteOneQueryResult;
-      } catch (error) {
-        if (
-          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
-        ) {
-          return {
-            status: QueryRoundStatus.stop,
-            data: [], // return empty result
-          } as ExecuteOneQueryResult;
-        }
-        throw error;
-      }
-    };
-
-    const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
-    if (logs.length !== 0) {
-      // Update lastPoll.
-      // Since the returned logs is asc order, the last one is the newest log.
-      await this.filterManager.updateLastPoll(
-        filter_id,
-        logs[logs.length - 1].id
-      );
+      return logs.map((log) => toApiLog(log, log.eth_tx_hash!));
     }
+  }
 
-    return await Promise.all(
-      logs.map(async (log) => {
-        const ethTxHash =
-          log.eth_tx_hash ||
-          (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-          ZERO_TX_HASH;
-        return toApiLog(log, ethTxHash);
-      })
+  async getLogs(args: [RpcFilterRequest]): Promise<EthLog[]> {
+    return await this._getLogs(
+      await this._rpcFilterRequestToGetLogsParams(args[0])
     );
   }
 
-  async getLogs(args: [FilterObject]): Promise<EthLog[]> {
-    const filter = args[0];
-
-    const topics = filter.topics || [];
-    const address = filter.address;
-    const blockHash = filter.blockHash;
-
-    const queryOption: LogQueryOption = {
-      topics,
-      address,
-    };
-
-    const execOneQuery = async (offset: number) => {
-      // if blockHash exits, fromBlock and toBlock is not allowed.
-      if (blockHash) {
-        const logs = await this.query.getLogs(
-          queryOption,
-          blockHash,
-          undefined,
-          offset
-        );
-        return await Promise.all(
-          logs.map(async (log) => {
-            const ethTxHash =
-              log.eth_tx_hash ||
-              (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-              ZERO_TX_HASH;
-            return toApiLog(log, ethTxHash);
-          })
-        );
-      }
-
-      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "latest"
-      );
-      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.toBlock || "latest"
-      );
-      const logs = await this.query.getLogs(
-        queryOption,
-        fromBlockNumber,
-        toBlockNumber,
-        offset
-      );
-      return await Promise.all(
-        logs.map(async (log) => {
-          const ethTxHash =
-            log.eth_tx_hash ||
-            (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-            ZERO_TX_HASH;
-          return toApiLog(log, ethTxHash);
-        })
-      );
-    };
-
-    const executeOneQuery = async (offset: number) => {
-      try {
-        const data = await execOneQuery(offset);
-        return {
-          status: QueryRoundStatus.keepGoing,
-          data: data,
-        } as ExecuteOneQueryResult;
-      } catch (error: any) {
-        if (
-          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
-        ) {
-          return {
-            status: QueryRoundStatus.stop,
-            data: [], // return empty result
-          } as ExecuteOneQueryResult;
-        }
-        throw new Web3Error(error.message, error.data);
-      }
-    };
-
-    return await limitQuery(executeOneQuery.bind(this));
+  async _getLogs(filter: FilterParams): Promise<EthLog[]> {
+    const logs = await this.query.getLogsByFilter(filter);
+    return logs.map((log) => toApiLog(log, log.eth_tx_hash!));
   }
+
   /* #endregion */
 
   // return gw tx hash
@@ -1297,6 +1144,69 @@ export class Eth {
     }
 
     return null;
+  }
+
+  private async _rpcFilterRequestToGetLogsParams(
+    filter: RpcFilterRequest
+  ): Promise<FilterParams> {
+    if (filter.blockHash != null) {
+      if (filter.fromBlock !== undefined || filter.toBlock !== undefined) {
+        throw new Web3Error(
+          "blockHash is mutually exclusive with fromBlock/toBlock"
+        );
+      }
+
+      const block = await this.query.getBlockByHash(filter.blockHash);
+      if (block == null) {
+        throw new InvalidParamsError("blockHash cannot be found");
+      }
+
+      filter.fromBlock = "0x" + block.number.toString(16);
+      filter.toBlock = "0x" + block.number.toString(16);
+    }
+
+    const [fromBlock, toBlock] =
+      await this._normalizeBlockParameterForFilterRequest(
+        filter.fromBlock,
+        filter.toBlock
+      );
+    return {
+      fromBlock,
+      toBlock,
+      topics: filter.topics || [],
+      addresses: universalizeAddress(filter.address),
+      blockHash: filter.blockHash,
+    };
+  }
+
+  private async _normalizeBlockParameterForFilterRequest(
+    fromBlock: undefined | BlockParameter,
+    toBlock: undefined | BlockParameter
+  ): Promise<[bigint, bigint]> {
+    let normalizedFromBlock;
+    let normalizedToBlock;
+    const latestBlockNumber = await this.getTipNumber();
+
+    // See also:
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
+    if (fromBlock === "latest" || fromBlock === "pending") {
+      normalizedFromBlock = latestBlockNumber;
+    } else if (fromBlock == null || fromBlock === "earliest") {
+      normalizedFromBlock = BigInt(0);
+    } else {
+      normalizedFromBlock = BigInt(fromBlock);
+    }
+
+    if (toBlock == null || toBlock === "latest" || toBlock === "pending") {
+      normalizedToBlock = latestBlockNumber;
+    } else if (toBlock === "earliest") {
+      normalizedToBlock = BigInt(0);
+    } else {
+      normalizedToBlock = BigInt(toBlock);
+    }
+
+    return [normalizedFromBlock, normalizedToBlock];
   }
 }
 
