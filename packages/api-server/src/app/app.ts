@@ -12,11 +12,7 @@ import { gwConfig } from "../base/index";
 import { expressLogger, logger } from "../base/logger";
 import { Server } from "http";
 
-let newrelic: any | undefined = undefined;
-if (envConfig.newRelicLicenseKey) {
-  logger.info("new relic init !!!");
-  newrelic = require("newrelic");
-}
+const newrelic = require("newrelic");
 
 const app: express.Express = express();
 
@@ -62,12 +58,9 @@ app.use(
     _res: express.Response,
     next: express.NextFunction
   ) => {
-    if (envConfig.newRelicLicenseKey) {
-      // set new relic name
-      const transactionName = `${req.method} ${req.url}#${req.body.method}`;
-      logger.debug("#transactionName:", transactionName);
-      newrelic.setTransactionName(transactionName);
-    }
+    const transactionName = `${req.method} ${req.url}#${req.body.method}`;
+    logger.debug("#transactionName:", transactionName);
+    newrelic.setTransactionName(transactionName);
 
     // log request method / body
     if (envConfig.logRequestBody) {

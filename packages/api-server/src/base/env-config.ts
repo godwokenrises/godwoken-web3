@@ -6,7 +6,6 @@ dotenv.config({ path: "./.env" });
 export const envConfig = {
   databaseUrl: getRequired("DATABASE_URL"),
   godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
-  newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
   pgPoolMax: getOptional("PG_POOL_MAX"),
