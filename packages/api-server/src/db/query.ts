@@ -10,6 +10,7 @@ import {
 import Knex, { Knex as KnexType } from "knex";
 import { LogQueryOption } from "./types";
 import { envConfig } from "../base/env-config";
+import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
 import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
 import {
   formatDecimal,
@@ -103,14 +104,20 @@ export class Query {
     return blocks.map((block) => formatBlock(block));
   }
 
-  async getBlocksAfterBlockNumber(
+  async getBlockHashesAndNumbersAfterBlockNumber(
     number: bigint,
     order: "desc" | "asc" = "desc"
-  ): Promise<Block[]> {
-    const blocks = await this.knex<DBBlock>("blocks")
+  ): Promise<{ hash: Hash; number: bigint }[]> {
+    const arrayOfHashAndNumber = await this.knex<{
+      hash: Buffer;
+      number: bigint;
+    }>("blocks")
+      .select("hash", "number")
       .where("number", ">", number.toString())
       .orderBy("number", order);
-    return blocks.map((block) => formatBlock(block));
+    return arrayOfHashAndNumber.map((hn) => {
+      return { hash: bufferToHex(hn.hash), number: BigInt(hn.number) };
+    });
   }
 
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
@@ -232,18 +239,18 @@ export class Query {
   // undefined means not found
   async getBlockTransactionCountByHash(blockHash: Hash): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_hash: blockHash,
+      block_hash: hexToBuffer(blockHash),
     });
   }
 
   async getBlockTransactionCountByNumber(blockNumber: bigint): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_number: blockNumber,
+      block_number: blockNumber.toString(),
     });
   }
 
   private async getBlockTransactionCount(
-    params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
+    params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
   ): Promise<number> {
     const data = await this.knex<DBTransaction>("transactions")
       .where(params)
@@ -426,10 +433,10 @@ export class Query {
     throw new Error("invalid params!");
   }
 
-  // Latest 500 transactions median gas_price
+  // Latest ${LATEST_MEDIAN_GAS_PRICE} transactions median gas_price
   async getMedianGasPrice(): Promise<bigint> {
     const sql = `SELECT (PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY gas_price)) AS median FROM (SELECT gas_price FROM transactions ORDER BY id DESC LIMIT ?) AS gas_price;`;
-    const result = await this.knex.raw(sql, [500]);
+    const result = await this.knex.raw(sql, [LATEST_MEDIAN_GAS_PRICE]);
 
     const median = result.rows[0]?.median;
     if (median == null) {
