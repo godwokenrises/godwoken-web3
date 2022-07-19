@@ -225,7 +225,6 @@ export function getDatabaseRateLimitingConfiguration() {
   const MAX_QUERY_NUMBER = envConfig["maxQueryNumber"]
     ? +envConfig["maxQueryNumber"]
     : DEFAULT_MAX_QUERY_NUMBER;
-  // TODO set query timeout
   const MAX_QUERY_TIME_MILSECS = envConfig["maxQueryTimeInMilliseconds"]
     ? +envConfig["maxQueryTimeInMilliseconds"]
     : DEFAULT_MAX_QUERY_TIME_MILSECS;

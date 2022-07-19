@@ -7,7 +7,7 @@ import {
   DBTransaction,
   DBLog,
 } from "./types";
-import Knex, { Knex as KnexType } from "knex";
+import Knex, { knex, Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
 import {
@@ -26,6 +26,7 @@ import {
 } from "./helpers";
 import { LimitExceedError } from "../methods/error";
 import { FilterParams } from "../base/filter";
+import KnexTimeoutError = knex.KnexTimeoutError;
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -292,7 +293,8 @@ export class Query {
     { addresses, topics, fromBlock, toBlock, blockHash }: FilterParams,
     lastPollId: bigint = BigInt(-1)
   ): Promise<Log[]> {
-    const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
+    const { MAX_QUERY_NUMBER, MAX_QUERY_TIME_MILSECS } =
+      getDatabaseRateLimitingConfiguration();
 
     // NOTE: In this SQL, there is no `ORDER BY id` as combining `ORDER BY` and `LIMIT` consumes too much time when the
     // results are large. Instead, logs are sorted outside the database:
@@ -310,7 +312,14 @@ export class Query {
       .with("logs", selectLogs)
       .select("logs.*", "transactions.eth_tx_hash")
       .join("logs", { "logs.transaction_hash": "transactions.hash" });
-    let logs: DBLog[] = await selectLogsJoinTransactions;
+    let logs: DBLog[] = await selectLogsJoinTransactions
+      .timeout(MAX_QUERY_TIME_MILSECS, { cancel: true })
+      .catch((knexError: any) => {
+        if (knexError instanceof KnexTimeoutError) {
+          throw new LimitExceedError(`query timeout exceeded`);
+        }
+        throw knexError;
+      });
 
     if (logs.length > MAX_QUERY_NUMBER) {
       throw new LimitExceedError(
