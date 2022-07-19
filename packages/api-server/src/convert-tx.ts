@@ -10,15 +10,10 @@ import * as secp256k1 from "secp256k1";
 import {
   ethAddressToAccountId,
   ethEoaAddressToScriptHash,
-  EthRegistryAddress,
 } from "./base/address";
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
-import {
-  MAX_TRANSACTION_SIZE,
-  COMPATIBLE_DOCS_URL,
-  CKB_SUDT_ID,
-} from "./methods/constant";
+import { MAX_TRANSACTION_SIZE, COMPATIBLE_DOCS_URL } from "./methods/constant";
 import {
   verifyEnoughBalance,
   verifyGasLimit,
@@ -418,34 +413,23 @@ async function cacheAutoCreateAccount(
   gasPrice: HexNumber,
   value: HexNumber
 ): Promise<[string, string] | undefined> {
-  const registryAddress: EthRegistryAddress = new EthRegistryAddress(
-    fromEthAddress
+  const err = await verifyEnoughBalance(
+    rpc,
+    fromEthAddress,
+    value,
+    gasLimit,
+    gasPrice,
+    0
   );
-  const fromIdBalance = await rpc.getBalance(
-    registryAddress.serialize(),
-    +CKB_SUDT_ID
-  );
-  if (gasPrice === "0x") {
-    gasPrice = "0x0";
+  if (err != null) {
+    return undefined;
   }
-  if (gasLimit === "0x") {
-    gasLimit = "0x0";
-  }
-  if (value === "0x") {
-    value = "0x0";
-  }
-  const minimalRequiredBalance: bigint =
-    BigInt(gasLimit) * BigInt(gasPrice) + BigInt(value);
-  if (fromIdBalance >= minimalRequiredBalance) {
-    const key = autoCreateAccountCacheKey(ethTxHash);
-    const value: AutoCreateAccountCacheValue = {
-      tx: polyjuiceRawTx,
-      fromAddress: fromEthAddress,
-    };
-    return [key, JSON.stringify(value)];
-  }
-
-  return undefined;
+  const key = autoCreateAccountCacheKey(ethTxHash);
+  const cacheValue: AutoCreateAccountCacheValue = {
+    tx: polyjuiceRawTx,
+    fromAddress: fromEthAddress,
+  };
+  return [key, JSON.stringify(cacheValue)];
 }
 
 export function autoCreateAccountCacheKey(ethTxHash: string) {
