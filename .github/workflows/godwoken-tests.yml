@@ -17,4 +17,4 @@ jobs:
         MANUAL_BUILD_WEB3_INDEXER=true
         WEB3_GIT_URL=https://github.com/${{ github.repository }}
         WEB3_GIT_CHECKOUT=${{ github.ref }}
-        GODWOKEN_TESTS_REF=90a0cee5c5f1a43d47e3ea72f9f9f248e5a5d979
+        GODWOKEN_TESTS_REF=refs/pull/155/head
