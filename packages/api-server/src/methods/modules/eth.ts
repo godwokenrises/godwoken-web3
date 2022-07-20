@@ -32,6 +32,7 @@ import {
   POLYJUICE_USER_LOG_FLAG,
   SUDT_OPERATION_LOG_FLAG,
   SUDT_PAY_FEE_LOG_FLAG,
+  AUTO_CREATE_ACCOUNT_FROM_ID,
 } from "../constant";
 import { Query, universalizeAddress } from "../../db";
 import { envConfig } from "../../base/env-config";
@@ -1386,7 +1387,7 @@ async function buildEthCallTx(
       undefined
     );
     if (fromAddressBalance > 0) {
-      fromId = 0;
+      fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
       serializedRegistryAddress = registryAddress.serialize();
     }
   }

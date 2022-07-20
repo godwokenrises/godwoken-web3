@@ -13,7 +13,11 @@ import {
 } from "./base/address";
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
-import { MAX_TRANSACTION_SIZE, COMPATIBLE_DOCS_URL } from "./methods/constant";
+import {
+  MAX_TRANSACTION_SIZE,
+  COMPATIBLE_DOCS_URL,
+  AUTO_CREATE_ACCOUNT_FROM_ID,
+} from "./methods/constant";
 import {
   verifyEnoughBalance,
   verifyGasLimit,
@@ -238,7 +242,7 @@ async function parseRawTransactionData(
       );
     }
 
-    fromId = "0x0";
+    fromId = AUTO_CREATE_ACCOUNT_FROM_ID;
   }
 
   // check intrinsic gas and enough fund

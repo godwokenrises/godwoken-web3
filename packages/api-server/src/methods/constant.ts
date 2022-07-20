@@ -35,3 +35,5 @@ export const MAX_TRANSACTION_SIZE = BigInt("131072");
 
 // https://github.com/nervosnetwork/godwoken/blob/develop/crates/eoa-mapping/src/eth_register.rs#L16
 export const MAX_ADDRESS_SIZE_PER_REGISTER_BATCH = 50;
+
+export const AUTO_CREATE_ACCOUNT_FROM_ID = "0x0";
