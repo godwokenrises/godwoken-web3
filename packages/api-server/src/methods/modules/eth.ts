@@ -1231,7 +1231,9 @@ export class Eth {
   }
 
   // aca = auto create account
-  // Search tx by `signature_hash` when tx's `from_id = 0`
+  // `acaTx` is the first transaction (nonce=0) of an undeposited account which account_id/from_id is not undetermined yet.
+  // `signature_hash` is used here to get an `acaTx` from GodwokenRPC, see also:
+  // https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md#method-gw_submit_l2transaction
   //
   // `gw_get_transaction(signature_hash)`
   //       |-> if `txWithStatus.transaction` != null
