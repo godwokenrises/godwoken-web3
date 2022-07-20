@@ -792,12 +792,12 @@ export class Eth {
       // Convert polyjuice tx to api transaction
       const { tx, fromAddress }: AutoCreateAccountCacheValue =
         JSON.parse(polyjuiceRawTx);
-      const isTxExists: boolean | Hash = await this.isAcaTxExist(
+      const isAcaTxExist: boolean = await this.isAcaTxExist(
         ethTxHash,
         tx,
         fromAddress
       );
-      if (isTxExists) {
+      if (isAcaTxExist) {
         const apiTransaction: EthTransaction =
           polyjuiceRawTransactionToApiTransaction(
             tx,
@@ -1256,7 +1256,9 @@ export class Eth {
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
       .serializeJson();
-    const txWithStatus = await this.rpc.getTransactionByFullnode(signatureHash);
+    const txWithStatus = await this.rpc.getTransactionFromFullnode(
+      signatureHash
+    );
     if (txWithStatus?.transaction != null) {
       logger.debug(
         `aca tx: ${ethTxHash} found by signature hash: ${signatureHash}`
@@ -1275,7 +1277,7 @@ export class Eth {
       this.rpc,
       rawTx
     );
-    if (godwokenTx.raw.from_id === "0x0") {
+    if (godwokenTx.raw.from_id === AUTO_CREATE_ACCOUNT_FROM_ID) {
       logger.warn("aca generated tx's from_id = 0");
       return false;
     }
@@ -1289,7 +1291,7 @@ export class Eth {
       )
       .serializeJson();
     logger.debug(`aca tx: ${ethTxHash} gw_tx_hash: ${gwTxHash}`);
-    const gwTx = await this.rpc.getTransactionByFullnode(gwTxHash);
+    const gwTx = await this.rpc.getTransactionFromFullnode(gwTxHash);
 
     return !!gwTx;
   }
