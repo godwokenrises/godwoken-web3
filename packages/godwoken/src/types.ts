@@ -38,7 +38,7 @@ export interface L2Transaction {
 }
 
 export interface L2TransactionWithStatus {
-  transaction: L2Transaction;
+  transaction: L2Transaction | undefined;
   tx_status: {
     status: "committed" | "pending";
     block_hash?: Hash;

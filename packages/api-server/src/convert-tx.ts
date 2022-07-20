@@ -95,7 +95,9 @@ export async function generateRawTransaction(
   return [godwokenTx, cacheKeyAndValue];
 }
 
-function decodeRawTransactionData(dataParams: HexString): PolyjuiceTransaction {
+export function decodeRawTransactionData(
+  dataParams: HexString
+): PolyjuiceTransaction {
   const result: Buffer[] = rlp.decode(dataParams) as Buffer[];
   // todo: r might be "0x" which cause inconvenient for down-stream
   const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
@@ -173,7 +175,7 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   return "0x" + result.toString("hex");
 }
 
-async function parseRawTransactionData(
+export async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient,
   polyjuiceRawTx: HexString

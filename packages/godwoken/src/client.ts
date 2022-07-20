@@ -29,6 +29,12 @@ export class GodwokenClient {
     this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
+  // This RPC only for fullnode
+  public async isRequestInQueue(hash: Hash): Promise<boolean> {
+    const result = await this.writeRpcCall("is_request_in_queue", hash);
+    return result;
+  }
+
   public async getScriptHash(accountId: U32): Promise<Hash> {
     const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
@@ -167,6 +173,14 @@ export class GodwokenClient {
     hash: Hash
   ): Promise<L2TransactionWithStatus | undefined> {
     return await this.rpcCall("get_transaction", hash);
+  }
+
+  // TODO: replace by `getTransaction` later
+  // Only fullnode can get queue info
+  public async getTransactionByFullnode(
+    hash: Hash
+  ): Promise<L2TransactionWithStatus | undefined> {
+    return await this.writeRpcCall("get_transaction", hash);
   }
 
   public async getTransactionReceipt(
