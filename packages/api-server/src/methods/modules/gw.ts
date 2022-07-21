@@ -95,6 +95,10 @@ export class Gw {
       0
     );
     this.get_node_info = middleware(this.get_node_info.bind(this), 0);
+    this.is_request_in_queue = middleware(
+      this.is_request_in_queue.bind(this),
+      0
+    );
   }
 
   async ping(args: any[]) {
@@ -618,6 +622,15 @@ export class Gw {
   async get_node_info(args: any[]) {
     try {
       const result = await this.readonlyRpc.gw_get_node_info(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  async is_request_in_queue(args: any[]) {
+    try {
+      const result = await this.rpc.gw_is_request_in_queue(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
