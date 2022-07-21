@@ -8,3 +8,6 @@ export const GW_RPC_KEY = "gwRPC";
 
 export const TX_HASH_MAPPING_PREFIX_KEY = "TxHashMapping";
 export const TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS = 2 * 60 * 60 * 1000; // 2 hours
+export const AUTO_CREATE_ACCOUNT_PREFIX_KEY = "AutoCreateAccount";
+export const AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS =
+  2 * 60 * 60 * 1000; // 2 hours

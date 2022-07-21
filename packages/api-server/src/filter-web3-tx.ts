@@ -26,7 +26,7 @@ import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
 import { decodePolyjuiceArgs } from "./parse-tx";
 
-const PENDING_TRANSACTION_INDEX = "0x0";
+export const PENDING_TRANSACTION_INDEX = "0x0";
 
 export async function filterWeb3Transaction(
   ethTxHash: Hash,
@@ -316,7 +316,7 @@ function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
   };
 }
 
-function bumpHash(hash: Hash): Hash {
+export function bumpHash(hash: Hash): Hash {
   const hashNum = BigInt(hash) + 1n;
   return "0x" + hashNum.toString(16).padStart(64, "0");
 }

@@ -29,6 +29,12 @@ export class GodwokenClient {
     this.readonlyRpc = !!readonlyUrl ? new RPC(readonlyUrl) : this.rpc;
   }
 
+  // This RPC only for fullnode
+  public async isRequestInQueue(hash: Hash): Promise<boolean> {
+    const result = await this.writeRpcCall("is_request_in_queue", hash);
+    return result;
+  }
+
   public async getScriptHash(accountId: U32): Promise<Hash> {
     const hash = await this.rpcCall("get_script_hash", toHex(accountId));
     return hash;
@@ -134,16 +140,17 @@ export class GodwokenClient {
 
   public async executeRawL2Transaction(
     rawL2tx: RawL2Transaction,
-    blockParameter?: BlockParameter
+    blockParameter?: BlockParameter,
+    serializedRegistryAddress?: HexString
   ): Promise<RunResult> {
     const data: HexString = new Reader(
       SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2tx))
     ).serializeJson();
-    return await this.rpcCall(
-      "execute_raw_l2transaction",
-      data,
-      toHex(blockParameter)
-    );
+    const params = [data, toHex(blockParameter)];
+    if (serializedRegistryAddress != null) {
+      params.push(serializedRegistryAddress);
+    }
+    return await this.rpcCall("execute_raw_l2transaction", ...params);
   }
 
   public async executeL2Transaction(l2tx: L2Transaction): Promise<RunResult> {
@@ -153,7 +160,9 @@ export class GodwokenClient {
     return await this.rpcCall("execute_l2transaction", data);
   }
 
-  public async submitL2Transaction(l2tx: L2Transaction): Promise<Hash> {
+  public async submitL2Transaction(
+    l2tx: L2Transaction
+  ): Promise<Hash | undefined> {
     const data: HexString = new Reader(
       SerializeL2Transaction(NormalizeL2Transaction(l2tx))
     ).serializeJson();
@@ -164,6 +173,14 @@ export class GodwokenClient {
     hash: Hash
   ): Promise<L2TransactionWithStatus | undefined> {
     return await this.rpcCall("get_transaction", hash);
+  }
+
+  // TODO: replace by `getTransaction` later
+  // Only fullnode can get queue info
+  public async getTransactionFromFullnode(
+    hash: Hash
+  ): Promise<L2TransactionWithStatus | undefined> {
+    return await this.writeRpcCall("get_transaction", hash);
   }
 
   public async getTransactionReceipt(

@@ -14,3 +14,8 @@ export interface FilterCache {
   filter: FilterFlag | RpcFilterRequest;
   lastPoll: bigint;
 }
+
+export interface AutoCreateAccountCacheValue {
+  tx: HexString;
+  fromAddress: HexString;
+}
