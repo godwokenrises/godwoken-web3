@@ -366,7 +366,7 @@ export class Query {
     let selectLogsJoinTransactions = this.knex<DBLog>("transactions")
       .with("logs", selectLogs)
       .select("logs.*", "transactions.eth_tx_hash")
-      .join("logs", { "logs.transaction_hash": "transactions.hash" })
+      .join("logs", { "logs.transaction_hash": "transactions.hash" });
     let logs: DBLog[] = await selectLogsJoinTransactions
       .timeout(MAX_QUERY_TIME_MILSECS, { cancel: true })
       .cache()
