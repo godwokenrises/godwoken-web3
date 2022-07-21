@@ -16,11 +16,13 @@ import {
   verifyIntrinsicGas,
 } from "../validator";
 import { AutoCreateAccountCacheValue } from "../../cache/types";
-import { Address, Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import { HexNumber, Hash, Address, HexString, utils } from "@ckb-lumos/base";
 import {
-  GodwokenClient,
+  normalizers,
   RawL2Transaction,
   RunResult,
+  schemas,
+  GodwokenClient,
 } from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
@@ -69,8 +71,11 @@ import {
 import {
   autoCreateAccountCacheKey,
   calcEthTxHash,
+  decodeRawTransactionData,
   generateRawTransaction,
+  parseRawTransactionData,
   polyjuiceRawTransactionToApiTransaction,
+  PolyjuiceTransaction,
 } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
@@ -79,6 +84,7 @@ import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
 import { calcIntrinsicGas } from "../../util";
 import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
+import { Reader } from "@ckb-lumos/toolkit";
 
 const Config = require("../../../config/eth.json");
 
@@ -786,15 +792,25 @@ export class Eth {
       // Convert polyjuice tx to api transaction
       const { tx, fromAddress }: AutoCreateAccountCacheValue =
         JSON.parse(polyjuiceRawTx);
-      const apiTransaction: EthTransaction =
-        polyjuiceRawTransactionToApiTransaction(
-          tx,
-          ethTxHash,
-          tipBlock.hash,
-          tipBlock.number,
-          fromAddress
-        );
-      return apiTransaction;
+      const isAcaTxExist: boolean = await this.isAcaTxExist(
+        ethTxHash,
+        tx,
+        fromAddress
+      );
+      if (isAcaTxExist) {
+        const apiTransaction: EthTransaction =
+          polyjuiceRawTransactionToApiTransaction(
+            tx,
+            ethTxHash,
+            tipBlock.hash,
+            tipBlock.number,
+            fromAddress
+          );
+        return apiTransaction;
+      } else {
+        // If not found, means dropped by godwoken, should delete cache
+        this.cacheStore.delete(cacheKey);
+      }
     }
 
     return null;
@@ -1050,18 +1066,7 @@ export class Eth {
 
       // save the tx hash mapping for instant finality
       if (gwTxHash != null) {
-        const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-        await this.cacheStore.insert(
-          ethTxHashKey,
-          gwTxHash,
-          TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-        );
-        const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-        await this.cacheStore.insert(
-          gwTxHashKey,
-          ethTxHash,
-          TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-        );
+        await this.cacheTxHashMapping(ethTxHash, gwTxHash);
       }
 
       return ethTxHash;
@@ -1069,6 +1074,21 @@ export class Eth {
       logger.error(error);
       throw new InvalidParamsError(error.message);
     }
+  }
+
+  private async cacheTxHashMapping(ethTxHash: Hash, gwTxHash: Hash) {
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    await this.cacheStore.insert(
+      ethTxHashKey,
+      gwTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
+    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+    await this.cacheStore.insert(
+      gwTxHashKey,
+      ethTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
   }
 
   private async getTipNumber(): Promise<U64> {
@@ -1208,6 +1228,74 @@ export class Eth {
     }
 
     return [normalizedFromBlock, normalizedToBlock];
+  }
+
+  // aca = auto create account
+  // `acaTx` is the first transaction (nonce=0) of an undeposited account which account_id/from_id is not undetermined yet.
+  // `signature_hash` is used here to get an `acaTx` from GodwokenRPC, see also:
+  // https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md#method-gw_submit_l2transaction
+  //
+  // `gw_get_transaction(signature_hash)`
+  //       |-> if `txWithStatus.transaction` != null
+  //             |-> found!
+  //       |-> if `txWithStatus.transaction` == null
+  //             |-> if `from_id` == null
+  //                   |-> not found!
+  //             |-> if `from_id` != null
+  //                   |-> `gw_get_transaction(gw_tx_hash)`
+  //                         |-> `txWithStatus.transaction` != null
+  //                               |-> found!
+  //                         |->  `txWithStatus.transaction` == null
+  //                               |-> not found!
+  private async isAcaTxExist(
+    ethTxHash: Hash,
+    rawTx: HexString,
+    fromAddress: HexString
+  ): Promise<boolean> {
+    const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+    const real_v = +tx.v % 2 === 0 ? "0x01" : "0x00";
+    const signature: HexString = tx.r + tx.s.slice(2) + real_v.slice(2);
+    const signatureHash: Hash = utils
+      .ckbHash(new Reader(signature).toArrayBuffer())
+      .serializeJson();
+    const txWithStatus = await this.rpc.getTransactionFromFullnode(
+      signatureHash
+    );
+    if (txWithStatus != null) {
+      logger.debug(
+        `aca tx: ${ethTxHash} found by signature hash: ${signatureHash}`
+      );
+      // transaction found by signature hash
+      return true;
+    }
+
+    const fromId = await ethAddressToAccountId(fromAddress, this.rpc);
+    logger.debug(`aca tx's (${ethTxHash}) from_id:`, fromId);
+    if (fromId == null) {
+      return false;
+    }
+    const [godwokenTx, _cacheKeyAndValue] = await parseRawTransactionData(
+      tx,
+      this.rpc,
+      rawTx
+    );
+    if (godwokenTx.raw.from_id === AUTO_CREATE_ACCOUNT_FROM_ID) {
+      logger.warn("aca generated tx's from_id = 0");
+      return false;
+    }
+    const gwTxHash: Hash = utils
+      .ckbHash(
+        new Reader(
+          schemas.SerializeRawL2Transaction(
+            normalizers.NormalizeRawL2Transaction(godwokenTx.raw)
+          )
+        ).toArrayBuffer()
+      )
+      .serializeJson();
+    logger.debug(`aca tx: ${ethTxHash} gw_tx_hash: ${gwTxHash}`);
+    const gwTx = await this.rpc.getTransactionFromFullnode(gwTxHash);
+
+    return !!gwTx;
   }
 }
 
