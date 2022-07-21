@@ -750,7 +750,7 @@ export class Eth {
     const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
     if (gwTxHash != null) {
       const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-      if (godwokenTxWithStatus?.transaction == null) {
+      if (godwokenTxWithStatus == null) {
         return null;
       }
       const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
@@ -878,7 +878,7 @@ export class Eth {
     }
 
     const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus?.transaction == null) {
+    if (godwokenTxWithStatus == null) {
       return null;
     }
     const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
@@ -1261,7 +1261,7 @@ export class Eth {
     const txWithStatus = await this.rpc.getTransactionFromFullnode(
       signatureHash
     );
-    if (txWithStatus?.transaction != null) {
+    if (txWithStatus != null) {
       logger.debug(
         `aca tx: ${ethTxHash} found by signature hash: ${signatureHash}`
       );
