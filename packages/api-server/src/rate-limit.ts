@@ -2,9 +2,22 @@ import { AccessGuard } from "./cache/guard";
 import { LIMIT_EXCEEDED } from "./methods/error-code";
 import { Request, Response, NextFunction } from "express";
 import { logger } from "./base/logger";
+import { JSONRPCError } from "jayson";
 
 export const accessGuard = new AccessGuard();
 accessGuard.connect();
+
+export async function wsApplyRateLimitByIp(req: Request, method: string) {
+  const ip = getIp(req);
+  const methods = Object.keys(accessGuard.rpcMethods);
+  if (methods.includes(method) && ip != null) {
+    const res = await _rateLimit(method, ip);
+    if (res != null) {
+      return res.error;
+    }
+  }
+  return undefined;
+}
 
 export async function applyRateLimitByIp(
   req: Request,
@@ -86,6 +99,35 @@ export async function rateLimit(
     }
   }
   return isBan;
+}
+
+export async function _rateLimit(
+  rpcMethod: string,
+  reqId: string
+): Promise<{ error: JSONRPCError; remainSecs: number } | undefined> {
+  const isExist = await accessGuard.isExist(rpcMethod, reqId);
+  if (!isExist) {
+    await accessGuard.add(rpcMethod, reqId);
+  }
+
+  const isOverRate = await accessGuard.isOverRate(rpcMethod, reqId);
+  if (isOverRate) {
+    const remainSecs = await accessGuard.getKeyTTL(rpcMethod, reqId);
+
+    const message = `Too Many Requests, IP: ${reqId}, please wait ${remainSecs}s and retry. RPC method: ${rpcMethod}.`;
+    const error: JSONRPCError = {
+      code: LIMIT_EXCEEDED,
+      message: message,
+    };
+
+    logger.debug(
+      `Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
+    );
+    return { error, remainSecs };
+  } else {
+    await accessGuard.updateCount(rpcMethod, reqId);
+  }
+  return undefined;
 }
 
 export function hasMethod(body: any, name: string) {
