@@ -351,6 +351,63 @@ Response
 }
 ```
 
+#### Method `poly_getEthTxHashByGwTxHash`
+* `poly_getEthTxHashByGwTxHash()`
+* result: [`H256`](#type-h256)
+
+Get eth_tx_hash by gw_tx_hash
+
+##### Examples
+
+Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "poly_getEthTxHashByGwTxHash",
+  "params": ["0xa872560e2e7d2ca9bdefdae1810a0e01c5597227137c8862a573d1f4738aa360"],
+  "id": 42
+}
+```
+
+Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": "0x18dba16296dd00ae9b9339d62c2aac60fff09389dd9d3e8ad431357cc0180dfd"
+}
+```
+
+#### Method `poly_getGwTxHashByEthTxHash`
+* `poly_getGwTxHashByEthTxHash()`
+* result: [`H256`](#type-h256)
+
+Get gw_tx_hash by eth_tx_hash
+
+##### Examples
+
+Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "poly_getGwTxHashByEthTxHash",
+  "params": ["0x18dba16296dd00ae9b9339d62c2aac60fff09389dd9d3e8ad431357cc0180dfd"],
+  "id": 42
+}
+```
+
+Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": "0xa872560e2e7d2ca9bdefdae1810a0e01c5597227137c8862a573d1f4738aa360"
+}
+```
 
 ## RPC Types
 

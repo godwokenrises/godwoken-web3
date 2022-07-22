@@ -45,6 +45,32 @@ export class Query {
     this.knex = GLOBAL_KNEX;
   }
 
+  async getEthTxHashByGwTxHash(gwTxHash: Hash): Promise<Hash | undefined> {
+    const ethTxHash = await this.knex<DBTransaction>("transactions")
+      .select("eth_tx_hash")
+      .where({
+        hash: hexToBuffer(gwTxHash),
+      })
+      .first();
+    if (ethTxHash == null) {
+      return undefined;
+    }
+    return bufferToHex(ethTxHash.eth_tx_hash);
+  }
+
+  async getGwTxHashByEthTxHash(ethTxHash: Hash): Promise<Hash | undefined> {
+    const gwTxHash = await this.knex<DBTransaction>("transactions")
+      .select("hash")
+      .where({
+        eth_tx_hash: hexToBuffer(ethTxHash),
+      })
+      .first();
+    if (gwTxHash == null) {
+      return undefined;
+    }
+    return bufferToHex(gwTxHash.hash);
+  }
+
   async getTipBlockNumber(): Promise<bigint | undefined> {
     const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
