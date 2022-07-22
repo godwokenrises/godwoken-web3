@@ -360,6 +360,14 @@ export class CreateAccount {
   getFee(): Fee;
 }
 
+export function SerializeBatchCreateEthAccounts(value: object): ArrayBuffer;
+export class BatchCreateEthAccounts {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getScripts(): ScriptVec;
+  getFee(): Fee;
+}
+
 export function SerializeSUDTArgs(value: UnionType): ArrayBuffer;
 export class SUDTArgs {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);

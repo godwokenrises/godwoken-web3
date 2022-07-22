@@ -1,7 +1,7 @@
 #!/bin/bash
 
 download(){
-  curl -L https://raw.githubusercontent.com/zeroqn/godwoken/448b7c28a49deb9f9a73683be95bd8cacbab2c57/crates/types/schemas/$1.mol -o tmp/$1.mol
+  curl -L https://raw.githubusercontent.com/nervosnetwork/godwoken/develop/crates/types/schemas/$1.mol -o tmp/$1.mol
 }
 
 generate(){
