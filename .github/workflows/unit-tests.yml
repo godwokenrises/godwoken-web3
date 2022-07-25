@@ -24,7 +24,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         repository: RetricSu/godwoken-kicker
-        ref: 'compatibility-changes'
+        ref: 'master'
     - name: Kicker init
       run: ./kicker init
     - name: Kicker start
