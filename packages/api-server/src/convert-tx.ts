@@ -174,10 +174,24 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   return message;
 }
 
+function toRlpNumber(num: HexNumber): bigint {
+  return num === "0x" ? 0n : BigInt(num);
+}
+
 function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r, s } = tx;
 
-  const beforeEncode = [nonce, gasPrice, gasLimit, to, value, data, v, r, s];
+  const beforeEncode = [
+    toRlpNumber(nonce),
+    toRlpNumber(gasPrice),
+    toRlpNumber(gasLimit),
+    to,
+    toRlpNumber(value),
+    data,
+    toRlpNumber(v),
+    toRlpNumber(r),
+    toRlpNumber(s),
+  ];
 
   const result = rlp.encode(beforeEncode);
   return "0x" + result.toString("hex");
