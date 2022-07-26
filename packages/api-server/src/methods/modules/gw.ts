@@ -32,6 +32,7 @@ import {
 } from "../../parse-tx";
 import { InvalidParamsError } from "../error";
 import { gwConfig } from "../../base";
+import { META_CONTRACT_ID } from "../constant";
 
 export class Gw {
   private rpc: RPC;
@@ -516,10 +517,15 @@ export class Gw {
           const feeErr = verifyL2TxFee(fee, serializedL2Tx, 0);
           if (feeErr) {
             throw feeErr.padContext(
-              `gw_submit_l2transaction ethAddrReg SetMapping`
+              `gw_submit_l2transaction ethAddrReg ${regArgs.type}`
             );
           }
         }
+      }
+
+      // 4. disallow meta contract tx
+      if (toId === META_CONTRACT_ID) {
+        throw new Error("Meta contract transaction is disallowed");
       }
 
       // pass validate, submit l2 tx
