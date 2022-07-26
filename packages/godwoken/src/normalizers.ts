@@ -1,4 +1,4 @@
-import { Reader } from "@ckb-lumos/toolkit";
+import { Reader, normalizers } from "@ckb-lumos/toolkit";
 import {
   EthAddrRegArgs,
   EthAddrRegArgsType,
@@ -13,6 +13,10 @@ import {
   SudtArgs,
   SudtTransfer,
   SudtQuery,
+  MetaContractArgs,
+  MetaContractArgsType,
+  CreateAccount,
+  BatchCreateEthAccounts,
 } from "./types";
 
 // Taken for now from https://github.com/xxuejie/ckb-js-toolkit/blob/68f5ff709f78eb188ee116b2887a362123b016cc/src/normalizers.js#L17-L69,
@@ -217,6 +221,61 @@ export function NormalizeSudtArgs(
 
     default:
       throw new Error(`normalizer for ${sudtArgs.type} is not supported yet`);
+  }
+}
+
+/** MetaContract */
+export function NormalizeCreateAccount(
+  createAccount: CreateAccount,
+  { debugPath = "create_account" } = {}
+) {
+  return normalizeObject(debugPath, createAccount, {
+    script: toNormalize(normalizers.NormalizeScript),
+    fee: toNormalize(NormalizeFee),
+  });
+}
+
+export function NormalizeBatchCreateEthAccounts(
+  batchCreateEthAccounts: BatchCreateEthAccounts,
+  { debugPath = "batch_create_eth_accounts" } = {}
+) {
+  return normalizeObject(debugPath, batchCreateEthAccounts, {
+    scripts: toNormalizeArray(toNormalize(normalizers.NormalizeScript)),
+    fee: toNormalize(NormalizeFee),
+  });
+}
+
+function NormalizeMetaContractArgsType() {
+  return function (debugPath: string, value: any) {
+    if (Object.values(MetaContractArgsType).includes(value)) {
+      return value;
+    }
+
+    throw new Error(`${debugPath} Unsupported type ${value}`);
+  };
+}
+
+export function NormalizeMetaContractArgs(
+  metaContractArgs: MetaContractArgs,
+  { debugPath = "meta_contract_args" } = {}
+) {
+  switch (metaContractArgs.type) {
+    case MetaContractArgsType.CreateAccount:
+      return normalizeObject(debugPath, metaContractArgs, {
+        type: NormalizeMetaContractArgsType(),
+        value: toNormalize(NormalizeCreateAccount),
+      });
+
+    case MetaContractArgsType.BatchCreateEthAccounts:
+      return normalizeObject(debugPath, metaContractArgs, {
+        type: NormalizeMetaContractArgsType(),
+        value: toNormalize(NormalizeBatchCreateEthAccounts),
+      });
+
+    default:
+      throw new Error(
+        `normalizer for ${metaContractArgs.type} is not supported yet`
+      );
   }
 }
 

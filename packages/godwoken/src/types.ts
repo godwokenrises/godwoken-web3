@@ -184,3 +184,22 @@ export interface Fee {
   registry_id: HexU32;
   amount: HexU128;
 }
+
+export enum MetaContractArgsType {
+  CreateAccount = "CreateAccount",
+  BatchCreateEthAccounts = "BatchCreateEthAccounts",
+}
+export interface MetaContractArgs {
+  type: MetaContractArgsType;
+  value: CreateAccount | BatchCreateEthAccounts;
+}
+
+export interface CreateAccount {
+  script: Script;
+  fee: Fee;
+}
+
+export interface BatchCreateEthAccounts {
+  scripts: Script[];
+  fee: Fee;
+}

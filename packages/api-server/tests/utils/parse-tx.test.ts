@@ -6,15 +6,22 @@ import {
   parseSerializeEthAddrRegArgs,
   serializeSudtArgs,
   parseSerializeSudtArgs,
+  serializeMetaContractArgs,
+  parseSerializeMetaContractArgs,
 } from "../../src/parse-tx";
 import test from "ava";
 import {
+  MetaContractArgs,
+  CreateAccount,
   EthAddrRegArgsType,
+  MetaContractArgsType,
   normalizers,
   schemas,
   SetMapping,
+  BatchSetMapping,
   SudtArgsType,
   SudtTransfer,
+  BatchCreateEthAccounts,
 } from "@godwoken-web3/godwoken";
 import { Reader } from "@ckb-lumos/toolkit";
 
@@ -138,4 +145,143 @@ test("parse EthAddrReg tx", (t) => {
   const setMapping = parseSerializeEthAddrRegArgs(l2Tx.raw.args)
     .value as SetMapping;
   t.deepEqual(setMapping, expectSetMapping);
+});
+
+test("parse EthAddrReg batchSetMapping tx", (t) => {
+  const expectBatchSetMapping = {
+    gw_script_hashes: [
+      "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+      "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+      "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+    ],
+    fee: {
+      registry_id: "0x1",
+      amount: "0x10",
+    },
+  };
+  const ethAddrRegArgs = {
+    type: EthAddrRegArgsType.BatchSetMapping,
+    value: expectBatchSetMapping,
+  };
+  const serializedSetMapping = serializeEthAddrRegArgs(ethAddrRegArgs);
+
+  const expectL2Tx = {
+    raw: {
+      chain_id: "0x116e8",
+      from_id: "0x10",
+      to_id: "0x2",
+      nonce: "0xa4",
+      args: serializedSetMapping,
+    },
+    signature:
+      "0xbde03b87b7da48cc186a51f199355346a8173249886da75898159b1d00bb17940a908af2cc753b9003863a35a0bd35287e7c9f103339e05532d2be179d88d41800",
+  };
+  const serializeL2Tx = new Reader(
+    schemas.SerializeL2Transaction(
+      normalizers.NormalizeL2Transaction(expectL2Tx)
+    )
+  ).serializeJson();
+
+  const l2Tx = parseSerializeL2Transaction(serializeL2Tx);
+  t.deepEqual(l2Tx, expectL2Tx);
+
+  const batchSetMapping = parseSerializeEthAddrRegArgs(l2Tx.raw.args)
+    .value as BatchSetMapping;
+  t.deepEqual(batchSetMapping, expectBatchSetMapping);
+});
+
+test("parse MetaContract create account tx", (t) => {
+  const expectCreateAccount: CreateAccount = {
+    script: {
+      code_hash:
+        "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+      hash_type: "type",
+      args: "0x1111",
+    },
+    fee: {
+      registry_id: "0x1",
+      amount: "0x10",
+    },
+  };
+  const metaContractArgs: MetaContractArgs = {
+    type: MetaContractArgsType.CreateAccount,
+    value: expectCreateAccount,
+  };
+  const serializedMetaContractArgs =
+    serializeMetaContractArgs(metaContractArgs);
+
+  const expectL2Tx = {
+    raw: {
+      chain_id: "0x116e8",
+      from_id: "0x10",
+      to_id: "0x0",
+      nonce: "0xa4",
+      args: serializedMetaContractArgs,
+    },
+    signature:
+      "0xbde03b87b7da48cc186a51f199355346a8173249886da75898159b1d00bb17940a908af2cc753b9003863a35a0bd35287e7c9f103339e05532d2be179d88d41800",
+  };
+  const serializeL2Tx = new Reader(
+    schemas.SerializeL2Transaction(
+      normalizers.NormalizeL2Transaction(expectL2Tx)
+    )
+  ).serializeJson();
+
+  const l2Tx = parseSerializeL2Transaction(serializeL2Tx);
+  t.deepEqual(l2Tx, expectL2Tx);
+
+  const createAccount = parseSerializeMetaContractArgs(l2Tx.raw.args).value;
+  t.deepEqual(createAccount, expectCreateAccount);
+});
+
+test("parse MetaContract batch create eth account tx", (t) => {
+  const expectBatchCreate: BatchCreateEthAccounts = {
+    scripts: [
+      {
+        code_hash:
+          "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+        hash_type: "type",
+        args: "0x1111",
+      },
+      {
+        code_hash:
+          "0x3991637c340d585858f45c440116aaf2d13580517fc0fffeb67b5bffe35d77d0",
+        hash_type: "type",
+        args: "0x1111",
+      },
+    ],
+    fee: {
+      registry_id: "0x1",
+      amount: "0x10",
+    },
+  };
+  const metaContractArgs: MetaContractArgs = {
+    type: MetaContractArgsType.BatchCreateEthAccounts,
+    value: expectBatchCreate,
+  };
+  const serializedMetaContractArgs =
+    serializeMetaContractArgs(metaContractArgs);
+
+  const expectL2Tx = {
+    raw: {
+      chain_id: "0x116e8",
+      from_id: "0x10",
+      to_id: "0x0",
+      nonce: "0xa4",
+      args: serializedMetaContractArgs,
+    },
+    signature:
+      "0xbde03b87b7da48cc186a51f199355346a8173249886da75898159b1d00bb17940a908af2cc753b9003863a35a0bd35287e7c9f103339e05532d2be179d88d41800",
+  };
+  const serializeL2Tx = new Reader(
+    schemas.SerializeL2Transaction(
+      normalizers.NormalizeL2Transaction(expectL2Tx)
+    )
+  ).serializeJson();
+
+  const l2Tx = parseSerializeL2Transaction(serializeL2Tx);
+  t.deepEqual(l2Tx, expectL2Tx);
+
+  const createAccount = parseSerializeMetaContractArgs(l2Tx.raw.args).value;
+  t.deepEqual(createAccount, expectBatchCreate);
 });
