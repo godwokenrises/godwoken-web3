@@ -29,6 +29,6 @@
     "eslint": "^8.5.0",
     "prettier": "^2.2.1"
   },
-  "version": "1.5.0-rc1",
+  "version": "1.5.1-rc2",
   "author": "hupeng <bitrocks.hu@gmail.com>"
 }
