@@ -173,10 +173,10 @@ export class GodwokenClient {
     hash: Hash
   ): Promise<L2TransactionWithStatus | undefined> {
     const txWithStatus = await this.rpcCall("get_transaction", hash);
-    if (txWithStatus != null) {
-      return txWithStatus;
+    if (txWithStatus == null && this.rpc !== this.readonlyRpc) {
+      return await this.writeRpcCall("get_transaction", hash);
     }
-    return await this.writeRpcCall("get_transaction", hash);
+    return txWithStatus;
   }
 
   // TODO: replace by `getTransaction` later
