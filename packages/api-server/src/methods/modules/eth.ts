@@ -73,6 +73,7 @@ import {
   calcEthTxHash,
   decodeRawTransactionData,
   generateRawTransaction,
+  getSignature,
   parseRawTransactionData,
   polyjuiceRawTransactionToApiTransaction,
   PolyjuiceTransaction,
@@ -1253,8 +1254,7 @@ export class Eth {
     fromAddress: HexString
   ): Promise<boolean> {
     const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
-    const real_v = +tx.v % 2 === 0 ? "0x01" : "0x00";
-    const signature: HexString = tx.r + tx.s.slice(2) + real_v.slice(2);
+    const signature: HexString = getSignature(tx);
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
       .serializeJson();

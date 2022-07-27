@@ -108,6 +108,9 @@ export function decodeRawTransactionData(
 
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
 
+  // r & s is integer in RLP, convert to 32-byte hex string (add leading zeros)
+  const rWithLeadingZeros: HexString = "0x" + r.slice(2).padStart(64, "0");
+  const sWithLeadingZeros: HexString = "0x" + s.slice(2).padStart(64, "0");
   const tx: PolyjuiceTransaction = {
     nonce,
     gasPrice,
@@ -116,11 +119,16 @@ export function decodeRawTransactionData(
     value,
     data,
     v,
-    r,
-    s,
+    r: rWithLeadingZeros,
+    s: sWithLeadingZeros,
   };
 
   return tx;
+}
+
+export function getSignature(tx: PolyjuiceTransaction): HexString {
+  const realVWithoutPrefix = +tx.v % 2 === 0 ? "01" : "00";
+  return "0x" + tx.r.slice(2) + tx.s.slice(2) + realVWithoutPrefix;
 }
 
 function numberToRlpEncode(num: HexString): HexString {
@@ -166,10 +174,24 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   return message;
 }
 
+function toRlpNumber(num: HexNumber): bigint {
+  return num === "0x" ? 0n : BigInt(num);
+}
+
 function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r, s } = tx;
 
-  const beforeEncode = [nonce, gasPrice, gasLimit, to, value, data, v, r, s];
+  const beforeEncode = [
+    toRlpNumber(nonce),
+    toRlpNumber(gasPrice),
+    toRlpNumber(gasLimit),
+    to,
+    toRlpNumber(value),
+    data,
+    toRlpNumber(v),
+    toRlpNumber(r),
+    toRlpNumber(s),
+  ];
 
   const result = rlp.encode(beforeEncode);
   return "0x" + result.toString("hex");
@@ -180,7 +202,7 @@ export async function parseRawTransactionData(
   rpc: GodwokenClient,
   polyjuiceRawTx: HexString
 ): Promise<[L2Transaction, [string, string] | undefined]> {
-  const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+  const { nonce, gasPrice, gasLimit, to, value, data } = rawTx;
 
   // Reject transactions with too large size
   const rlpEncoded = encodePolyjuiceTransaction(rawTx);
@@ -205,15 +227,7 @@ export async function parseRawTransactionData(
     );
   }
 
-  const r = "0x" + rA.slice(2).padStart(64, "0");
-  const s = "0x" + sA.slice(2).padStart(64, "0");
-
-  let real_v = "0x00";
-  if (+v % 2 === 0) {
-    real_v = "0x01";
-  }
-
-  const signature = r + s.slice(2) + real_v.slice(2);
+  const signature: HexString = getSignature(rawTx);
 
   const message = calcMessage(rawTx);
 
