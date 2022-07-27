@@ -8,7 +8,7 @@ RUN cargo install moleculec --version 0.7.2
 COPY . /godwoken-web3
 RUN cd /godwoken-web3 && rustup component add rustfmt && cargo build --release
 
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 RUN apt-get update \
  && apt-get dist-upgrade -y \
