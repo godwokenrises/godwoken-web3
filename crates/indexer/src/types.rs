@@ -110,11 +110,14 @@ impl Transaction {
                 s.append(&vec![0u8; 0]);
             }
         };
+        // r & s should be integer format in RLP
+        let r_num = U256::from(&self.r);
+        let s_num = U256::from(&self.s);
         s.append(&self.value)
             .append(&self.data)
             .append(&self.add_chain_replay_protection())
-            .append(&self.r.to_vec())
-            .append(&self.s.to_vec());
+            .append(&r_num)
+            .append(&s_num);
         s.finalize_unbounded_list();
         s.out().freeze().to_vec()
     }
