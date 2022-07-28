@@ -172,15 +172,12 @@ export class GodwokenClient {
   public async getTransaction(
     hash: Hash
   ): Promise<L2TransactionWithStatus | undefined> {
-    return await this.rpcCall("get_transaction", hash);
-  }
-
-  // TODO: replace by `getTransaction` later
-  // Only fullnode can get queue info
-  public async getTransactionFromFullnode(
-    hash: Hash
-  ): Promise<L2TransactionWithStatus | undefined> {
-    return await this.writeRpcCall("get_transaction", hash);
+    const txWithStatus = await this.rpcCall("get_transaction", hash);
+    if (txWithStatus == null && this.rpc !== this.readonlyRpc) {
+      // Only fullnode has queue info
+      return await this.writeRpcCall("get_transaction", hash);
+    }
+    return txWithStatus;
   }
 
   public async getTransactionReceipt(

@@ -1258,9 +1258,7 @@ export class Eth {
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
       .serializeJson();
-    const txWithStatus = await this.rpc.getTransactionFromFullnode(
-      signatureHash
-    );
+    const txWithStatus = await this.rpc.getTransaction(signatureHash);
     if (txWithStatus != null) {
       logger.debug(
         `aca tx: ${ethTxHash} found by signature hash: ${signatureHash}`
@@ -1293,7 +1291,7 @@ export class Eth {
       )
       .serializeJson();
     logger.debug(`aca tx: ${ethTxHash} gw_tx_hash: ${gwTxHash}`);
-    const gwTx = await this.rpc.getTransactionFromFullnode(gwTxHash);
+    const gwTx = await this.rpc.getTransaction(gwTxHash);
 
     return !!gwTx;
   }
