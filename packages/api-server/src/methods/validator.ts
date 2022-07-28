@@ -572,14 +572,13 @@ export function verifyIntrinsicGas(
   return undefined;
 }
 
-export async function verifyEnoughBalance(
+export async function checkBalance(
   rpc: GodwokenClient,
   from: HexString,
-  value: HexNumber | undefined,
-  gas: HexNumber | undefined,
-  gasPrice: HexNumber | undefined,
-  index: number
-) {
+  value?: HexNumber,
+  gas?: HexNumber,
+  gasPrice?: HexNumber
+): Promise<{ requiredBalance: bigint; balance: bigint }> {
   const registryAddress: EthRegistryAddress = new EthRegistryAddress(from);
   const balance = await rpc.getBalance(
     registryAddress.serialize(),
@@ -589,12 +588,34 @@ export async function verifyEnoughBalance(
   const txGas: bigint = gas == null || gas === "0x" ? 0n : BigInt(gas);
   const txGasPrice: bigint =
     gasPrice == null || gasPrice === "0x" ? 0n : BigInt(gasPrice);
-  const requireBalance = txGas * txGasPrice + txValue;
+  const requiredBalance = txGas * txGasPrice + txValue;
 
-  if (balance < requireBalance) {
+  return {
+    balance,
+    requiredBalance,
+  };
+}
+
+export async function verifyEnoughBalance(
+  rpc: GodwokenClient,
+  from: HexString,
+  value: HexNumber | undefined,
+  gas: HexNumber | undefined,
+  gasPrice: HexNumber | undefined,
+  index: number
+) {
+  const { balance, requiredBalance } = await checkBalance(
+    rpc,
+    from,
+    value,
+    gas,
+    gasPrice
+  );
+
+  if (balance < requiredBalance) {
     return invalidParamsError(
       index,
-      `insufficient balance, require ${requireBalance.toString()}, got ${balance}`
+      `insufficient balance, require ${requiredBalance.toString()}, got ${balance}`
     );
   }
   return undefined;
