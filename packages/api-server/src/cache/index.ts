@@ -1,3 +1,4 @@
+require("newrelic");
 import { FilterCacheInDb, FilterCache } from "./types";
 import { Store } from "./store";
 import crypto from "crypto";

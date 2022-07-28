@@ -22,10 +22,7 @@ const cacheStore = new Store(
 );
 cacheStore.init();
 
-let newrelic: any = undefined;
-if (envConfig.newRelicLicenseKey) {
-  newrelic = require("newrelic");
-}
+const newrelic = require("newrelic");
 
 const blockEmitter = new BlockEmitter();
 blockEmitter.startWorker();
@@ -38,24 +35,18 @@ export function wrapper(ws: any, _req: any) {
   for (const [key, value] of Object.entries(methods)) {
     ws.on(key, function (...args: any[]) {
       // add web transaction for websocket request
-      if (envConfig.newRelicLicenseKey) {
-        return newrelic.startWebTransaction(`/ws#${key}`, async () => {
-          newrelic.getTransaction();
-          try {
-            const params = args.slice(0, args.length - 1);
-            const cb = args[args.length - 1];
-            (value as any)(params, cb);
-          } catch (error) {
-            throw error;
-          } finally {
-            newrelic.endTransaction();
-          }
-        });
-      }
-
-      const params = args.slice(0, args.length - 1);
-      const cb = args[args.length - 1];
-      (value as any)(params, cb);
+      return newrelic.startWebTransaction(`/ws#${key}`, async () => {
+        newrelic.getTransaction();
+        try {
+          const params = args.slice(0, args.length - 1);
+          const cb = args[args.length - 1];
+          (value as any)(params, cb);
+        } catch (error) {
+          throw error;
+        } finally {
+          newrelic.endTransaction();
+        }
+      });
     });
   }
 

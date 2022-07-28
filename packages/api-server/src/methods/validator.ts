@@ -1,3 +1,4 @@
+const newrelic = require("newrelic");
 import {
   calcFee,
   calcIntrinsicGas,
@@ -43,7 +44,9 @@ export function middleware(
     }
 
     try {
-      return await method(params);
+      return await newrelic.startSegment(method.name, true, async () => {
+        return await method(params);
+      });
     } catch (err: any) {
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
