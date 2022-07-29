@@ -8,9 +8,10 @@ const PROF_TIME_MS = 25000; // 25s
 export class Prof {
   constructor() {}
 
-  @cpuProf(PROF_TIME_MS)
-  async cpu(_args: []): Promise<string> {
-    return "ok";
+  @cpuProf(PROF_TIME_MS, true)
+  async cpu(args: any[]): Promise<string> {
+    const fileName = args[args.length - 1];
+    return fileName;
   }
 
   async heap() {
@@ -27,8 +28,8 @@ export class Prof {
         transform.on("error", reject);
       });
     };
-    const name = path.join(`${Date.now()}.heapsnapshot`);
-    await createHeadDumpFile(name);
-    return "ok";
+    const fileName = `${Date.now()}.heapsnapshot`;
+    await createHeadDumpFile(path.join(fileName));
+    return fileName;
   }
 }
