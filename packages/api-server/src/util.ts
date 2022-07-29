@@ -5,7 +5,6 @@ import {
   TX_GAS,
   TX_GAS_CONTRACT_CREATION,
 } from "./methods/constant";
-import { BlockParameter } from "./methods/types";
 
 const { platform } = require("os");
 const { version: packageVersion } = require("../../../package.json");
@@ -16,25 +15,6 @@ export function getClientVersion() {
   return `Godwoken/v${packageVersion}/${platform()}/node${version.substring(
     1
   )}`;
-}
-
-export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
-  if (!block_paramter) throw new Error("block_parameter is undefind!");
-
-  switch (block_paramter) {
-    case "latest":
-      return BigInt("1" + "0".repeat(10)); // a very large number
-
-    case "earliest":
-      return BigInt(0);
-
-    case "pending":
-      // throw new Error("pending transaction unsupported.");
-      return BigInt("1" + "0".repeat(10)); // treat it as 'latest'
-
-    default:
-      return BigInt(block_paramter);
-  }
 }
 
 export function toCamel(s: string) {
