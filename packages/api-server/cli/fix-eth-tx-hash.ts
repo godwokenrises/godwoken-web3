@@ -81,19 +81,21 @@ export async function fixEthTxHash(
   const wrongTxs = await query;
 
   console.log(`Found ${wrongTxs.length} wrong txs`);
-  await Promise.all(
-    wrongTxs.map(async (tx: DBTransaction) => {
-      const gwTxHash: Hash = bufferToHex(tx.hash);
-      const originEthTxHash: Hash = bufferToHex(tx.eth_tx_hash);
-      const newEthTxHash: Hash = updateEthTxHash(tx, chainId);
-      await knex<DBTransaction>("transactions")
-        .update({ eth_tx_hash: Buffer.from(newEthTxHash.slice(2), "hex") })
-        .where({ eth_tx_hash: tx.eth_tx_hash });
-      console.log(
-        `update gw_tx_hash: (${gwTxHash})'s eth_tx_hash, (${originEthTxHash}) --> (${newEthTxHash})`
-      );
-    })
-  );
+  await knex.transaction(async (trx) => {
+    await Promise.all(
+      wrongTxs.map(async (tx: DBTransaction) => {
+        const gwTxHash: Hash = bufferToHex(tx.hash);
+        const originEthTxHash: Hash = bufferToHex(tx.eth_tx_hash);
+        const newEthTxHash: Hash = updateEthTxHash(tx, chainId);
+        await trx<DBTransaction>("transactions")
+          .update({ eth_tx_hash: Buffer.from(newEthTxHash.slice(2), "hex") })
+          .where({ eth_tx_hash: tx.eth_tx_hash });
+        console.log(
+          `update gw_tx_hash: (${gwTxHash})'s eth_tx_hash, (${originEthTxHash}) --> (${newEthTxHash})`
+        );
+      })
+    );
+  });
   console.log(`All ${wrongTxs.length} txs updated!`);
 }
 
