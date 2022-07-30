@@ -26,6 +26,7 @@ export const envConfig = {
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
   feeRate: getOptional("FEE_RATE"),
+  enableProfRpc: getOptional("ENABLE_PROF_RPC"),
 };
 
 function getRequired(name: string): string {
