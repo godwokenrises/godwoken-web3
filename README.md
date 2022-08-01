@@ -60,23 +60,6 @@ $ cat > ./packages/api-server/rate-limit-config.json <<EOF
 EOF
 ```
 
-### Fix wrong data
-
-`eth_tx_hash` was wrong before when R or S with leading zeros in database.
-
-Run once after `web3-indexer` stopped is enough.
-
-```
-// List first 20 txs, database-url can also read from env
-yarn run cli list-wrong-eth-tx-hashes -d <database url>
-yarn run cli list-wrong-eth-tx-hashes --help // for more info
-
-// Fix wrong data
-// database-url can also read from env, and chain-id can also read from RPC, using `yarn run cli fix-eth-tx-hash --help` for more infomation.
-yarn run cli fix-eth-tx-hash -d <database url> -c <chain id>
-yarn run cli fix-eth-tx-hash --help // for more info
-```
-
 ### Start Indexer
 
 The default `indexer_config_path` is './indexer-config.toml'. More details about the configs refer to [struct IndexerConfig](https://github.com/nervosnetwork/godwoken-web3/blob/179a9a6ea065e78b419e692c80b331e4a7ead64d/crates/indexer/src/config.rs#L11-L22).
