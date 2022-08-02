@@ -1,4 +1,4 @@
-FROM rust:1 as builder
+FROM rust:1-bullseye as builder
 
 RUN apt-get update
 RUN apt-get -y install --no-install-recommends llvm-dev clang libclang-dev libssl-dev
@@ -12,6 +12,7 @@ FROM ubuntu:focal
 
 RUN apt-get update \
  && apt-get dist-upgrade -y \
+ && apt-get install -y openssl \
  && apt-get clean \
  && echo 'Finished installing OS updates'
 

@@ -19,6 +19,7 @@ import {
   AUTO_CREATE_ACCOUNT_FROM_ID,
 } from "./methods/constant";
 import {
+  checkBalance,
   verifyEnoughBalance,
   verifyGasLimit,
   verifyGasPrice,
@@ -241,22 +242,24 @@ export async function parseRawTransactionData(
   let cacheKeyAndValue: [string, string] | undefined;
   if (fromId == null) {
     const ethTxHash = calcEthTxHash(rlpEncoded);
-
-    cacheKeyAndValue = await cacheAutoCreateAccount(
-      polyjuiceRawTx,
-      ethTxHash,
-      fromEthAddress,
+    const { balance, requiredBalance } = await checkBalance(
       rpc,
+      fromEthAddress,
+      value,
       gasLimit,
-      gasPrice,
-      value
+      gasPrice
     );
-
-    if (!cacheKeyAndValue) {
+    if (balance < requiredBalance) {
       throw new Error(
-        `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+        `insufficient balance of ${fromEthAddress}, require ${requiredBalance}, got ${balance}`
       );
     }
+    const key = autoCreateAccountCacheKey(ethTxHash);
+    const cacheValue: AutoCreateAccountCacheValue = {
+      tx: polyjuiceRawTx,
+      fromAddress: fromEthAddress,
+    };
+    cacheKeyAndValue = [key, JSON.stringify(cacheValue)];
 
     fromId = AUTO_CREATE_ACCOUNT_FROM_ID;
   }
@@ -422,34 +425,6 @@ function publicKeyToEthAddress(publicKey: HexString): HexString {
       .slice(12)
       .toString("hex");
   return ethAddress;
-}
-
-async function cacheAutoCreateAccount(
-  polyjuiceRawTx: HexString,
-  ethTxHash: Hash,
-  fromEthAddress: HexString,
-  rpc: GodwokenClient,
-  gasLimit: HexNumber,
-  gasPrice: HexNumber,
-  value: HexNumber
-): Promise<[string, string] | undefined> {
-  const err = await verifyEnoughBalance(
-    rpc,
-    fromEthAddress,
-    value,
-    gasLimit,
-    gasPrice,
-    0
-  );
-  if (err != null) {
-    return undefined;
-  }
-  const key = autoCreateAccountCacheKey(ethTxHash);
-  const cacheValue: AutoCreateAccountCacheValue = {
-    tx: polyjuiceRawTx,
-    fromAddress: fromEthAddress,
-  };
-  return [key, JSON.stringify(cacheValue)];
 }
 
 export function autoCreateAccountCacheKey(ethTxHash: string) {

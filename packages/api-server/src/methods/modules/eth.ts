@@ -1467,21 +1467,8 @@ async function buildEthCallTx(
     const registryAddress: EthRegistryAddress = new EthRegistryAddress(
       fromAddress
     );
-    const fromAddressBalance = await rpc.getBalance(
-      registryAddress.serialize(),
-      +CKB_SUDT_ID,
-      undefined
-    );
-    if (fromAddressBalance > 0) {
-      fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
-      serializedRegistryAddress = registryAddress.serialize();
-    }
-  }
-
-  if (fromId == null) {
-    throw new Error(
-      `from id not found by from address: ${fromAddress}, have you deposited?`
-    );
+    fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
+    serializedRegistryAddress = registryAddress.serialize();
   }
 
   // check if from address have enough balance
@@ -1527,7 +1514,7 @@ async function buildEthCallTx(
   );
   const rawL2Transaction = buildRawL2Transaction(
     BigInt(gwConfig.web3ChainId),
-    fromId,
+    fromId!,
     toId,
     nonce,
     polyjuiceArgs
