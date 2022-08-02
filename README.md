@@ -35,6 +35,7 @@ MIN_GAS_PRICE=<optional, decimal number, the minimal gas price required>
 MAX_QUERY_NUMBER=<optional, integer number, maximum number of records to be returned in one query from database>
 MAX_QUERY_TIME_MILSECS=<optional, integer number, maximum number of time for database query>
 FEE_RATE=<optional, decimal number, use to calculate minimal l2tx fee required, default to 0>
+ENABLE_PROF_RPC=<optional, boolean, default to false>
 EOF
 
 $ yarn

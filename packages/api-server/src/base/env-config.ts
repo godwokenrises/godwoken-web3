@@ -6,7 +6,7 @@ dotenv.config({ path: "./.env" });
 export const envConfig = {
   databaseUrl: getRequired("DATABASE_URL"),
   godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
-  newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
+  _newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
   pgPoolMax: getOptional("PG_POOL_MAX"),
@@ -26,6 +26,7 @@ export const envConfig = {
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
   feeRate: getOptional("FEE_RATE"),
+  enableProfRpc: getOptional("ENABLE_PROF_RPC"),
 };
 
 function getRequired(name: string): string {

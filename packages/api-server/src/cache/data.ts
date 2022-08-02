@@ -1,3 +1,4 @@
+require("newrelic");
 import { createClient } from "redis";
 import { envConfig } from "../base/env-config";
 import crypto from "crypto";
@@ -114,10 +115,7 @@ export class RedisDataCache {
     // use redis-lock for data cache
     const t1 = new Date();
     const lockValue = getLockUniqueValue();
-    const setLockKeyOptions = {
-      NX: true,
-      PX: this.lock.key.expiredTimeMs,
-    };
+    const expiredTimeMs = this.lock.key.expiredTimeMs;
 
     const releaseLock = async (lockValue: string) => {
       if (!this.lock) throw new Error("enable lock first!");
@@ -144,7 +142,10 @@ export class RedisDataCache {
       const isLockAcquired = await pubClient.set(
         this.lock.key.name,
         lockValue,
-        setLockKeyOptions
+        {
+          NX: true,
+          PX: expiredTimeMs,
+        }
       );
 
       if (isLockAcquired) {

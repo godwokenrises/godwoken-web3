@@ -1,3 +1,4 @@
+require("newrelic");
 import { Store } from "./store";
 import { HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";

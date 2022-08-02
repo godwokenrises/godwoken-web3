@@ -140,3 +140,7 @@ export function calcFee(serializedL2Tx: HexString, feeRate: bigint) {
   const byteLen = BigInt(serializedL2Tx.slice(2).length / 2);
   return byteLen * feeRate;
 }
+
+export async function asyncSleep(ms = 0) {
+  return new Promise((r) => setTimeout(() => r("ok"), ms));
+}

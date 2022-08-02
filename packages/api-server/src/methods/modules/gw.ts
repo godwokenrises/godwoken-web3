@@ -303,13 +303,22 @@ export class Gw {
 
   /**
    *
-   * @param args [tx_hash, (verbose)]
+   * @param args [tx_hash, (verbose:number)]
    * @returns
    */
   async get_transaction(args: any[]) {
     try {
-      const result = await this.readonlyRpc.gw_get_transaction(...args);
-      return result;
+      const txWithStatus = await this.readonlyRpc.gw_get_transaction(...args);
+      // if verbose = 0 (default is 0) && tx_with_status is null, get transaction from fullnode.
+      const verbose = args[1];
+      if (
+        (verbose == null || verbose === 0) &&
+        txWithStatus == null &&
+        this.readonlyRpc !== this.rpc
+      ) {
+        return await this.rpc.gw_get_transaction(...args);
+      }
+      return txWithStatus;
     } catch (error) {
       parseGwRpcError(error);
     }
