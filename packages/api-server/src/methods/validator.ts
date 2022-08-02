@@ -310,11 +310,11 @@ export function verifyBlockSpecifier(
     );
   }
 
-  if (blockSpecifier.requireCanonical === true) {
-    return invalidParamsError(
-      index,
-      "requireCanonical true in blockSpecifier is not supported"
-    );
+  if (
+    blockSpecifier.requireCanonical != null &&
+    typeof blockSpecifier.requireCanonical !== "boolean"
+  ) {
+    return invalidParamsError(index, "requireCanonical should be boolean type");
   }
   if (blockSpecifier.blockNumber != null) {
     const err = verifyHexNumber(blockSpecifier.blockNumber, index);

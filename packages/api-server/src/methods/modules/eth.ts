@@ -1115,6 +1115,7 @@ export class Eth {
     }
 
     // handle block hash
+    // Note: don't check requireCanonical since Godwoken only has canonical blocks.
     if (
       typeof blockParameter === "object" &&
       blockParameter.blockHash != null
@@ -1124,8 +1125,8 @@ export class Eth {
         false,
       ]);
       if (block == null) {
-        throw new InvalidParamsError(
-          `Block not found by block hash ${blockParameter.blockHash}`
+        throw new HeaderNotFoundError(
+          `Header not found by block hash ${blockParameter.blockHash}`
         );
       }
       if (block.number == null) {
