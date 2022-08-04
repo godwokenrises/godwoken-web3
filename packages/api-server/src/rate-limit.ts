@@ -11,7 +11,7 @@ export async function wsApplyRateLimitByIp(req: Request, method: string) {
   const ip = getIp(req);
   const methods = Object.keys(accessGuard.rpcMethods);
   if (methods.includes(method) && ip != null) {
-    const res = await _rateLimit(method, ip);
+    const res = await wsRateLimit(method, ip);
     if (res != null) {
       return res.error;
     }
@@ -101,7 +101,7 @@ export async function rateLimit(
   return isBan;
 }
 
-export async function _rateLimit(
+export async function wsRateLimit(
   rpcMethod: string,
   reqId: string
 ): Promise<{ error: JSONRPCError; remainSecs: number } | undefined> {
