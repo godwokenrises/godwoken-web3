@@ -5,7 +5,7 @@ import {
   validateHexNumber,
   validateHexString,
 } from "../util";
-import { BlockParameter } from "./types";
+import { BlockParameter, BlockSpecifier } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
 import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
@@ -273,11 +273,62 @@ export function verifyBlockParameter(
     return undefined;
   }
 
-  const err = verifyHexNumber(blockParameter, index);
-  if (err) {
-    return err.padContext("blockParameter block number");
+  if (typeof blockParameter === "object") {
+    const err = verifyBlockSpecifier(blockParameter, index);
+    if (err) {
+      return err.padContext("blockSpecifier");
+    }
+  } else {
+    const err = verifyHexNumber(blockParameter, index);
+    if (err) {
+      return err.padContext("blockParameter block number");
+    }
   }
 
+  return undefined;
+}
+
+export function verifyBlockSpecifier(
+  blockSpecifier: BlockSpecifier,
+  index: number
+) {
+  if (typeof blockSpecifier !== "object") {
+    return invalidParamsError(index, `blockSpecifier must be an object`);
+  }
+
+  if (blockSpecifier.blockHash == null && blockSpecifier.blockNumber == null) {
+    return invalidParamsError(
+      index,
+      "blockSpecifier has no blockHash and blockNumber"
+    );
+  }
+
+  if (blockSpecifier.blockHash != null && blockSpecifier.blockNumber != null) {
+    return invalidParamsError(
+      index,
+      "blockHash and blockNumber can not exits at same time"
+    );
+  }
+
+  if (
+    blockSpecifier.requireCanonical != null &&
+    typeof blockSpecifier.requireCanonical !== "boolean"
+  ) {
+    return invalidParamsError(index, "requireCanonical should be boolean type");
+  }
+  if (blockSpecifier.blockNumber != null) {
+    const err = verifyHexNumber(blockSpecifier.blockNumber, index);
+    if (err) {
+      return err.padContext("blockSpecifier block number");
+    }
+  }
+
+  if (blockSpecifier.blockHash != null) {
+    const err = verifyBlockHash(blockSpecifier.blockHash, index);
+    if (err) {
+      return err.padContext("blockSpecifier block hash");
+    }
+  }
   return undefined;
 }
 

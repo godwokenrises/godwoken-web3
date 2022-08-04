@@ -1114,8 +1114,35 @@ export class Eth {
         return undefined;
     }
 
+    // handle block hash
+    // Note: don't check requireCanonical since Godwoken only has canonical blocks.
+    if (
+      typeof blockParameter === "object" &&
+      blockParameter.blockHash != null
+    ) {
+      const block = await this.getBlockByHash([
+        blockParameter.blockHash,
+        false,
+      ]);
+      if (block == null) {
+        throw new HeaderNotFoundError(
+          `Header not found by block hash ${blockParameter.blockHash}`
+        );
+      }
+      if (block.number == null) {
+        // means pending;
+        return undefined;
+      }
+      return BigInt(block.number);
+    }
+
+    // handle block number
     const tipNumber: bigint = await this.getTipNumber();
-    const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
+    const blockHexNum =
+      typeof blockParameter === "object" && blockParameter.blockNumber != null
+        ? blockParameter.blockNumber
+        : (blockParameter as HexNumber);
+    const blockNumber: U64 = Uint64.fromHex(blockHexNum).getValue();
     if (tipNumber < blockNumber) {
       throw new HeaderNotFoundError();
     }
@@ -1205,28 +1232,21 @@ export class Eth {
     fromBlock: undefined | BlockParameter,
     toBlock: undefined | BlockParameter
   ): Promise<[bigint, bigint]> {
-    let normalizedFromBlock;
-    let normalizedToBlock;
+    let normalizedFromBlock: bigint;
+    let normalizedToBlock: bigint;
     const latestBlockNumber = await this.getTipNumber();
-
     // See also:
     // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
     // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
-    if (fromBlock === "latest" || fromBlock === "pending") {
-      normalizedFromBlock = latestBlockNumber;
-    } else if (fromBlock == null || fromBlock === "earliest") {
-      normalizedFromBlock = BigInt(0);
-    } else {
-      normalizedFromBlock = BigInt(fromBlock);
-    }
+    const _fromBlock: bigint | undefined = await this.parseBlockParameter(
+      fromBlock ?? "earliest"
+    );
+    normalizedFromBlock = _fromBlock ?? latestBlockNumber;
 
-    if (toBlock == null || toBlock === "latest" || toBlock === "pending") {
-      normalizedToBlock = latestBlockNumber;
-    } else if (toBlock === "earliest") {
-      normalizedToBlock = BigInt(0);
-    } else {
-      normalizedToBlock = BigInt(toBlock);
-    }
+    const _toBlock: bigint | undefined = await this.parseBlockParameter(
+      toBlock ?? "latest"
+    );
+    normalizedToBlock = _toBlock ?? latestBlockNumber;
 
     return [normalizedFromBlock, normalizedToBlock];
   }
