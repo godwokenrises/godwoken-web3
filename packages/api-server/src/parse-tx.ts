@@ -1,4 +1,4 @@
-import { HexString, HexNumber } from "@ckb-lumos/base";
+import { HexString, HexNumber, Script, HashType } from "@ckb-lumos/base";
 import { Reader } from "@ckb-lumos/toolkit";
 import {
   schemas,
@@ -14,6 +14,11 @@ import {
   SudtArgsType,
   SudtQuery,
   SudtTransfer,
+  MetaContractArgs,
+  MetaContractArgsType,
+  CreateAccount,
+  BatchCreateEthAccounts,
+  Fee,
 } from "@godwoken-web3/godwoken";
 import { Uint64, Uint32, Uint128, Uint256 } from "./base/types/uint";
 export interface PolyjuiceArgs {
@@ -95,6 +100,12 @@ export function parseSerializeSudtArgs(args: HexString) {
   return DenormalizeSudtArgs(new schemas.SUDTArgs(new Reader(args)));
 }
 
+export function parseSerializeMetaContractArgs(args: HexString) {
+  return DenormalizeMetaContractArgs(
+    new schemas.MetaContractArgs(new Reader(args))
+  );
+}
+
 //******* serializer
 export function serializeL2Transaction(l2Tx: L2Transaction): HexString {
   return new Reader(
@@ -114,6 +125,16 @@ export function serializeEthAddrRegArgs(
   return new Reader(
     schemas.SerializeETHAddrRegArgs(
       normalizers.NormalizeEthAddrRegArgs(ethAddrRegArgs)
+    )
+  ).serializeJson();
+}
+
+export function serializeMetaContractArgs(
+  metaContractArgs: MetaContractArgs
+): HexString {
+  return new Reader(
+    schemas.SerializeMetaContractArgs(
+      normalizers.NormalizeMetaContractArgs(metaContractArgs)
     )
   ).serializeJson();
 }
@@ -152,18 +173,6 @@ export function DenormalizeSudtArgs(sudtArgs: schemas.SUDTArgs) {
         value: DenormalizeSudtTransfer(
           sudtArgs.value() as schemas.SUDTTransfer
         ),
-      };
-
-    case EthAddrRegArgsType.GwToEth:
-      return {
-        type: sudtArgs.unionType(),
-        value: DenormalizeGwToEth(sudtArgs.value() as schemas.GwToEth),
-      };
-
-    case EthAddrRegArgsType.EthToGw:
-      return {
-        type: sudtArgs.unionType(),
-        value: DenormalizeEthToGw(sudtArgs.value() as schemas.EthToGw),
       };
 
     default:
@@ -311,5 +320,98 @@ export function DenormalizeGwToEth(gwToEth: schemas.GwToEth): GwToEth {
   ).serializeJson();
   return {
     gw_script_hash: gwScriptHash,
+  };
+}
+
+export function DenormalizeMetaContractArgs(
+  metaContractArgs: schemas.MetaContractArgs
+) {
+  switch (metaContractArgs.unionType()) {
+    case MetaContractArgsType.CreateAccount:
+      return {
+        type: metaContractArgs.unionType(),
+        value: DenormalizeCreateAccount(
+          metaContractArgs.value() as schemas.CreateAccount
+        ),
+      };
+
+    case MetaContractArgsType.BatchCreateEthAccounts:
+      return {
+        type: metaContractArgs.unionType(),
+        value: DenormalizeBatchCreateEthAccounts(
+          metaContractArgs.value() as schemas.BatchCreateEthAccounts
+        ),
+      };
+
+    default:
+      throw new Error("unsupported type");
+  }
+}
+
+export function DenormalizeCreateAccount(
+  createAccount: schemas.CreateAccount
+): CreateAccount {
+  return {
+    script: DenormalizeScript(createAccount.getScript()),
+    fee: DenormalizeFee(createAccount.getFee()),
+  };
+}
+
+export function DenormalizeBatchCreateEthAccounts(
+  batchCreateEthAccounts: schemas.BatchCreateEthAccounts
+): BatchCreateEthAccounts {
+  const scripts: Script[] = [];
+  for (let i = 0; i < batchCreateEthAccounts.getScripts().length(); i++) {
+    const script = DenormalizeScript(
+      batchCreateEthAccounts.getScripts().indexAt(i)
+    );
+    scripts.push(script);
+  }
+
+  return {
+    scripts,
+    fee: DenormalizeFee(batchCreateEthAccounts.getFee()),
+  };
+}
+
+export function DenormalizeHashType(hashType: number): HashType {
+  switch (hashType) {
+    case 0:
+      return "data";
+
+    case 1:
+      return "type";
+
+    case 2:
+      return "data1";
+
+    default:
+      throw new Error(`unsupported hash type ${hashType}`);
+  }
+}
+
+export function DenormalizeScript(script: schemas.Script): Script {
+  const args = new Reader(script.getArgs().raw()).serializeJson();
+  const code_hash = new Reader(script.getCodeHash().raw()).serializeJson();
+  const hash_type = DenormalizeHashType(script.getHashType());
+  return {
+    code_hash,
+    args,
+    hash_type,
+  };
+}
+
+export function DenormalizeFee(fee: schemas.Fee): Fee {
+  const feeAmount = Uint128.fromLittleEndian(
+    new Reader(fee.getAmount().raw()).serializeJson()
+  ).toHex();
+
+  const registryId = new Uint32(
+    fee.getRegistryId().toLittleEndianUint32()
+  ).toHex();
+
+  return {
+    amount: feeAmount,
+    registry_id: registryId,
   };
 }

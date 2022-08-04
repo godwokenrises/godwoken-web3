@@ -19,6 +19,7 @@ export const POLYJUICE_CONTRACT_CODE = 1;
 // export const GW_KEY_BYTES = 32;
 export const GW_ACCOUNT_KV = 0;
 export const CKB_SUDT_ID = "0x1";
+export const META_CONTRACT_ID = "0x0";
 export const SUDT_OPERATION_LOG_FLAG = "0x0";
 export const SUDT_PAY_FEE_LOG_FLAG = "0x1";
 export const POLYJUICE_SYSTEM_LOG_FLAG = "0x2";
