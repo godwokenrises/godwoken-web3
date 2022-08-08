@@ -240,6 +240,7 @@ export async function parseRawTransactionData(
   );
 
   let cacheKeyAndValue: [string, string] | undefined;
+  // auto create account
   if (fromId == null) {
     const ethTxHash = calcEthTxHash(rlpEncoded);
     const { balance, requiredBalance } = await checkBalance(
@@ -248,6 +249,9 @@ export async function parseRawTransactionData(
       value,
       gasLimit,
       gasPrice
+    );
+    logger.info(
+      `aca tx: action: send, address: ${fromEthAddress}, eth_tx_hash: ${ethTxHash}, balance: ${balance}, required_balance: ${requiredBalance}`
     );
     if (balance < requiredBalance) {
       throw new Error(
