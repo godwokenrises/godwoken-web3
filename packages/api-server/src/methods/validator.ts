@@ -1,15 +1,14 @@
-import { validateHexNumber, validateHexString } from "../util";
-import { BlockParameter } from "./types";
+const newrelic = require("newrelic");
+import {
+  calcFee,
+  calcIntrinsicGas,
+  validateHexNumber,
+  validateHexString,
+} from "../util";
+import { BlockParameter, BlockSpecifier } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
-import {
-  CKB_SUDT_ID,
-  RPC_MAX_GAS_LIMIT,
-  TX_DATA_NONE_ZERO_GAS,
-  TX_DATA_ZERO_GAS,
-  TX_GAS,
-  TX_GAS_CONTRACT_CREATION,
-} from "./constant";
+import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
@@ -45,7 +44,9 @@ export function middleware(
     }
 
     try {
-      return await method(params);
+      return await newrelic.startSegment(method.name, true, async () => {
+        return await method(params);
+      });
     } catch (err: any) {
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
@@ -272,11 +273,62 @@ export function verifyBlockParameter(
     return undefined;
   }
 
-  const err = verifyHexNumber(blockParameter, index);
-  if (err) {
-    return err.padContext("blockParameter block number");
+  if (typeof blockParameter === "object") {
+    const err = verifyBlockSpecifier(blockParameter, index);
+    if (err) {
+      return err.padContext("blockSpecifier");
+    }
+  } else {
+    const err = verifyHexNumber(blockParameter, index);
+    if (err) {
+      return err.padContext("blockParameter block number");
+    }
   }
 
+  return undefined;
+}
+
+export function verifyBlockSpecifier(
+  blockSpecifier: BlockSpecifier,
+  index: number
+) {
+  if (typeof blockSpecifier !== "object") {
+    return invalidParamsError(index, `blockSpecifier must be an object`);
+  }
+
+  if (blockSpecifier.blockHash == null && blockSpecifier.blockNumber == null) {
+    return invalidParamsError(
+      index,
+      "blockSpecifier has no blockHash and blockNumber"
+    );
+  }
+
+  if (blockSpecifier.blockHash != null && blockSpecifier.blockNumber != null) {
+    return invalidParamsError(
+      index,
+      "blockHash and blockNumber can not exits at same time"
+    );
+  }
+
+  if (
+    blockSpecifier.requireCanonical != null &&
+    typeof blockSpecifier.requireCanonical !== "boolean"
+  ) {
+    return invalidParamsError(index, "requireCanonical should be boolean type");
+  }
+  if (blockSpecifier.blockNumber != null) {
+    const err = verifyHexNumber(blockSpecifier.blockNumber, index);
+    if (err) {
+      return err.padContext("blockSpecifier block number");
+    }
+  }
+
+  if (blockSpecifier.blockHash != null) {
+    const err = verifyBlockHash(blockSpecifier.blockHash, index);
+    if (err) {
+      return err.padContext("blockSpecifier block hash");
+    }
+  }
   return undefined;
 }
 
@@ -531,22 +583,26 @@ export function verifyGasPrice(
   return undefined;
 }
 
-export function verifySudtFee(
+export function verifyL2TxFee(
   fee: HexNumber,
+  serializedL2Tx: HexString,
   index: number
 ): InvalidParamsError | undefined {
   const feeErr = verifyHexNumber(fee, index);
   if (feeErr) {
-    return feeErr.padContext("Sudt Fee");
+    return feeErr.padContext("L2Tx Fee");
+  }
+  const txErr = verifyHexString(serializedL2Tx, index);
+  if (txErr) {
+    return txErr.padContext("L2Tx Fee");
   }
 
-  if (
-    envConfig.minSudtFee != null &&
-    BigInt(fee) < BigInt(envConfig.minSudtFee)
-  ) {
+  const feeRate = BigInt(envConfig.feeRate || 0);
+  const requiredFee = calcFee(serializedL2Tx, feeRate);
+  if (BigInt(fee) < requiredFee) {
     return invalidParamsError(
       index,
-      `minimal sudt transfer fee ${envConfig.minSudtFee} required. got ${BigInt(
+      `minimal l2tx fee ${requiredFee.toString(10)} required. got ${BigInt(
         fee
       ).toString(10)}`
     );
@@ -570,6 +626,30 @@ export function verifyIntrinsicGas(
   return undefined;
 }
 
+export async function checkBalance(
+  rpc: GodwokenClient,
+  from: HexString,
+  value?: HexNumber,
+  gas?: HexNumber,
+  gasPrice?: HexNumber
+): Promise<{ requiredBalance: bigint; balance: bigint }> {
+  const registryAddress: EthRegistryAddress = new EthRegistryAddress(from);
+  const balance = await rpc.getBalance(
+    registryAddress.serialize(),
+    +CKB_SUDT_ID
+  );
+  const txValue: bigint = value == null || value === "0x" ? 0n : BigInt(value);
+  const txGas: bigint = gas == null || gas === "0x" ? 0n : BigInt(gas);
+  const txGasPrice: bigint =
+    gasPrice == null || gasPrice === "0x" ? 0n : BigInt(gasPrice);
+  const requiredBalance = txGas * txGasPrice + txValue;
+
+  return {
+    balance,
+    requiredBalance,
+  };
+}
+
 export async function verifyEnoughBalance(
   rpc: GodwokenClient,
   from: HexString,
@@ -578,20 +658,18 @@ export async function verifyEnoughBalance(
   gasPrice: HexNumber | undefined,
   index: number
 ) {
-  const registryAddress: EthRegistryAddress = new EthRegistryAddress(from);
-  const balance = await rpc.getBalance(
-    registryAddress.serialize(),
-    +CKB_SUDT_ID
+  const { balance, requiredBalance } = await checkBalance(
+    rpc,
+    from,
+    value,
+    gas,
+    gasPrice
   );
-  const txValue = value == null || value === "0x" ? 0 : value;
-  const txGas = gas == null || gas === "0x" ? 0 : +gas;
-  const txGasPrice = gasPrice == null || gasPrice === "0x" ? 0 : +gasPrice;
-  const requireBalance = BigInt(txGas * txGasPrice) + BigInt(txValue);
 
-  if (balance < requireBalance) {
+  if (balance < requiredBalance) {
     return invalidParamsError(
       index,
-      `insufficient balance, require ${requireBalance.toString()}, got ${balance}`
+      `insufficient balance, require ${requiredBalance.toString()}, got ${balance}`
     );
   }
   return undefined;
@@ -601,35 +679,4 @@ export async function verifyEnoughBalance(
 // some utils function
 function invalidParamsError(index: number, message: string) {
   return new InvalidParamsError(`invalid argument ${index}: ${message}`);
-}
-
-export function calcIntrinsicGas(
-  to: HexString | undefined,
-  input: HexString | undefined
-) {
-  to = to === "0x" ? undefined : to;
-  const isCreate = to == null;
-  let gas: bigint;
-  if (isCreate) {
-    gas = BigInt(TX_GAS_CONTRACT_CREATION);
-  } else {
-    gas = BigInt(TX_GAS);
-  }
-
-  if (input && input.length > 0) {
-    const buf = Buffer.from(input.slice(2), "hex");
-    const byteLen = buf.byteLength;
-    let nonZeroLen = 0;
-    for (const b of buf) {
-      if (b !== 0) {
-        nonZeroLen++;
-      }
-    }
-    const zeroLen = byteLen - nonZeroLen;
-    gas =
-      gas +
-      BigInt(zeroLen) * BigInt(TX_DATA_ZERO_GAS) +
-      BigInt(nonZeroLen) * BigInt(TX_DATA_NONE_ZERO_GAS);
-  }
-  return gas;
 }

@@ -1,46 +1,46 @@
 import {
+  BlockParameter,
   GodwokenLog,
   LogItem,
-  SudtOperationLog,
   PolyjuiceSystemLog,
   PolyjuiceUserLog,
-  TransactionCallObject,
+  SudtOperationLog,
   SudtPayFeeLog,
-  BlockParameter,
+  TransactionCallObject,
 } from "../types";
 import {
-  calcIntrinsicGas,
   middleware,
   validators,
+  verifyEnoughBalance,
   verifyGasLimit,
+  verifyIntrinsicGas,
 } from "../validator";
-import { FilterFlag, FilterObject } from "../../cache/types";
-import { HexNumber, Hash, Address, HexString } from "@ckb-lumos/base";
-import { RawL2Transaction, RunResult } from "@godwoken-web3/godwoken";
+import { AutoCreateAccountCacheValue } from "../../cache/types";
+import { HexNumber, Hash, Address, HexString, utils } from "@ckb-lumos/base";
+import {
+  normalizers,
+  RawL2Transaction,
+  RunResult,
+  schemas,
+  GodwokenClient,
+} from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
+  COMPATIBLE_DOCS_URL,
+  POLY_MAX_BLOCK_GAS_LIMIT,
   POLYJUICE_CONTRACT_CODE,
+  POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_SYSTEM_PREFIX,
+  POLYJUICE_USER_LOG_FLAG,
   SUDT_OPERATION_LOG_FLAG,
   SUDT_PAY_FEE_LOG_FLAG,
-  POLYJUICE_SYSTEM_LOG_FLAG,
-  POLYJUICE_USER_LOG_FLAG,
-  QUERY_OFFSET_REACHED_END,
-  POLY_MAX_BLOCK_GAS_LIMIT,
-  COMPATIBLE_DOCS_URL,
+  AUTO_CREATE_ACCOUNT_FROM_ID,
 } from "../constant";
-import {
-  ExecuteOneQueryResult,
-  limitQuery,
-  Query,
-  QueryRoundStatus,
-} from "../../db";
+import { Query, universalizeAddress } from "../../db";
 import { envConfig } from "../../base/env-config";
-import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Uint256, Uint32, Uint64 } from "../../base/types/uint";
 import {
   Log,
-  LogQueryOption,
   toApiBlock,
   toApiLog,
   toApiTransaction,
@@ -63,16 +63,29 @@ import { FilterManager } from "../../cache";
 import { parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
+  AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS,
   CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../../cache/constant";
-import { calcEthTxHash, generateRawTransaction } from "../../convert-tx";
+import {
+  autoCreateAccountCacheKey,
+  calcEthTxHash,
+  decodeRawTransactionData,
+  generateRawTransaction,
+  getSignature,
+  parseRawTransactionData,
+  polyjuiceRawTransactionToApiTransaction,
+  PolyjuiceTransaction,
+} from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { gwConfig } from "../../base/index";
 import { logger } from "../../base/logger";
+import { calcIntrinsicGas } from "../../util";
+import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
+import { Reader } from "@ckb-lumos/toolkit";
 
 const Config = require("../../../config/eth.json");
 
@@ -80,7 +93,6 @@ type U32 = number;
 type U64 = bigint;
 
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
-const ZERO_TX_HASH = "0x" + "00".repeat(32);
 
 type GodwokenBlockParameter = U64 | undefined;
 
@@ -299,7 +311,7 @@ export class Eth {
   }
 
   /**
-   * Return median gas_price of latest 500 transactions
+   * Return median gas_price of latest ${LATEST_MEDIAN_GAS_PRICE} transactions
    *
    * @param _args empty
    * @returns
@@ -722,46 +734,84 @@ export class Eth {
 
   async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
     const ethTxHash: Hash = args[0];
-    const gwTxHash: Hash | null = await this.ethTxHashToGwTxHash(ethTxHash);
-    if (gwTxHash == null) {
-      return null;
-    }
+    const cacheKey = autoCreateAccountCacheKey(ethTxHash);
 
-    const tx = await this.query.getTransactionByHash(gwTxHash);
+    // 1. Find in db
+    const tx = await this.query.getTransactionByEthTxHash(ethTxHash);
     if (tx != null) {
+      // no need await
+      // delete auto create account tx if already in db
+      this.cacheStore.delete(cacheKey);
       const apiTx = toApiTransaction(tx);
       return apiTx;
     }
 
-    // if null, find pending transactions
-    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus == null) {
-      return null;
+    // 2. If null, find pending transactions
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
+    if (gwTxHash != null) {
+      const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
+      if (godwokenTxWithStatus == null) {
+        return null;
+      }
+      const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error("tip block not found!");
+      }
+      let ethTxInfo = undefined;
+      try {
+        ethTxInfo = await filterWeb3Transaction(
+          ethTxHash,
+          this.rpc,
+          tipBlock.number,
+          tipBlock.hash,
+          godwokenTxWithStatus.transaction,
+          godwokenTxReceipt
+        );
+      } catch (err) {
+        logger.error("filterWeb3Transaction:", err);
+        logger.info("godwoken tx:", godwokenTxWithStatus);
+        logger.info("godwoken receipt:", godwokenTxReceipt);
+        throw err;
+      }
+      if (ethTxInfo != null) {
+        const ethTx = ethTxInfo[0];
+        return ethTx;
+      }
     }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-    const tipBlock = await this.query.getTipBlock();
-    if (tipBlock == null) {
-      throw new Error("tip block not found!");
-    }
-    let ethTxInfo = undefined;
-    try {
-      ethTxInfo = await filterWeb3Transaction(
+
+    // 3. Find by auto create account tx
+    // TODO: delete cache store if dropped by godwoken
+    // convert to tx hash mapping store if account id generated ?
+    const polyjuiceRawTx = await this.cacheStore.get(cacheKey);
+    if (polyjuiceRawTx != null) {
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error("tip block not found!");
+      }
+      // Convert polyjuice tx to api transaction
+      const { tx, fromAddress }: AutoCreateAccountCacheValue =
+        JSON.parse(polyjuiceRawTx);
+      const isAcaTxExist: boolean = await this.isAcaTxExist(
         ethTxHash,
-        this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
+        tx,
+        fromAddress
       );
-    } catch (err) {
-      logger.error("filterWeb3Transaction:", err);
-      logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
-      throw err;
-    }
-    if (ethTxInfo != null) {
-      const ethTx = ethTxInfo[0];
-      return ethTx;
+      if (isAcaTxExist) {
+        const apiTransaction: EthTransaction =
+          polyjuiceRawTransactionToApiTransaction(
+            tx,
+            ethTxHash,
+            tipBlock.hash,
+            tipBlock.number,
+            fromAddress
+          );
+        return apiTransaction;
+      } else {
+        // If not found, means dropped by godwoken, should delete cache
+        this.cacheStore.delete(cacheKey);
+      }
     }
 
     return null;
@@ -865,9 +915,9 @@ export class Eth {
   }
 
   /* #region filter-related api methods */
-  async newFilter(args: [FilterObject]): Promise<HexString> {
+  async newFilter(args: [RpcFilterRequest]): Promise<HexString> {
     const tipLog: Log | null = await this.query.getTipLog();
-    let initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
+    const initialLogId: bigint = tipLog == null ? 0n : tipLog.id;
     const filter_id = await this.filterManager.install(args[0], initialLogId);
     return filter_id;
   }
@@ -896,258 +946,150 @@ export class Eth {
     return isUninstalled;
   }
 
+  /**
+   * This method only works for filters creates with `eth_newFilter` not for filters created using `eth_newBlockFilter`
+   * or `eth_newPendingTransactionFilter`, which will return empty array.
+   *
+   * @returns {(Log|Array)} array of log objects, or an empty array if nothing has changed since last poll.
+   *
+   * @throws {Web3Error} - filter not found
+   */
   async getFilterLogs(args: [string]): Promise<Array<any>> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
 
-    if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
-    }
-
-    if (filter === FilterFlag.blockFilter) {
-      // block filter
-      // return all blocks
-      const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(0),
-        "desc"
-      );
-      const block_hashes = blocks.map((block) => block.hash);
-      return block_hashes;
-    }
-
-    if (filter === FilterFlag.pendingTransaction) {
-      // pending tx filter, not supported.
+    if (filter == null) {
+      throw new Web3Error("filter not found");
+    } else if (
+      filter === FilterFlag.blockFilter ||
+      filter === FilterFlag.pendingTransaction
+    ) {
       return [];
+    } else {
+      return await this.getFilterChanges(args);
     }
-
-    return await this.getLogs([filter!]);
   }
 
-  async getFilterChanges(args: [string]): Promise<string[] | EthLog[]> {
+  /**
+   * Polling method for a filter, which returns an array of events that have occurred since the last poll.
+   *
+   * @returns {array} - Array of one of the following, depending on the filter type, or empty if no changes since last poll:
+   * - `eth_newBlockFilter`
+   *   `blockHash` - The 32 byte hash of a block that meets your filter requirements, asc order by block number
+   * - `eth_newPendingTransactionFilter`
+   *   `[]` - Godwoken-Web3 doesn't support `eth_newPendingTransactionFilter` yet.
+   * - `eth_newFilter`
+   *   - `logindex` - Integer of log index position in the block encoded as a hexadecimal.
+   *   - `transactionindex` - Integer of transaction index position log was created from.
+   *   - `transactionhash` - Hash of the transactions this log was created from.
+   *   - `blockhash` - Hash of the block where this log was in.
+   *   - `blocknumber` - The block number where this log was, encoded as a hexadecimal.
+   *   - `address` - The address from which this log originated.
+   *   - `data` - Contains one or more 32 Bytes non-indexed arguments of the log.
+   *   - `topics` - Array of 0 to 4 32 Bytes of indexed log arguments.
+   *
+   * @throws {Web3Error} - filter not found
+   */
+  async getFilterChanges(args: [string]): Promise<Hash[] | EthLog[]> {
     const filter_id = args[0];
     const filter = await this.filterManager.get(filter_id);
-
     if (!filter) {
-      throw new Web3Error(
-        `invalid filter id ${filter_id}. the filter might be removed or outdated.`
-      );
-    }
-
-    //***** handle block-filter
-    if (filter === FilterFlag.blockFilter) {
-      const last_poll_block_number = await this.filterManager.getLastPoll(
+      throw new Web3Error("filter not found");
+    } else if (filter === FilterFlag.blockFilter) {
+      const lastPollBlockNumber = await this.filterManager.getLastPoll(
         filter_id
       );
-      // get all block occurred since last poll
-      // ( block_number > last_poll_cache_block_number )
-      const blocks = await this.query.getBlocksAfterBlockNumber(
-        BigInt(last_poll_block_number),
-        "desc"
-      );
-
-      if (blocks.length === 0) return [];
-
-      // remember to update the last poll cache
-      // blocks[0] is now the highest block number(meaning it is the newest cache block number)
-      await this.filterManager.updateLastPoll(filter_id, blocks[0].number);
-      const block_hashes = blocks.map((block) => block.hash);
-      return block_hashes;
-    }
-
-    //***** handle pending-tx-filter, currently not supported.
-    if (filter === FilterFlag.pendingTransaction) {
-      return [];
-    }
-
-    //***** handle normal-filter
-    const lastPollLogId = await this.filterManager.getLastPoll(filter_id);
-    const blockHash = filter.blockHash;
-    const address = filter.address;
-    const topics = filter.topics;
-    const queryOption: LogQueryOption = {
-      address,
-      topics,
-    };
-
-    const execOneQuery = async (offset: number) => {
-      // if blockHash exits, fromBlock and toBlock is not allowed.
-      if (blockHash) {
-        const logs = await this.query.getLogsAfterLastPoll(
-          lastPollLogId,
-          queryOption,
-          blockHash,
-          undefined,
-          offset
+      const arrayOfHashAndNumber =
+        await this.query.getBlockHashesAndNumbersAfterBlockNumber(
+          lastPollBlockNumber,
+          "asc"
         );
-        if (logs.length === 0) return [];
+      if (arrayOfHashAndNumber.length !== 0) {
+        await this.filterManager.updateLastPoll(
+          filter_id,
+          arrayOfHashAndNumber[arrayOfHashAndNumber.length - 1].number
+        );
+      }
+      return arrayOfHashAndNumber.map((hn) => hn.hash);
+    } else if (filter === FilterFlag.pendingTransaction) {
+      return [];
+    } else {
+      const lastPollLogId = await this.filterManager.getLastPoll(filter_id);
+      const logs = await this.query.getLogsByFilter(
+        await this._rpcFilterRequestToGetLogsParams(filter),
+        lastPollLogId
+      );
 
-        return logs;
+      if (logs.length !== 0) {
+        await this.filterManager.updateLastPoll(
+          filter_id,
+          logs[logs.length - 1].id
+        );
       }
 
-      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "earliest"
-      );
-      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.toBlock || "latest"
-      );
-      const logs = await this.query.getLogsAfterLastPoll(
-        lastPollLogId!,
-        queryOption,
-        fromBlockNumber,
-        toBlockNumber,
-        offset
-      );
-      if (logs.length === 0) return [];
-
-      return logs;
-    };
-
-    const executeOneQuery = async (offset: number) => {
-      try {
-        const data = await execOneQuery(offset);
-
-        return {
-          status: QueryRoundStatus.keepGoing,
-          data: data,
-        } as ExecuteOneQueryResult;
-      } catch (error) {
-        if (
-          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
-        ) {
-          return {
-            status: QueryRoundStatus.stop,
-            data: [], // return empty result
-          } as ExecuteOneQueryResult;
-        }
-        throw error;
-      }
-    };
-
-    const logs: Log[] = await limitQuery(executeOneQuery.bind(this));
-    // remember to update the last poll cache
-    // logsData[0] is now the highest log id(meaning it is the newest cache log id)
-    if (logs.length !== 0) {
-      await this.filterManager.updateLastPoll(filter_id, logs[0].id);
+      return logs.map((log) => toApiLog(log, log.eth_tx_hash!));
     }
+  }
 
-    return await Promise.all(
-      logs.map(async (log) => {
-        const ethTxHash =
-          (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-          ZERO_TX_HASH;
-        return toApiLog(log, ethTxHash);
-      })
+  async getLogs(args: [RpcFilterRequest]): Promise<EthLog[]> {
+    return await this._getLogs(
+      await this._rpcFilterRequestToGetLogsParams(args[0])
     );
   }
 
-  async getLogs(args: [FilterObject]): Promise<EthLog[]> {
-    const filter = args[0];
-
-    const topics = filter.topics || [];
-    const address = filter.address;
-    const blockHash = filter.blockHash;
-
-    const queryOption: LogQueryOption = {
-      topics,
-      address,
-    };
-
-    const execOneQuery = async (offset: number) => {
-      // if blockHash exits, fromBlock and toBlock is not allowed.
-      if (blockHash) {
-        const logs = await this.query.getLogs(
-          queryOption,
-          blockHash,
-          undefined,
-          offset
-        );
-        return await Promise.all(
-          logs.map(async (log) => {
-            const ethTxHash =
-              (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-              ZERO_TX_HASH;
-            return toApiLog(log, ethTxHash);
-          })
-        );
-      }
-
-      const fromBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.fromBlock || "latest"
-      );
-      const toBlockNumber: U64 = await this.blockParameterToBlockNumber(
-        filter.toBlock || "latest"
-      );
-      const logs = await this.query.getLogs(
-        queryOption,
-        fromBlockNumber,
-        toBlockNumber,
-        offset
-      );
-      return await Promise.all(
-        logs.map(async (log) => {
-          const ethTxHash =
-            (await this.gwTxHashToEthTxHash(log.transaction_hash)) ||
-            ZERO_TX_HASH;
-          return toApiLog(log, ethTxHash);
-        })
-      );
-    };
-
-    const executeOneQuery = async (offset: number) => {
-      try {
-        const data = await execOneQuery(offset);
-        return {
-          status: QueryRoundStatus.keepGoing,
-          data: data,
-        } as ExecuteOneQueryResult;
-      } catch (error: any) {
-        if (
-          (error as unknown as Error).message.includes(QUERY_OFFSET_REACHED_END)
-        ) {
-          return {
-            status: QueryRoundStatus.stop,
-            data: [], // return empty result
-          } as ExecuteOneQueryResult;
-        }
-        throw new Web3Error(error.message, error.data);
-      }
-    };
-
-    return await limitQuery(executeOneQuery.bind(this));
+  async _getLogs(filter: FilterParams): Promise<EthLog[]> {
+    const logs = await this.query.getLogsByFilter(filter);
+    return logs.map((log) => toApiLog(log, log.eth_tx_hash!));
   }
+
   /* #endregion */
 
   // return gw tx hash
   async sendRawTransaction(args: [string]): Promise<Hash> {
     try {
       const data = args[0];
-      const rawTx = await generateRawTransaction(data, this.rpc);
+      const [rawTx, autoCreateCacheKeyAndValue] = await generateRawTransaction(
+        data,
+        this.rpc
+      );
       const gwTxHash = await this.rpc.submitL2Transaction(rawTx);
       logger.info("eth_sendRawTransaction gw hash:", gwTxHash);
+      // cache auto create account tx if submit success
+      if (autoCreateCacheKeyAndValue != null) {
+        await this.cacheStore.insert(
+          autoCreateCacheKeyAndValue[0],
+          autoCreateCacheKeyAndValue[1],
+          AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS
+        );
+      }
       const ethTxHash = calcEthTxHash(data);
       logger.info("eth_sendRawTransaction eth hash:", ethTxHash);
 
       // save the tx hash mapping for instant finality
-      const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-      await this.cacheStore.insert(
-        ethTxHashKey,
-        gwTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
-      const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-      await this.cacheStore.insert(
-        gwTxHashKey,
-        ethTxHash,
-        TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
-      );
+      if (gwTxHash != null) {
+        await this.cacheTxHashMapping(ethTxHash, gwTxHash);
+      }
 
       return ethTxHash;
     } catch (error: any) {
       logger.error(error);
       throw new InvalidParamsError(error.message);
     }
+  }
+
+  private async cacheTxHashMapping(ethTxHash: Hash, gwTxHash: Hash) {
+    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+    await this.cacheStore.insert(
+      ethTxHashKey,
+      gwTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
+    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
+    await this.cacheStore.insert(
+      gwTxHashKey,
+      ethTxHash,
+      TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS
+    );
   }
 
   private async getTipNumber(): Promise<U64> {
@@ -1172,8 +1114,35 @@ export class Eth {
         return undefined;
     }
 
+    // handle block hash
+    // Note: don't check requireCanonical since Godwoken only has canonical blocks.
+    if (
+      typeof blockParameter === "object" &&
+      blockParameter.blockHash != null
+    ) {
+      const block = await this.getBlockByHash([
+        blockParameter.blockHash,
+        false,
+      ]);
+      if (block == null) {
+        throw new HeaderNotFoundError(
+          `Header not found by block hash ${blockParameter.blockHash}`
+        );
+      }
+      if (block.number == null) {
+        // means pending;
+        return undefined;
+      }
+      return BigInt(block.number);
+    }
+
+    // handle block number
     const tipNumber: bigint = await this.getTipNumber();
-    const blockNumber: U64 = Uint64.fromHex(blockParameter).getValue();
+    const blockHexNum =
+      typeof blockParameter === "object" && blockParameter.blockNumber != null
+        ? blockParameter.blockNumber
+        : (blockParameter as HexNumber);
+    const blockNumber: U64 = Uint64.fromHex(blockHexNum).getValue();
     if (tipNumber < blockNumber) {
       throw new HeaderNotFoundError();
     }
@@ -1224,6 +1193,127 @@ export class Eth {
     }
 
     return null;
+  }
+
+  private async _rpcFilterRequestToGetLogsParams(
+    filter: RpcFilterRequest
+  ): Promise<FilterParams> {
+    if (filter.blockHash != null) {
+      if (filter.fromBlock !== undefined || filter.toBlock !== undefined) {
+        throw new Web3Error(
+          "blockHash is mutually exclusive with fromBlock/toBlock"
+        );
+      }
+
+      const block = await this.query.getBlockByHash(filter.blockHash);
+      if (block == null) {
+        throw new InvalidParamsError("blockHash cannot be found");
+      }
+
+      filter.fromBlock = "0x" + block.number.toString(16);
+      filter.toBlock = "0x" + block.number.toString(16);
+    }
+
+    const [fromBlock, toBlock] =
+      await this._normalizeBlockParameterForFilterRequest(
+        filter.fromBlock,
+        filter.toBlock
+      );
+    return {
+      fromBlock,
+      toBlock,
+      topics: filter.topics || [],
+      addresses: universalizeAddress(filter.address),
+      blockHash: filter.blockHash,
+    };
+  }
+
+  private async _normalizeBlockParameterForFilterRequest(
+    fromBlock: undefined | BlockParameter,
+    toBlock: undefined | BlockParameter
+  ): Promise<[bigint, bigint]> {
+    let normalizedFromBlock: bigint;
+    let normalizedToBlock: bigint;
+    const latestBlockNumber = await this.getTipNumber();
+    // See also:
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/427#discussion_r918904239
+    // - https://github.com/nervosnetwork/godwoken-web3/pull/300/files/131542bd5cc272279d27760e258fb5fa5de6fc9a#r861541728
+    const _fromBlock: bigint | undefined = await this.parseBlockParameter(
+      fromBlock ?? "earliest"
+    );
+    normalizedFromBlock = _fromBlock ?? latestBlockNumber;
+
+    const _toBlock: bigint | undefined = await this.parseBlockParameter(
+      toBlock ?? "latest"
+    );
+    normalizedToBlock = _toBlock ?? latestBlockNumber;
+
+    return [normalizedFromBlock, normalizedToBlock];
+  }
+
+  // aca = auto create account
+  // `acaTx` is the first transaction (nonce=0) of an undeposited account which account_id/from_id is not undetermined yet.
+  // `signature_hash` is used here to get an `acaTx` from GodwokenRPC, see also:
+  // https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md#method-gw_submit_l2transaction
+  //
+  // `gw_get_transaction(signature_hash)`
+  //       |-> if `txWithStatus.transaction` != null
+  //             |-> found!
+  //       |-> if `txWithStatus.transaction` == null
+  //             |-> if `from_id` == null
+  //                   |-> not found!
+  //             |-> if `from_id` != null
+  //                   |-> `gw_get_transaction(gw_tx_hash)`
+  //                         |-> `txWithStatus.transaction` != null
+  //                               |-> found!
+  //                         |->  `txWithStatus.transaction` == null
+  //                               |-> not found!
+  private async isAcaTxExist(
+    ethTxHash: Hash,
+    rawTx: HexString,
+    fromAddress: HexString
+  ): Promise<boolean> {
+    const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+    const signature: HexString = getSignature(tx);
+    const signatureHash: Hash = utils
+      .ckbHash(new Reader(signature).toArrayBuffer())
+      .serializeJson();
+    const txWithStatus = await this.rpc.getTransaction(signatureHash);
+    if (txWithStatus != null) {
+      logger.debug(
+        `aca tx: ${ethTxHash} found by signature hash: ${signatureHash}`
+      );
+      // transaction found by signature hash
+      return true;
+    }
+
+    const fromId = await ethAddressToAccountId(fromAddress, this.rpc);
+    logger.debug(`aca tx's (${ethTxHash}) from_id:`, fromId);
+    if (fromId == null) {
+      return false;
+    }
+    const [godwokenTx, _cacheKeyAndValue] = await parseRawTransactionData(
+      tx,
+      this.rpc,
+      rawTx
+    );
+    if (godwokenTx.raw.from_id === AUTO_CREATE_ACCOUNT_FROM_ID) {
+      logger.warn("aca generated tx's from_id = 0");
+      return false;
+    }
+    const gwTxHash: Hash = utils
+      .ckbHash(
+        new Reader(
+          schemas.SerializeRawL2Transaction(
+            normalizers.NormalizeRawL2Transaction(godwokenTx.raw)
+          )
+        ).toArrayBuffer()
+      )
+      .serializeJson();
+    logger.debug(`aca tx: ${ethTxHash} gw_tx_hash: ${gwTxHash}`);
+    const gwTx = await this.rpc.getTransaction(gwTxHash);
+
+    return !!gwTx;
   }
 }
 
@@ -1344,10 +1434,14 @@ async function ethCallTx(
   rpc: GodwokenClient,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const rawL2Transaction = await buildEthCallTx(txCallObj, rpc);
+  const [rawL2Transaction, serializedRegistryAddress] = await buildEthCallTx(
+    txCallObj,
+    rpc
+  );
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
-    blockNumber
+    blockNumber,
+    serializedRegistryAddress
   );
 
   return runResult;
@@ -1356,14 +1450,14 @@ async function ethCallTx(
 async function buildEthCallTx(
   txCallObj: TransactionCallObject,
   rpc: GodwokenClient
-): Promise<RawL2Transaction> {
+): Promise<[RawL2Transaction, HexString | undefined]> {
   const fromAddress = txCallObj.from;
   const toAddress = txCallObj.to;
   const gas =
     txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
-  const gasPrice =
-    txCallObj.gasPrice ||
-    "0x" + BigInt(envConfig.minGasPrice || 0).toString(16);
+  // we should set price to 0 instead of minGasPrice,
+  // otherwise read operation might fail the balance check.
+  const gasPrice = txCallObj.gasPrice || "0x0";
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x";
   let fromId: number | undefined;
@@ -1371,6 +1465,11 @@ async function buildEthCallTx(
   const gasLimitErr = verifyGasLimit(gas, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(buildEthCallTx.name);
+  }
+
+  const intrinsicGasErr = verifyIntrinsicGas(toAddress, data, gas, 0);
+  if (intrinsicGasErr) {
+    throw intrinsicGasErr.padContext(buildEthCallTx.name);
   }
 
   if (!fromAddress) {
@@ -1383,10 +1482,40 @@ async function buildEthCallTx(
     logger.debug(`fromId: ${fromId}`);
   }
 
-  if (fromId == null) {
-    throw new Error(
-      `from id not found by from address: ${fromAddress}, have you deposited?`
+  let serializedRegistryAddress: HexString | undefined;
+  if (fromId == null && fromAddress != null) {
+    const registryAddress: EthRegistryAddress = new EthRegistryAddress(
+      fromAddress
     );
+    fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
+    serializedRegistryAddress = registryAddress.serialize();
+  }
+
+  // check if from address have enough balance
+  // when gasPrice in ethCallObj is provided.
+  if (txCallObj.gasPrice != null) {
+    const defaultFromScript = await rpc.getScript(
+      gwConfig.accounts.defaultFrom.scriptHash
+    );
+    if (defaultFromScript == null) {
+      throw new Error("default from script is null");
+    }
+    const defaultFromAddress = "0x" + defaultFromScript.args.slice(2).slice(64);
+    const from = fromAddress || defaultFromAddress;
+
+    const balanceErr = await verifyEnoughBalance(
+      rpc,
+      from,
+      value,
+      gas,
+      gasPrice,
+      0
+    );
+    if (balanceErr) {
+      throw balanceErr.padContext(
+        `${buildEthCallTx.name}: from account ${from}`
+      );
+    }
   }
 
   const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
@@ -1405,7 +1534,7 @@ async function buildEthCallTx(
   );
   const rawL2Transaction = buildRawL2Transaction(
     BigInt(gwConfig.web3ChainId),
-    fromId,
+    fromId!,
     toId,
     nonce,
     polyjuiceArgs
@@ -1413,7 +1542,7 @@ async function buildEthCallTx(
   logger.debug(
     `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
   );
-  return rawL2Transaction;
+  return [rawL2Transaction, serializedRegistryAddress];
 }
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
@@ -1530,11 +1659,12 @@ function serializeEthCallParameters(
   ethCallObj: TransactionCallObject,
   blockNumber?: GodwokenBlockParameter
 ): HexString {
-  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  // since we have check enough balance in eth_call, we need to add gasPrice in cache key
   const toSerializeObj = {
     from: ethCallObj.from || "0x",
     to: ethCallObj.to,
     gas: ethCallObj.gas || "0x",
+    gasPrice: ethCallObj.gasPrice || "0x",
     data: ethCallObj.data || "0x",
     value: ethCallObj.value || "0x",
     blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
@@ -1559,11 +1689,12 @@ function serializeEstimateGasParameters(
   estimateGasObj: Partial<TransactionCallObject>,
   blockNumber?: GodwokenBlockParameter
 ): HexString {
-  // the gasPrice did not effect eth_call result, so we can remove it from cache key
+  // since we have check enough balance in eth_call, we need to add gasPrice in cache key
   const toSerializeObj = {
     from: estimateGasObj.from || "0x",
     to: estimateGasObj.to || "0x",
     gas: estimateGasObj.gas || "0x",
+    gasPrice: estimateGasObj.gasPrice || "0x",
     data: estimateGasObj.data || "0x",
     value: estimateGasObj.value || "0x",
     blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height

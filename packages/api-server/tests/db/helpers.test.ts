@@ -1,7 +1,12 @@
 import test from "ava";
-import { formatDecimal, filterLogsByTopics } from "../../src/db/helpers";
-import { FilterTopic } from "../../src/cache/types";
+import {
+  formatDecimal,
+  filterLogsByTopics,
+  buildQueryLogTopics,
+} from "../../src/db";
 import { Log } from "../../src/db/types";
+import knex from "knex";
+import { FilterTopic } from "../../src/base/filter";
 
 test("formatDecimal", (t) => {
   const testCase: { [key: string]: bigint } = {
@@ -15,6 +20,37 @@ test("formatDecimal", (t) => {
     const result = formatDecimal(key);
     t.is(result, value);
   }
+});
+test("buildQueryLogTopics", async (t) => {
+  const buildQuery = (topics: FilterTopic[]): string => {
+    let queryBuilder = knex({ client: "pg" }).queryBuilder();
+    buildQueryLogTopics(queryBuilder, topics);
+    return queryBuilder.toQuery();
+  };
+  t.is(buildQuery([]), "select *");
+  t.is(
+    buildQuery(["0xaaaaaa"]),
+    `select * where array_length(topics, 1) >= 1 and "topics"[1] = X'aaaaaa'`
+  );
+  t.is(
+    buildQuery([null, "0xaaaaaa"]),
+    `select * where array_length(topics, 1) >= 2 and "topics"[2] = X'aaaaaa'`
+  );
+  t.is(
+    buildQuery(["0xaaaaaa", null]),
+    `select * where array_length(topics, 1) >= 2 and "topics"[1] = X'aaaaaa'`
+  );
+  t.is(
+    buildQuery(["0xaaaaaa", "0xbbbbbb"]),
+    `select * where array_length(topics, 1) >= 2 and "topics"[1] = X'aaaaaa' and "topics"[2] = X'bbbbbb'`
+  );
+  t.is(
+    buildQuery([
+      ["0xaaaaaa", "0xbbbbbb"],
+      ["0xaaaaaa", "0xbbbbbb", "0xcccccc"],
+    ]),
+    `select * where array_length(topics, 1) >= 2 and "topics"[1] in (X'aaaaaa', X'bbbbbb') and "topics"[2] in (X'aaaaaa', X'bbbbbb', X'cccccc')`
+  );
 });
 
 test("match topics", async (t) => {

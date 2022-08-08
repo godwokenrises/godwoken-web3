@@ -13,13 +13,23 @@ import {
 } from "./base/address";
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
-import { MAX_TRANSACTION_SIZE, COMPATIBLE_DOCS_URL } from "./methods/constant";
 import {
+  MAX_TRANSACTION_SIZE,
+  COMPATIBLE_DOCS_URL,
+  AUTO_CREATE_ACCOUNT_FROM_ID,
+} from "./methods/constant";
+import {
+  checkBalance,
   verifyEnoughBalance,
   verifyGasLimit,
   verifyGasPrice,
   verifyIntrinsicGas,
 } from "./methods/validator";
+import { AUTO_CREATE_ACCOUNT_PREFIX_KEY } from "./cache/constant";
+import { EthTransaction } from "./base/types/api";
+import { bumpHash, PENDING_TRANSACTION_INDEX } from "./filter-web3-tx";
+import { Uint64 } from "./base/types/uint";
+import { AutoCreateAccountCacheValue } from "./cache/types";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -35,6 +45,35 @@ export interface PolyjuiceTransaction {
   s: HexString;
 }
 
+export function polyjuiceRawTransactionToApiTransaction(
+  rawTx: HexString,
+  ethTxHash: Hash,
+  tipBlockHash: Hash,
+  tipBlockNumber: bigint,
+  fromEthAddress: HexString
+): EthTransaction {
+  const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+
+  const pendingBlockHash = bumpHash(tipBlockHash);
+  const pendingBlockNumber = new Uint64(tipBlockNumber + 1n).toHex();
+  return {
+    hash: ethTxHash,
+    blockHash: pendingBlockHash,
+    blockNumber: pendingBlockNumber,
+    transactionIndex: PENDING_TRANSACTION_INDEX,
+    from: fromEthAddress,
+    to: tx.to == "0x" ? null : tx.to,
+    gas: tx.gasLimit === "0x" ? "0x0" : "0x" + BigInt(tx.gasLimit).toString(16),
+    gasPrice: tx.gasPrice === "0x" ? "0x0" : tx.gasPrice,
+    input: tx.data,
+    nonce: tx.nonce === "0x" ? "0x0" : tx.nonce,
+    value: tx.value === "0x" ? "0x0" : tx.value,
+    v: +tx.v % 2 === 0 ? "0x1" : "0x0",
+    r: tx.r,
+    s: tx.s,
+  };
+}
+
 export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   const ethTxHash =
     "0x" +
@@ -45,15 +84,21 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 export async function generateRawTransaction(
   data: HexString,
   rpc: GodwokenClient
-): Promise<L2Transaction> {
+): Promise<[L2Transaction, [string, string] | undefined]> {
   logger.debug("convert-tx, origin data:", data);
   const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
   logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
-  const godwokenTx = await parseRawTransactionData(polyjuiceTx, rpc);
-  return godwokenTx;
+  const [godwokenTx, cacheKeyAndValue] = await parseRawTransactionData(
+    polyjuiceTx,
+    rpc,
+    data
+  );
+  return [godwokenTx, cacheKeyAndValue];
 }
 
-function decodeRawTransactionData(dataParams: HexString) {
+export function decodeRawTransactionData(
+  dataParams: HexString
+): PolyjuiceTransaction {
   const result: Buffer[] = rlp.decode(dataParams) as Buffer[];
   // todo: r might be "0x" which cause inconvenient for down-stream
   const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
@@ -64,6 +109,9 @@ function decodeRawTransactionData(dataParams: HexString) {
 
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
 
+  // r & s is integer in RLP, convert to 32-byte hex string (add leading zeros)
+  const rWithLeadingZeros: HexString = "0x" + r.slice(2).padStart(64, "0");
+  const sWithLeadingZeros: HexString = "0x" + s.slice(2).padStart(64, "0");
   const tx: PolyjuiceTransaction = {
     nonce,
     gasPrice,
@@ -72,11 +120,16 @@ function decodeRawTransactionData(dataParams: HexString) {
     value,
     data,
     v,
-    r,
-    s,
+    r: rWithLeadingZeros,
+    s: sWithLeadingZeros,
   };
 
   return tx;
+}
+
+export function getSignature(tx: PolyjuiceTransaction): HexString {
+  const realVWithoutPrefix = +tx.v % 2 === 0 ? "01" : "00";
+  return "0x" + tx.r.slice(2) + tx.s.slice(2) + realVWithoutPrefix;
 }
 
 function numberToRlpEncode(num: HexString): HexString {
@@ -122,20 +175,35 @@ function calcMessage(tx: PolyjuiceTransaction): HexString {
   return message;
 }
 
+function toRlpNumber(num: HexNumber): bigint {
+  return num === "0x" ? 0n : BigInt(num);
+}
+
 function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   const { nonce, gasPrice, gasLimit, to, value, data, v, r, s } = tx;
 
-  const beforeEncode = [nonce, gasPrice, gasLimit, to, value, data, v, r, s];
+  const beforeEncode = [
+    toRlpNumber(nonce),
+    toRlpNumber(gasPrice),
+    toRlpNumber(gasLimit),
+    to,
+    toRlpNumber(value),
+    data,
+    toRlpNumber(v),
+    toRlpNumber(r),
+    toRlpNumber(s),
+  ];
 
   const result = rlp.encode(beforeEncode);
   return "0x" + result.toString("hex");
 }
 
-async function parseRawTransactionData(
+export async function parseRawTransactionData(
   rawTx: PolyjuiceTransaction,
-  rpc: GodwokenClient
-): Promise<L2Transaction> {
-  const { nonce, gasPrice, gasLimit, to, value, data, v, r: rA, s: sA } = rawTx;
+  rpc: GodwokenClient,
+  polyjuiceRawTx: HexString
+): Promise<[L2Transaction, [string, string] | undefined]> {
+  const { nonce, gasPrice, gasLimit, to, value, data } = rawTx;
 
   // Reject transactions with too large size
   const rlpEncoded = encodePolyjuiceTransaction(rawTx);
@@ -160,29 +228,40 @@ async function parseRawTransactionData(
     );
   }
 
-  const r = "0x" + rA.slice(2).padStart(64, "0");
-  const s = "0x" + sA.slice(2).padStart(64, "0");
-
-  let real_v = "0x00";
-  if (+v % 2 === 0) {
-    real_v = "0x01";
-  }
-
-  const signature = r + s.slice(2) + real_v.slice(2);
+  const signature: HexString = getSignature(rawTx);
 
   const message = calcMessage(rawTx);
 
   const publicKey = recoverPublicKey(signature, message);
   const fromEthAddress = publicKeyToEthAddress(publicKey);
-  const fromId: HexNumber | undefined = await getAccountIdByEthAddress(
+  let fromId: HexNumber | undefined = await getAccountIdByEthAddress(
     fromEthAddress,
     rpc
   );
 
+  let cacheKeyAndValue: [string, string] | undefined;
   if (fromId == null) {
-    throw new Error(
-      `from id not found by from Address: ${fromEthAddress}, have you deposited?`
+    const ethTxHash = calcEthTxHash(rlpEncoded);
+    const { balance, requiredBalance } = await checkBalance(
+      rpc,
+      fromEthAddress,
+      value,
+      gasLimit,
+      gasPrice
     );
+    if (balance < requiredBalance) {
+      throw new Error(
+        `insufficient balance of ${fromEthAddress}, require ${requiredBalance}, got ${balance}`
+      );
+    }
+    const key = autoCreateAccountCacheKey(ethTxHash);
+    const cacheValue: AutoCreateAccountCacheValue = {
+      tx: polyjuiceRawTx,
+      fromAddress: fromEthAddress,
+    };
+    cacheKeyAndValue = [key, JSON.stringify(cacheValue)];
+
+    fromId = AUTO_CREATE_ACCOUNT_FROM_ID;
   }
 
   // check intrinsic gas and enough fund
@@ -280,7 +359,7 @@ async function parseRawTransactionData(
     signature,
   };
 
-  return godwokenL2Tx;
+  return [godwokenL2Tx, cacheKeyAndValue];
 }
 
 async function getAccountIdByEthAddress(
@@ -346,4 +425,8 @@ function publicKeyToEthAddress(publicKey: HexString): HexString {
       .slice(12)
       .toString("hex");
   return ethAddress;
+}
+
+export function autoCreateAccountCacheKey(ethTxHash: string) {
+  return `${AUTO_CREATE_ACCOUNT_PREFIX_KEY}:${ethTxHash}`;
 }

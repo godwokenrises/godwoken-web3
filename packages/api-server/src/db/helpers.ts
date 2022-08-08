@@ -1,5 +1,5 @@
-import { HexNumber, HexString } from "@ckb-lumos/base";
-import { FilterTopic } from "../cache/types";
+import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+import { FilterTopic } from "../base/filter";
 import {
   Block,
   Transaction,
@@ -11,9 +11,7 @@ import {
 import {
   DEFAULT_MAX_QUERY_NUMBER,
   DEFAULT_MAX_QUERY_TIME_MILSECS,
-  DEFAULT_MAX_QUERY_ROUNDS,
 } from "./constant";
-import { LimitExceedError } from "../methods/error";
 import { Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 
@@ -99,6 +97,7 @@ export function formatLog(log: DBLog): Log {
     block_number: BigInt(log.block_number),
     log_index: +log.log_index,
     transaction_hash: bufferToHex(log.transaction_hash),
+    eth_tx_hash: log.eth_tx_hash ? bufferToHex(log.eth_tx_hash) : undefined,
     block_hash: bufferToHex(log.block_hash),
     address: bufferToHex(log.address),
     data: bufferToHex(log.data),
@@ -126,6 +125,20 @@ export function normalizeLogQueryAddress(
   }
 
   return normalizeQueryAddress(address);
+}
+
+export function universalizeAddress(
+  address: undefined | HexString | HexString[]
+) {
+  const normalizedAddress: undefined | HexString | HexString[] =
+    normalizeLogQueryAddress(address);
+  if (normalizedAddress == null) {
+    return [];
+  } else if (typeof normalizedAddress === "string") {
+    return [normalizedAddress];
+  } else {
+    return normalizedAddress;
+  }
 }
 
 /*
@@ -208,16 +221,6 @@ export function filterLogsByAddress(
   return result;
 }
 
-export enum QueryRoundStatus {
-  keepGoing,
-  stop,
-}
-
-export interface ExecuteOneQueryResult {
-  status: QueryRoundStatus;
-  data: any[];
-}
-
 export function getDatabaseRateLimitingConfiguration() {
   const MAX_QUERY_NUMBER = envConfig["maxQueryNumber"]
     ? +envConfig["maxQueryNumber"]
@@ -225,56 +228,11 @@ export function getDatabaseRateLimitingConfiguration() {
   const MAX_QUERY_TIME_MILSECS = envConfig["maxQueryTimeInMilliseconds"]
     ? +envConfig["maxQueryTimeInMilliseconds"]
     : DEFAULT_MAX_QUERY_TIME_MILSECS;
-  const MAX_QUERY_ROUNDS = envConfig["maxQueryRounds"]
-    ? +envConfig["maxQueryRounds"]
-    : DEFAULT_MAX_QUERY_ROUNDS;
 
   return {
     MAX_QUERY_NUMBER,
     MAX_QUERY_TIME_MILSECS,
-    MAX_QUERY_ROUNDS,
   };
-}
-
-/**
- * limit the query in two constraints:  query number and query time
- * with N rounds of query, calculate the number and time
- * @param executeOneQuery query in one round
- * @returns
- */
-export async function limitQuery(
-  executeOneQuery: (offset: number) => Promise<ExecuteOneQueryResult>
-) {
-  const { MAX_QUERY_NUMBER, MAX_QUERY_ROUNDS, MAX_QUERY_TIME_MILSECS } =
-    getDatabaseRateLimitingConfiguration();
-  const results = [];
-  const t1 = new Date();
-  for (const index of [...Array(MAX_QUERY_ROUNDS).keys()]) {
-    const offset = index * MAX_QUERY_NUMBER;
-    let executeResult = await executeOneQuery(offset);
-    // console.log(`${index}th round =>`, executeResult.data.length, executeResult.status);
-    results.push(...executeResult.data);
-
-    // check if exceed max query number
-    if (results.length > MAX_QUERY_NUMBER) {
-      throw new LimitExceedError(
-        `query returned more than ${MAX_QUERY_NUMBER} results`
-      );
-    }
-
-    // check if exceed query timeout
-    const t2 = new Date();
-    const diffTimeMs = t2.getTime() - t1.getTime();
-    if (diffTimeMs > MAX_QUERY_TIME_MILSECS) {
-      throw new LimitExceedError(`query timeout exceeded`);
-    }
-
-    if (executeResult.status === QueryRoundStatus.stop) {
-      // offset query reach end, break the loop
-      break;
-    }
-  }
-  return results;
 }
 
 export function buildQueryLogAddress(
@@ -287,5 +245,71 @@ export function buildQueryLogAddress(
       "address",
       queryAddress.map((addr) => hexToBuffer(addr))
     );
+  }
+}
+
+/*
+return a slice of log array which satisfy the topics matching.
+matching rule:
+      Topics are order-dependent.
+	Each topic can also be an array of DATA with “or” options.
+	[example]:
+
+	  A transaction with a log with topics [A, B],
+	  will be matched by the following topic filters:
+	    1. [] “anything”
+	    2. [A] “A in first position (and anything after)”
+	    3. [null, B] “anything in first position AND B in second position (and anything after)”
+	    4. [A, B] “A in first position AND B in second position (and anything after)”
+	    5. [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+
+	source: https://eth.wiki/json-rpc/API#eth_newFilter
+*/
+export function buildQueryLogTopics(
+  queryBuilder: KnexType.QueryBuilder,
+  topics: FilterTopic[]
+) {
+  if (topics.length !== 0) {
+    queryBuilder.whereRaw(`array_length(topics, 1) >= ?`, [topics.length]);
+  }
+
+  topics.forEach((topic, index) => {
+    if (topic == null) {
+      // discard always-matched topic
+    } else if (typeof topic === "string") {
+      const pgTopicIndex = index + 1;
+      queryBuilder.where(`topics[${pgTopicIndex}]`, "=", hexToBuffer(topic));
+    } else {
+      const pgTopicIndex = index + 1;
+      queryBuilder.whereIn(
+        `topics[${pgTopicIndex}]`,
+        topic.map((subtopic) => hexToBuffer(subtopic))
+      );
+    }
+  });
+}
+
+export function buildQueryLogBlock(
+  queryBuilder: KnexType.QueryBuilder,
+  fromBlock: bigint,
+  toBlock: bigint,
+  blockHash?: Hash
+) {
+  if (blockHash != null) {
+    queryBuilder.where("block_hash", hexToBuffer(blockHash));
+  } else {
+    queryBuilder.whereBetween("block_number", [
+      fromBlock.toString(),
+      toBlock.toString(),
+    ]);
+  }
+}
+
+export function buildQueryLogId(
+  queryBuilder: KnexType.QueryBuilder,
+  lastPollId: bigint = BigInt(-1)
+) {
+  if (lastPollId !== BigInt(-1)) {
+    queryBuilder.where("id", ">", lastPollId.toString());
   }
 }

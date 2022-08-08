@@ -1,4 +1,5 @@
-import { Hash, HexNumber, HexString } from "@ckb-lumos/base";
+const newrelic = require("newrelic");
+import { Hash } from "@ckb-lumos/base";
 import {
   Block,
   Transaction,
@@ -7,10 +8,9 @@ import {
   DBTransaction,
   DBLog,
 } from "./types";
-import Knex, { Knex as KnexType } from "knex";
-import { LogQueryOption } from "./types";
+import Knex, { knex, Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
-import { QUERY_OFFSET_REACHED_END } from "../methods/constant";
+import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
 import {
   formatDecimal,
   toBigIntOpt,
@@ -18,12 +18,16 @@ import {
   formatTransaction,
   formatLog,
   buildQueryLogAddress,
-  normalizeLogQueryAddress,
-  filterLogsByTopics,
   bufferToHex,
   hexToBuffer,
   getDatabaseRateLimitingConfiguration,
+  buildQueryLogTopics,
+  buildQueryLogBlock,
+  buildQueryLogId,
 } from "./helpers";
+import { LimitExceedError } from "../methods/error";
+import { FilterParams } from "../base/filter";
+import KnexTimeoutError = knex.KnexTimeoutError;
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -40,6 +44,32 @@ export class Query {
 
   constructor() {
     this.knex = GLOBAL_KNEX;
+  }
+
+  async getEthTxHashByGwTxHash(gwTxHash: Hash): Promise<Hash | undefined> {
+    const ethTxHash = await this.knex<DBTransaction>("transactions")
+      .select("eth_tx_hash")
+      .where({
+        hash: hexToBuffer(gwTxHash),
+      })
+      .first();
+    if (ethTxHash == null) {
+      return undefined;
+    }
+    return bufferToHex(ethTxHash.eth_tx_hash);
+  }
+
+  async getGwTxHashByEthTxHash(ethTxHash: Hash): Promise<Hash | undefined> {
+    const gwTxHash = await this.knex<DBTransaction>("transactions")
+      .select("hash")
+      .where({
+        eth_tx_hash: hexToBuffer(ethTxHash),
+      })
+      .first();
+    if (gwTxHash == null) {
+      return undefined;
+    }
+    return bufferToHex(gwTxHash.hash);
   }
 
   async getTipBlockNumber(): Promise<bigint | undefined> {
@@ -100,14 +130,20 @@ export class Query {
     return blocks.map((block) => formatBlock(block));
   }
 
-  async getBlocksAfterBlockNumber(
+  async getBlockHashesAndNumbersAfterBlockNumber(
     number: bigint,
     order: "desc" | "asc" = "desc"
-  ): Promise<Block[]> {
-    const blocks = await this.knex<DBBlock>("blocks")
+  ): Promise<{ hash: Hash; number: bigint }[]> {
+    const arrayOfHashAndNumber = await this.knex<{
+      hash: Buffer;
+      number: bigint;
+    }>("blocks")
+      .select("hash", "number")
       .where("number", ">", number.toString())
       .orderBy("number", order);
-    return blocks.map((block) => formatBlock(block));
+    return arrayOfHashAndNumber.map((hn) => {
+      return { hash: bufferToHex(hn.hash), number: BigInt(hn.number) };
+    });
   }
 
   async getTransactionsByBlockHash(blockHash: Hash): Promise<Transaction[]> {
@@ -229,18 +265,18 @@ export class Query {
   // undefined means not found
   async getBlockTransactionCountByHash(blockHash: Hash): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_hash: blockHash,
+      block_hash: hexToBuffer(blockHash),
     });
   }
 
   async getBlockTransactionCountByNumber(blockNumber: bigint): Promise<number> {
     return await this.getBlockTransactionCount({
-      block_number: blockNumber,
+      block_number: blockNumber.toString(),
     });
   }
 
   private async getBlockTransactionCount(
-    params: Readonly<Partial<KnexType.MaybeRawRecord<Transaction>>>
+    params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
   ): Promise<number> {
     const data = await this.knex<DBTransaction>("transactions")
       .where(params)
@@ -277,138 +313,60 @@ export class Query {
     return null;
   }
 
-  private async queryLogsByBlockHash(
-    blockHash: HexString,
-    address?: HexString | HexString[],
-    lastPollId?: bigint,
-    offset?: number
+  /**
+   * @throws LimitExceedError - the number of queried results are over `MAX_QUERY_NUMBER`.
+   */
+  async getLogsByFilter(
+    { addresses, topics, fromBlock, toBlock, blockHash }: FilterParams,
+    lastPollId: bigint = BigInt(-1)
   ): Promise<Log[]> {
-    const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
-    const queryLastPollId = lastPollId || -1;
-    const queryOffset = offset || 0;
-    let logs: DBLog[] = await this.knex<DBLog>("logs")
-      .modify(buildQueryLogAddress, address)
-      .where("block_hash", blockHash)
-      .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "asc")
-      .offset(queryOffset)
-      .limit(MAX_QUERY_NUMBER);
-    return logs.map((log) => formatLog(log));
-  }
+    const { MAX_QUERY_NUMBER, MAX_QUERY_TIME_MILSECS } =
+      getDatabaseRateLimitingConfiguration();
 
-  private async queryLogsByBlockRange(
-    fromBlock: HexNumber,
-    toBlock: HexNumber,
-    address?: HexString | HexString[],
-    lastPollId?: bigint,
-    offset?: number
-  ): Promise<Log[]> {
-    const { MAX_QUERY_NUMBER } = getDatabaseRateLimitingConfiguration();
-    const queryLastPollId = lastPollId || -1;
-    const queryOffset = offset || 0;
-    let logs: DBLog[] = await this.knex<DBLog>("logs")
-      .modify(buildQueryLogAddress, address)
-      .where("block_number", ">=", fromBlock)
-      .where("block_number", "<=", toBlock)
-      .where("id", ">", queryLastPollId.toString(10))
-      .orderBy("id", "asc")
-      .offset(queryOffset)
-      .limit(MAX_QUERY_NUMBER);
-    return logs.map((log) => formatLog(log));
-  }
+    // NOTE: In this SQL, there is no `ORDER BY id` as combining `ORDER BY` and `LIMIT` consumes too much time when the
+    // results are large. Instead, logs are sorted outside the database:
+    // - When the number of query results exceeds $MAX_QUERY_NUMBER, an error is returned.
+    // - When the queried results are less than or equal to $MAX_QUERY_NUMBER, sorting takes only a short time
+    //
+    // NOTE: Using CTE to SELECT "logs" then JOIN "transactions" is more efficient than directly SELECT JOIN
+    let selectLogs = this.knex<DBLog>("logs")
+      .modify(buildQueryLogAddress, addresses)
+      .modify(buildQueryLogTopics, topics)
+      .modify(buildQueryLogBlock, fromBlock, toBlock, blockHash)
+      .modify(buildQueryLogId, lastPollId)
+      .limit(MAX_QUERY_NUMBER + 1);
+    let selectLogsJoinTransactions = this.knex<DBLog>("transactions")
+      .with("logs", selectLogs)
+      .select("logs.*", "transactions.eth_tx_hash")
+      .join("logs", { "logs.transaction_hash": "transactions.hash" });
+    let logs: DBLog[] = await selectLogsJoinTransactions
+      .timeout(MAX_QUERY_TIME_MILSECS, { cancel: true })
+      .catch((knexError: any) => {
+        if (knexError instanceof KnexTimeoutError) {
+          throw new LimitExceedError(`query timeout exceeded`);
+        }
+        throw knexError;
+      });
 
-  async getLogs(
-    option: LogQueryOption,
-    blockHashOrFromBlock: HexString | bigint,
-    toBlock?: bigint,
-    offset?: number
-  ): Promise<Log[]> {
-    const address = normalizeLogQueryAddress(option.address);
-    const topics = option.topics || [];
-
-    if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
-      const logs = await this.queryLogsByBlockHash(
-        blockHashOrFromBlock,
-        address,
-        undefined,
-        offset
+    if (logs.length > MAX_QUERY_NUMBER) {
+      throw new LimitExceedError(
+        `query returned more than ${MAX_QUERY_NUMBER} results`
       );
-
-      if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
-      }
-
-      return filterLogsByTopics(logs, topics);
     }
 
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
-      const logs = await this.queryLogsByBlockRange(
-        blockHashOrFromBlock.toString(),
-        toBlock.toString(),
-        address,
-        undefined,
-        offset
-      );
-
-      if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
-      }
-
-      return filterLogsByTopics(logs, topics);
-    }
-
-    throw new Error("invalid params!");
+    return logs
+      .map((log) => formatLog(log))
+      .sort((aLog, bLog) => Number(aLog.id - bLog.id));
   }
 
-  async getLogsAfterLastPoll(
-    lastPollId: bigint,
-    option: LogQueryOption,
-    blockHashOrFromBlock: HexString | bigint,
-    toBlock?: bigint,
-    offset?: number
-  ): Promise<Log[]> {
-    const address = normalizeLogQueryAddress(option.address);
-    const topics = option.topics || [];
-
-    if (typeof blockHashOrFromBlock === "string" && toBlock == null) {
-      const logs = await this.queryLogsByBlockHash(
-        blockHashOrFromBlock,
-        address,
-        lastPollId,
-        offset
-      );
-
-      if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
-      }
-
-      return filterLogsByTopics(logs, topics);
-    }
-
-    if (typeof blockHashOrFromBlock === "bigint" && toBlock != null) {
-      const logs = await this.queryLogsByBlockRange(
-        blockHashOrFromBlock.toString(),
-        toBlock.toString(),
-        address,
-        lastPollId,
-        offset
-      );
-
-      if (offset && logs.length === 0) {
-        throw new Error(QUERY_OFFSET_REACHED_END);
-      }
-
-      return filterLogsByTopics(logs, topics);
-    }
-
-    throw new Error("invalid params!");
-  }
-
-  // Latest 500 transactions median gas_price
+  // Latest ${LATEST_MEDIAN_GAS_PRICE} transactions median gas_price
   async getMedianGasPrice(): Promise<bigint> {
     const sql = `SELECT (PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY gas_price)) AS median FROM (SELECT gas_price FROM transactions ORDER BY id DESC LIMIT ?) AS gas_price;`;
-    const result = await this.knex.raw(sql, [500]);
-
+    const result = await newrelic.startSegment(
+      "getMedianGasPrice",
+      true,
+      async () => this.knex.raw(sql, [LATEST_MEDIAN_GAS_PRICE])
+    );
     const median = result.rows[0]?.median;
     if (median == null) {
       return BigInt(0);

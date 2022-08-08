@@ -21,7 +21,8 @@
     "start": "yarn workspace @godwoken-web3/api-server run start",
     "start:prod": "yarn workspace @godwoken-web3/api-server run start:prod",
     "start:pm2": "yarn workspace @godwoken-web3/api-server run start:pm2",
-    "test": "yarn workspace @godwoken-web3/api-server run test"
+    "test": "yarn workspace @godwoken-web3/api-server run test",
+    "cli": "yarn workspace @godwoken-web3/api-server run cli"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.8.0",
@@ -29,6 +30,6 @@
     "eslint": "^8.5.0",
     "prettier": "^2.2.1"
   },
-  "version": "1.3.0-rc1",
+  "version": "1.5.2-rc1",
   "author": "hupeng <bitrocks.hu@gmail.com>"
 }

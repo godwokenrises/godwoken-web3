@@ -1,5 +1,5 @@
-import { createClient } from "redis";
-import { RedisClientType } from "redis/dist/lib/client";
+require("newrelic");
+import { RedisClientType, createClient } from "redis";
 import { logger } from "../base/logger";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 
@@ -36,7 +36,9 @@ export class Store {
     this.client = createClient({
       url: url,
     });
-    this.client.on("error", (err) => logger.error("Redis Client Error", err));
+    this.client.on("error", (err: any) =>
+      logger.error("Redis Client Error", err)
+    );
 
     if (enableExpired == null) {
       enableExpired = false;

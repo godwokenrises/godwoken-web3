@@ -13,6 +13,7 @@ import {
   CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
 } from "../cache/constant";
+import { wsApplyRateLimitByIp } from "../rate-limit";
 
 const query = new Query();
 const cacheStore = new Store(
@@ -22,40 +23,42 @@ const cacheStore = new Store(
 );
 cacheStore.init();
 
-let newrelic: any = undefined;
-if (envConfig.newRelicLicenseKey) {
-  newrelic = require("newrelic");
-}
+const newrelic = require("newrelic");
 
 const blockEmitter = new BlockEmitter();
 blockEmitter.startWorker();
 
-export function wrapper(ws: any, _req: any) {
+export function wrapper(ws: any, req: any) {
   // this function gets called on each connection
 
   wsrpc(ws);
 
-  for (const [key, value] of Object.entries(methods)) {
-    ws.on(key, function (...args: any[]) {
-      // add web transaction for websocket request
-      if (envConfig.newRelicLicenseKey) {
-        return newrelic.startWebTransaction(`/ws#${key}`, async () => {
-          newrelic.getTransaction();
-          try {
-            const params = args.slice(0, args.length - 1);
-            const cb = args[args.length - 1];
-            (value as any)(params, cb);
-          } catch (error) {
-            throw error;
-          } finally {
-            newrelic.endTransaction();
-          }
-        });
-      }
+  for (const [method, methodFunc] of Object.entries(methods)) {
+    ws.on(method, async function (...args: any[]) {
+      const execMethod = async () => {
+        const params = args.slice(0, args.length - 1);
+        const cb = args[args.length - 1];
 
-      const params = args.slice(0, args.length - 1);
-      const cb = args[args.length - 1];
-      (value as any)(params, cb);
+        // check rate limit
+        const err = await wsApplyRateLimitByIp(req, method);
+        if (err != null) {
+          return cb(err);
+        }
+
+        (methodFunc as any)(params, cb);
+      };
+
+      // add web transaction for websocket request
+      return newrelic.startWebTransaction(`/ws#${method}`, async () => {
+        newrelic.getTransaction();
+        try {
+          execMethod();
+        } catch (error) {
+          throw error;
+        } finally {
+          newrelic.endTransaction();
+        }
+      });
     });
   }
 
@@ -235,6 +238,14 @@ export function wrapper(ws: any, _req: any) {
     };
     const info = await Promise.all(
       objs.map(async (obj) => {
+        // check rate limit
+        const err = await wsApplyRateLimitByIp(req, obj.method);
+        if (err != null) {
+          return {
+            err,
+          };
+        }
+
         if (obj.method === "eth_subscribe") {
           const r = ethSubscribe(obj.params, callback);
           return r;

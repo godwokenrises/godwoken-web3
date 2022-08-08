@@ -6,10 +6,7 @@ import { toApiNewHead } from "./db/types";
 import cluster from "cluster";
 import * as Sentry from "@sentry/node";
 
-let newrelic: any = undefined;
-if (envConfig.newRelicLicenseKey) {
-  newrelic = require("newrelic");
-}
+const newrelic = require("newrelic");
 
 // Only start in main worker, and `startWorker` in workers to get emitter.
 export class BlockEmitter {
@@ -107,7 +104,12 @@ export class BlockEmitter {
       const newHeads = blocks.map((b) => toApiNewHead(b));
       this.notify("newHeads", newHeads);
 
-      const logs = await this.query.getLogs({}, min + BigInt(1), max); // exclude min & include max;
+      const logs = await this.query.getLogsByFilter({
+        fromBlock: min + BigInt(1),
+        toBlock: max,
+        addresses: [],
+        topics: [],
+      });
       const newLogs = logs.map((log) =>
         JSON.stringify(
           log,
@@ -124,23 +126,19 @@ export class BlockEmitter {
     };
 
     // add new relic background transaction
-    if (envConfig.newRelicLicenseKey) {
-      return newrelic.startBackgroundTransaction(
-        `BlockEmitter#pool`,
-        async () => {
-          newrelic.getTransaction();
-          try {
-            return await executePoll();
-          } catch (error) {
-            throw error;
-          } finally {
-            newrelic.endTransaction();
-          }
+    return newrelic.startBackgroundTransaction(
+      `BlockEmitter#pool`,
+      async () => {
+        newrelic.getTransaction();
+        try {
+          return await executePoll();
+        } catch (error) {
+          throw error;
+        } finally {
+          newrelic.endTransaction();
         }
-      );
-    }
-
-    return await executePoll();
+      }
+    );
   }
 
   getEmitter(): EventEmitter {

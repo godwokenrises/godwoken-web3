@@ -108,6 +108,8 @@ Get details at [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/de
 - poly_getRollupTypeHash
 - poly_getEthAccountLockHash
 - poly_version
+- poly_getEthTxHashByGwTxHash
+- poly_getGwTxHashByEthTxHash
 
 #### Usage
 

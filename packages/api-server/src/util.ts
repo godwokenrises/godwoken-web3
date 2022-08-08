@@ -1,4 +1,10 @@
-import { BlockParameter } from "./methods/types";
+import { HexString } from "@ckb-lumos/base";
+import {
+  TX_DATA_NONE_ZERO_GAS,
+  TX_DATA_ZERO_GAS,
+  TX_GAS,
+  TX_GAS_CONTRACT_CREATION,
+} from "./methods/constant";
 
 const { platform } = require("os");
 const { version: packageVersion } = require("../../../package.json");
@@ -9,25 +15,6 @@ export function getClientVersion() {
   return `Godwoken/v${packageVersion}/${platform()}/node${version.substring(
     1
   )}`;
-}
-
-export function handleBlockParamter(block_paramter: BlockParameter): BigInt {
-  if (!block_paramter) throw new Error("block_parameter is undefind!");
-
-  switch (block_paramter) {
-    case "latest":
-      return BigInt("1" + "0".repeat(10)); // a very large number
-
-    case "earliest":
-      return BigInt(0);
-
-    case "pending":
-      // throw new Error("pending transaction unsupported.");
-      return BigInt("1" + "0".repeat(10)); // treat it as 'latest'
-
-    default:
-      return BigInt(block_paramter);
-  }
 }
 
 export function toCamel(s: string) {
@@ -96,4 +83,44 @@ export function validateHexString(hex: string): boolean {
 
 export function validateHexNumber(hex: string): boolean {
   return /^0x(0|[0-9a-fA-F]+)$/.test(hex);
+}
+
+export function calcIntrinsicGas(
+  to: HexString | undefined,
+  input: HexString | undefined
+) {
+  to = to === "0x" ? undefined : to;
+  const isCreate = to == null;
+  let gas: bigint;
+  if (isCreate) {
+    gas = BigInt(TX_GAS_CONTRACT_CREATION);
+  } else {
+    gas = BigInt(TX_GAS);
+  }
+
+  if (input && input.length > 0) {
+    const buf = Buffer.from(input.slice(2), "hex");
+    const byteLen = buf.byteLength;
+    let nonZeroLen = 0;
+    for (const b of buf) {
+      if (b !== 0) {
+        nonZeroLen++;
+      }
+    }
+    const zeroLen = byteLen - nonZeroLen;
+    gas =
+      gas +
+      BigInt(zeroLen) * BigInt(TX_DATA_ZERO_GAS) +
+      BigInt(nonZeroLen) * BigInt(TX_DATA_NONE_ZERO_GAS);
+  }
+  return gas;
+}
+
+export function calcFee(serializedL2Tx: HexString, feeRate: bigint) {
+  const byteLen = BigInt(serializedL2Tx.slice(2).length / 2);
+  return byteLen * feeRate;
+}
+
+export async function asyncSleep(ms = 0) {
+  return new Promise((r) => setTimeout(() => r("ok"), ms));
 }

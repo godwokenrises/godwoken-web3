@@ -1,20 +1,21 @@
 {
   "name": "@godwoken-web3/api-server",
-  "version": "1.3.0-rc1",
+  "version": "1.5.2-rc1",
   "private": true,
   "scripts": {
     "start": "concurrently \"tsc -w\" \"nodemon ./bin/cluster\"",
     "start:prod": "NODE_ENV=production node ./bin/cluster",
     "start:pm2": "NODE_ENV=production pm2 start ./bin/cluster --no-daemon --name gw-web3 --max-memory-restart 1G",
     "test": "ava",
-    "fmt": "prettier --write \"{migrations,tests}/**/*.{js,ts,tsx}\" src/* package.json",
-    "lint": "eslint -c ../../.eslintrc.js \"{src,tests}/**/*.ts\"",
+    "fmt": "prettier --write \"{migrations,tests,cli}/**/*.{js,ts,tsx}\" src/* package.json tsconfig.json",
+    "lint": "eslint -c ../../.eslintrc.js \"{src,tests,cli}/**/*.ts\"",
     "reset_database": "NODE_ENV=test knex migrate:down && knex migrate:up && knex seed:run",
     "knex": "knex",
     "migrate:make": "knex migrate:make",
     "migrate:latest": "knex migrate:latest",
     "migrate-accounts": "ts-node ./src/migrate-accounts.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "cli": "yarn ts-node cli/index.ts"
   },
   "ava": {
     "extensions": [
@@ -31,10 +32,11 @@
   "dependencies": {
     "@ckb-lumos/base": "0.18.0-rc6",
     "@ckb-lumos/toolkit": "0.18.0-rc6",
-    "@godwoken-web3/godwoken": "1.3.0-rc1",
+    "@godwoken-web3/godwoken": "1.5.2-rc1",
     "@newrelic/native-metrics": "^7.0.1",
     "@sentry/node": "^6.11.0",
     "blake2b": "2.1.3",
+    "commander": "^9.4.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "ethereum-input-data-decoder": "^0.3.5",
@@ -49,11 +51,12 @@
     "knex": "2.0.0",
     "leveldown": "^6.0.1",
     "levelup": "^5.0.1",
-    "newrelic": "^8.1.0",
+    "newrelic": "^8.15.0",
     "pg": "8.7.3",
-    "redis": "^4.0.0-rc.3",
+    "redis": "^4.2.0",
     "rlp": "^2.2.6",
     "secp256k1": "^4.0.2",
+    "v8-profiler-next": "^1.9.0",
     "web3-eth-abi": "^1.6.0",
     "winston": "^3.7.2"
   },
@@ -68,7 +71,7 @@
     "@types/secp256k1": "^4.0.2",
     "ava": "^4.1.0",
     "concurrently": "^6.0.0",
-    "nodemon": "^2.0.7",
+    "nodemon": "^2.0.19",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.2"
   }

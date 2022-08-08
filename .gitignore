@@ -7,3 +7,5 @@ target
 indexer-config.toml
 *.sql
 *.log
+*.cpuprofile
+*.heapsnapshot

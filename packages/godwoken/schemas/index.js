@@ -1703,6 +1703,9 @@
       case 0:
         new CreateAccount(this.view.buffer.slice(4), { validate: false }).validate();
         break;
+      case 1:
+        new BatchCreateEthAccounts(this.view.buffer.slice(4), { validate: false }).validate();
+        break;
       default:
         throw new Error(`Invalid type: ${t}`);
       }
@@ -1713,6 +1716,8 @@
       switch (t) {
       case 0:
         return "CreateAccount";
+      case 1:
+        return "BatchCreateEthAccounts";
       default:
         throw new Error(`Invalid type: ${t}`);
       }
@@ -1723,6 +1728,8 @@
       switch (t) {
       case 0:
         return new CreateAccount(this.view.buffer.slice(4), { validate: false });
+      case 1:
+        return new BatchCreateEthAccounts(this.view.buffer.slice(4), { validate: false });
       default:
         throw new Error(`Invalid type: ${t}`);
       }
@@ -1737,6 +1744,15 @@
         const array = new Uint8Array(4 + itemBuffer.byteLength);
         const view = new DataView(array.buffer);
         view.setUint32(0, 0, true);
+        array.set(new Uint8Array(itemBuffer), 4);
+        return array.buffer;
+      }
+    case "BatchCreateEthAccounts":
+      {
+        const itemBuffer = SerializeBatchCreateEthAccounts(value.value);
+        const array = new Uint8Array(4 + itemBuffer.byteLength);
+        const view = new DataView(array.buffer);
+        view.setUint32(0, 1, true);
         array.set(new Uint8Array(itemBuffer), 4);
         return array.buffer;
       }
@@ -1812,6 +1828,42 @@
   function SerializeCreateAccount(value) {
     const buffers = [];
     buffers.push(SerializeScript(value.script));
+    buffers.push(SerializeFee(value.fee));
+    return serializeTable(buffers);
+  }
+
+  class BatchCreateEthAccounts {
+    constructor(reader, { validate = true } = {}) {
+      this.view = new DataView(assertArrayBuffer(reader));
+      if (validate) {
+        this.validate();
+      }
+    }
+
+    validate(compatible = false) {
+      const offsets = verifyAndExtractOffsets(this.view, 0, true);
+      new ScriptVec(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
+      new Fee(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
+    }
+
+    getScripts() {
+      const start = 4;
+      const offset = this.view.getUint32(start, true);
+      const offset_end = this.view.getUint32(start + 4, true);
+      return new ScriptVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+    }
+
+    getFee() {
+      const start = 8;
+      const offset = this.view.getUint32(start, true);
+      const offset_end = this.view.byteLength;
+      return new Fee(this.view.buffer.slice(offset, offset_end), { validate: false });
+    }
+  }
+
+  function SerializeBatchCreateEthAccounts(value) {
+    const buffers = [];
+    buffers.push(SerializeScriptVec(value.scripts));
     buffers.push(SerializeFee(value.fee));
     return serializeTable(buffers);
   }
@@ -4341,6 +4393,7 @@
   exports.AccountMerkleState = AccountMerkleState;
   exports.AllowedTypeHash = AllowedTypeHash;
   exports.AllowedTypeHashVec = AllowedTypeHashVec;
+  exports.BatchCreateEthAccounts = BatchCreateEthAccounts;
   exports.BatchSetMapping = BatchSetMapping;
   exports.Block = Block;
   exports.BlockHashEntry = BlockHashEntry;
@@ -4410,6 +4463,7 @@
   exports.SerializeAccountMerkleState = SerializeAccountMerkleState;
   exports.SerializeAllowedTypeHash = SerializeAllowedTypeHash;
   exports.SerializeAllowedTypeHashVec = SerializeAllowedTypeHashVec;
+  exports.SerializeBatchCreateEthAccounts = SerializeBatchCreateEthAccounts;
   exports.SerializeBatchSetMapping = SerializeBatchSetMapping;
   exports.SerializeBlock = SerializeBlock;
   exports.SerializeBlockHashEntry = SerializeBlockHashEntry;

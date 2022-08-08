@@ -1,7 +1,7 @@
 import test from "ava";
 import { MAX_FILTER_TOPIC_ARRAY_LENGTH } from "../src/cache/constant";
 import { FilterManager } from "../src/cache";
-import { FilterObject } from "../src/cache/types";
+import { RpcFilterRequest } from "../src/base/filter";
 
 const EXPIRED_TIMEOUT_MILLISECONDS = 1000;
 const manager = new FilterManager(true, EXPIRED_TIMEOUT_MILLISECONDS);
@@ -14,7 +14,7 @@ test.beforeEach(async (t) => {
 
 // FIXME Uncomment this case after fixing the bug
 // test.serial("install with address less than 20 bytes-length", async (t) => {
-//   const invalid: FilterObject = {
+//   const invalid: RpcFilterRequest = {
 //     address: "0x0000",
 //     fromBlock: "0x123",
 //     toBlock: "latest",
@@ -33,7 +33,7 @@ test.beforeEach(async (t) => {
 // });
 
 test.serial("filter topics exceeds limit", async (t) => {
-  const invalid: FilterObject = {
+  const invalid: RpcFilterRequest = {
     address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
     fromBlock: "0x123",
     toBlock: "latest",
@@ -49,7 +49,7 @@ test.serial("filter topics exceeds limit", async (t) => {
     `got FilterTopics.length ${invalid.topics?.length}, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
   );
 
-  const valid: FilterObject = {
+  const valid: RpcFilterRequest = {
     address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
     fromBlock: "0x123",
     toBlock: "latest",
@@ -61,7 +61,7 @@ test.serial("filter topics exceeds limit", async (t) => {
 });
 
 test.serial("filter topic items exceeds limit", async (t) => {
-  const invalid: FilterObject = {
+  const invalid: RpcFilterRequest = {
     address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
     fromBlock: "0x123",
     toBlock: "0x520",
@@ -82,7 +82,7 @@ test.serial("filter topic items exceeds limit", async (t) => {
     }, expect limit: ${MAX_FILTER_TOPIC_ARRAY_LENGTH}`
   );
 
-  const valid: FilterObject = {
+  const valid: RpcFilterRequest = {
     address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
     fromBlock: "0x123",
     toBlock: "0x520",
@@ -97,7 +97,7 @@ test.serial("filter topic items exceeds limit", async (t) => {
 });
 
 test.serial("run the complete filter workflow", async (t) => {
-  const filterObjects: FilterObject[] = [
+  const RpcFilterRequests: RpcFilterRequest[] = [
     {
       address: "0x92384EF7176DA84a957A9FE9119585AB2dc7c57d",
       fromBlock: "0x123",
@@ -118,18 +118,18 @@ test.serial("run the complete filter workflow", async (t) => {
     },
   ];
 
-  let ids = filterObjects.map(async (filterObject) => {
-    return await manager.install(filterObject, BigInt(0));
+  let ids = RpcFilterRequests.map(async (RpcFilterRequest) => {
+    return await manager.install(RpcFilterRequest, BigInt(0));
   });
   t.is(await manager.size(), ids.length);
-  t.is(await manager.size(), filterObjects.length);
+  t.is(await manager.size(), RpcFilterRequests.length);
 
   for (let i = 0; i < ids.length; i++) {
     const id = await ids[i];
 
     // filter get
     const actual = await manager.get(id);
-    t.deepEqual(actual, filterObjects[i]);
+    t.deepEqual(actual, RpcFilterRequests[i]);
 
     // filter getLastPoll
     t.is((await manager.getLastPoll(id)).toString(), "0");
