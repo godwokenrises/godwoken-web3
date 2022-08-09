@@ -798,6 +798,9 @@ export class Eth {
         tx,
         fromAddress
       );
+      logger.info(
+        `aca tx: action: getTransactionByHash, eth_tx_hash: ${ethTxHash}, is_tx_exist: ${isAcaTxExist}`
+      );
       if (isAcaTxExist) {
         const apiTransaction: EthTransaction =
           polyjuiceRawTransactionToApiTransaction(
@@ -1484,6 +1487,9 @@ async function buildEthCallTx(
 
   let serializedRegistryAddress: HexString | undefined;
   if (fromId == null && fromAddress != null) {
+    logger.info(
+      `aca tx: action: call/estimateGas, from_address: ${fromAddress}`
+    );
     const registryAddress: EthRegistryAddress = new EthRegistryAddress(
       fromAddress
     );
