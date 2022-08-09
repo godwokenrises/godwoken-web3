@@ -100,6 +100,10 @@ export class Gw {
       this.is_request_in_queue.bind(this),
       0
     );
+    this.get_pending_tx_hashes = middleware(
+      this.get_pending_tx_hashes.bind(this),
+      0
+    );
   }
 
   async ping(args: any[]) {
@@ -646,6 +650,15 @@ export class Gw {
   async is_request_in_queue(args: any[]) {
     try {
       const result = await this.rpc.gw_is_request_in_queue(...args);
+      return result;
+    } catch (error) {
+      parseGwRpcError(error);
+    }
+  }
+
+  async get_pending_tx_hashes(args: any[]) {
+    try {
+      const result = await this.readonlyRpc.gw_get_pending_tx_hashes(...args);
       return result;
     } catch (error) {
       parseGwRpcError(error);
