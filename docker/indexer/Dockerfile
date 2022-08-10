@@ -13,6 +13,7 @@ FROM ubuntu:focal
 RUN apt-get update \
  && apt-get dist-upgrade -y \
  && apt-get install -y openssl \
+ && apt-get install -y libcurl4 \
  && apt-get clean \
  && echo 'Finished installing OS updates'
 
