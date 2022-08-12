@@ -28,6 +28,7 @@ export type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 export const globalClient: RedisClientType = createClient({
   url: envConfig.redisUrl,
 });
+globalClient.connect();
 
 globalClient.on("error", (err: any) => logger.error("Redis Client Error", err));
 globalClient.on("end", () => logger.error("Redis Client terminated.."));
