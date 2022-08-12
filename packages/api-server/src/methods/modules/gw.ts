@@ -45,12 +45,7 @@ export class Gw {
       ? new RPC(envConfig.godwokenReadonlyJsonRpc)
       : this.rpc;
 
-    this.gwCache = new Store(
-      envConfig.redisUrl,
-      true,
-      CACHE_EXPIRED_TIME_MILSECS
-    );
-    this.gwCache.init();
+    this.gwCache = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
 
     this.ping = middleware(this.ping.bind(this), 0);
     this.get_tip_block_hash = middleware(this.get_tip_block_hash.bind(this), 0);

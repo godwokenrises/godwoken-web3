@@ -113,12 +113,7 @@ export class Eth {
     this.filterManager = new FilterManager(true);
     this.filterManager.connect();
 
-    this.cacheStore = new Store(
-      envConfig.redisUrl,
-      true,
-      CACHE_EXPIRED_TIME_MILSECS
-    );
-    this.cacheStore.init();
+    this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
 
     const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
     this.gasPriceCacheMilSec = cacheSeconds * 1000;

@@ -21,12 +21,7 @@ export class Poly {
       envConfig.godwokenJsonRpc,
       envConfig.godwokenReadonlyJsonRpc
     );
-    this.cacheStore = new Store(
-      envConfig.redisUrl,
-      true,
-      CACHE_EXPIRED_TIME_MILSECS
-    );
-    this.cacheStore.init();
+    this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
     this.query = new Query();
 
     this.getGwTxHashByEthTxHash = middleware(

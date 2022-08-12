@@ -8,7 +8,6 @@ import {
   MAX_FILTER_TOPIC_ARRAY_LENGTH,
 } from "./constant";
 import { validators } from "../methods/validator";
-import { envConfig } from "../base/env-config";
 import { FilterFlag, FilterTopic, RpcFilterRequest } from "../base/filter";
 
 export class FilterManager {
@@ -19,8 +18,7 @@ export class FilterManager {
     expiredTimeMilsecs = CACHE_EXPIRED_TIME_MILSECS, // milsec, default 5 minutes
     store?: Store
   ) {
-    this.store =
-      store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
+    this.store = store || new Store(enableExpired, expiredTimeMilsecs);
   }
 
   isConnected() {

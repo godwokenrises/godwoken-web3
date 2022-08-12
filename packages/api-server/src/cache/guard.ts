@@ -1,7 +1,6 @@
 require("newrelic");
 import { Store } from "./store";
 import { HexString } from "@ckb-lumos/base";
-import { envConfig } from "../base/env-config";
 import fs from "fs";
 import path from "path";
 import { CACHE_EXPIRED_TIME_MILSECS } from "./constant";
@@ -49,8 +48,7 @@ export class AccessGuard {
     const config = getRateLimitConfig();
     logger.debug("rate-limit-config:", config);
     expiredTimeMilsecs = expiredTimeMilsecs || config.expired_time_milsec;
-    this.store =
-      store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
+    this.store = store || new Store(enableExpired, expiredTimeMilsecs);
     this.rpcMethods = config.methods;
     this.expiredTimeMilsecs = expiredTimeMilsecs || CACHE_EXPIRED_TIME_MILSECS;
   }
