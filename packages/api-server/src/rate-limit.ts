@@ -5,7 +5,6 @@ import { logger } from "./base/logger";
 import { JSONRPCError } from "jayson";
 
 export const accessGuard = new AccessGuard();
-accessGuard.connect();
 
 export async function wsApplyRateLimitByIp(req: Request, method: string) {
   const ip = getIp(req);
