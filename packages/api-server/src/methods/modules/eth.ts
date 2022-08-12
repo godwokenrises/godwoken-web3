@@ -111,7 +111,6 @@ export class Eth {
       envConfig.godwokenReadonlyJsonRpc
     );
     this.filterManager = new FilterManager(true);
-    this.filterManager.connect();
 
     this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
 

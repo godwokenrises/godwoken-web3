@@ -4,8 +4,8 @@ import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 import { globalClient, SetOptions } from "./redis";
 
 export class Store {
-  public client: RedisClientType;
-  public setOptions: SetOptions;
+  private client: RedisClientType;
+  private setOptions: SetOptions;
 
   constructor(enableExpired?: boolean, keyExpiredTimeMilSecs?: number) {
     this.client = globalClient;
@@ -35,7 +35,8 @@ export class Store {
   }
 
   async delete(key: string) {
-    return await this.client.del(key);
+    // use unlink instead of DEL to avoid blocking
+    return await this.client.unlink(key);
   }
 
   async get(key: string) {
@@ -48,5 +49,13 @@ export class Store {
 
   async addSet(name: string, members: string | string[]) {
     return await this.client.sAdd(name, members);
+  }
+
+  async incr(key: string) {
+    return await this.client.incr(key);
+  }
+
+  async ttl(key: string) {
+    return await this.client.ttl(key);
   }
 }

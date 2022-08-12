@@ -2,13 +2,13 @@ import test from "ava";
 import { MAX_FILTER_TOPIC_ARRAY_LENGTH } from "../src/cache/constant";
 import { FilterManager } from "../src/cache";
 import { RpcFilterRequest } from "../src/base/filter";
+import { globalClient } from "../src/cache/redis";
 
 const EXPIRED_TIMEOUT_MILLISECONDS = 1000;
 const manager = new FilterManager(true, EXPIRED_TIMEOUT_MILLISECONDS);
 
 test.beforeEach(async (t) => {
-  await manager.connect();
-  await manager.store.client.sendCommand(["FLUSHDB"]);
+  await globalClient.sendCommand(["FLUSHDB"]);
   t.is(await manager.size(), 0);
 });
 

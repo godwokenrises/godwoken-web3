@@ -21,16 +21,6 @@ export class FilterManager {
     this.store = store || new Store(enableExpired, expiredTimeMilsecs);
   }
 
-  isConnected() {
-    return this.store.client.isOpen;
-  }
-
-  async connect() {
-    if (!this.isConnected()) {
-      await this.store.client.connect();
-    }
-  }
-
   async install(
     filter: FilterFlag | RpcFilterRequest,
     initialPollIdx: bigint
