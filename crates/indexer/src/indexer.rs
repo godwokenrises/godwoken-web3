@@ -536,9 +536,9 @@ impl Web3Indexer {
             Ok(tx_receipt)
         };
 
-        let retry_count = 10;
+        let max_retry = 10;
         let mut retry_times = 0;
-        while retry_times < retry_count {
+        while retry_times < max_retry {
             let receipt = get_receipt();
             match receipt {
                 Ok(tx_receipt) => return Ok(tx_receipt),
