@@ -9,6 +9,11 @@ import { LogItem, PolyjuiceSystemLog } from "./types";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { logger } from "../base/logger";
 
+const gwVmMaxCycleExitCode = "0xff";
+const gwVmMaxCycleErrMsg = "VM max cycle exceeded";
+// we use 3(OUT_OF_GAS in evmcCodeTypeMapping) as vm_max_cycle_exceeded status code
+const gwVmMaxCycleStatusCode = 3;
+
 export const evmcCodeTypeMapping: {
   [key: string]: string;
 } = {
@@ -183,15 +188,25 @@ export function parseGwError(error: any): GwErrorDetail {
     }
 
     const returnData = err.data.return_data;
-    const statusReason: string = parseReturnData(returnData);
+
+    // when tx reach vm max cycles, evm status code is success
+    // but godwoken return err.data.exit_code = 0xff, we should handle such case
+    const statusReason: string =
+      err.data.exit_code === gwVmMaxCycleExitCode
+        ? gwVmMaxCycleErrMsg
+        : parseReturnData(returnData);
+    const statusCode =
+      err.data.exit_code === gwVmMaxCycleExitCode
+        ? gwVmMaxCycleStatusCode
+        : polyjuiceSystemLog?.statusCode;
 
     return {
       code: err.code,
       message: err.message,
       data: err.data,
       polyjuiceSystemLog,
-      statusCode: polyjuiceSystemLog?.statusCode,
-      statusReason: statusReason,
+      statusCode,
+      statusReason,
     };
   }
 
