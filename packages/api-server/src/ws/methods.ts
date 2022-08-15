@@ -4,16 +4,14 @@ import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
 import { methods } from "../methods/index";
 import { middleware as wsrpc } from "./wss";
 import crypto from "crypto";
-import { HexNumber, HexString } from "@ckb-lumos/base";
+import { HexNumber } from "@ckb-lumos/base";
 import { Log, LogQueryOption, toApiLog } from "../db/types";
 import { filterLogsByAddress, filterLogsByTopics, Query } from "../db";
 import { envConfig } from "../base/env-config";
 import { Store } from "../cache/store";
-import {
-  CACHE_EXPIRED_TIME_MILSECS,
-  TX_HASH_MAPPING_PREFIX_KEY,
-} from "../cache/constant";
+import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 import { wsApplyRateLimitByIp } from "../rate-limit";
+import { gwTxHashToEthTxHash } from "../cache/tx-hash";
 
 const query = new Query();
 const cacheStore = new Store(
@@ -66,27 +64,6 @@ export function wrapper(ws: any, req: any) {
   const syncingIds: Set<HexNumber> = new Set();
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
 
-  async function gwTxHashToEthTxHash(gwTxHash: HexString) {
-    // query from redis for instant-finality tx
-    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-    let ethTxHash = await cacheStore.get(gwTxHashKey);
-    if (ethTxHash != null) {
-      return ethTxHash;
-    }
-
-    // query from database
-    const transaction = await query.getTransactionByHash(gwTxHash);
-    if (transaction != null) {
-      return transaction.eth_tx_hash;
-    }
-
-    return null;
-  }
-
-  function gwTxHashCacheKey(gwTxHash: string) {
-    return `${TX_HASH_MAPPING_PREFIX_KEY}:gw:${gwTxHash}`;
-  }
-
   const blockListener = (blocks: EthNewHead[]) => {
     blocks.forEach((block) => {
       newHeadsIds.forEach((id) => {
@@ -111,9 +88,9 @@ export function wrapper(ws: any, req: any) {
       log.transaction_id = BigInt(log.transaction_id);
       return log;
     });
-    logsQueryMaps.forEach(async (query, id) => {
-      const _result = filterLogsByAddress(logs, query.address);
-      const result = filterLogsByTopics(_result, query.topics || []);
+    logsQueryMaps.forEach(async (logQuery, id) => {
+      const _result = filterLogsByAddress(logs, logQuery.address);
+      const result = filterLogsByTopics(_result, logQuery.topics || []);
 
       if (result.length === 0) return;
 
@@ -123,7 +100,11 @@ export function wrapper(ws: any, req: any) {
         params: {
           result: await Promise.all(
             result.map(async (log) => {
-              const ethTxHash = await gwTxHashToEthTxHash(log.transaction_hash);
+              const ethTxHash = await gwTxHashToEthTxHash(
+                log.transaction_hash,
+                query,
+                cacheStore
+              );
               return toApiLog(log, ethTxHash!);
             })
           ),

@@ -86,6 +86,7 @@ import { logger } from "../../base/logger";
 import { calcIntrinsicGas } from "../../util";
 import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
 import { Reader } from "@ckb-lumos/toolkit";
+import { ethTxHashToGwTxHash } from "../../cache/tx-hash";
 
 const Config = require("../../../config/eth.json");
 
@@ -868,7 +869,11 @@ export class Eth {
     args: [string]
   ): Promise<EthTransactionReceipt | null> {
     const ethTxHash: Hash = args[0];
-    const gwTxHash: Hash | null = await this.ethTxHashToGwTxHash(ethTxHash);
+    const gwTxHash: Hash | undefined = await ethTxHashToGwTxHash(
+      ethTxHash,
+      this.query,
+      this.cacheStore
+    );
     if (gwTxHash == null) {
       return null;
     }
@@ -1162,40 +1167,6 @@ export class Eth {
       return await this.getTipNumber();
     }
     return blockNumber;
-  }
-
-  private async ethTxHashToGwTxHash(ethTxHash: HexString) {
-    // query from redis for instant-finality tx
-    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-    let gwTxHash = await this.cacheStore.get(ethTxHashKey);
-    if (gwTxHash != null) {
-      return gwTxHash;
-    }
-
-    // query from database
-    const transaction = await this.query.getTransactionByEthTxHash(ethTxHash);
-    if (transaction != null) {
-      return transaction.hash;
-    }
-
-    return null;
-  }
-
-  private async gwTxHashToEthTxHash(gwTxHash: HexString) {
-    // query from redis for instant-finality tx
-    const gwTxHashKey = gwTxHashCacheKey(gwTxHash);
-    let ethTxHash = await this.cacheStore.get(gwTxHashKey);
-    if (ethTxHash != null) {
-      return ethTxHash;
-    }
-
-    // query from database
-    const transaction = await this.query.getTransactionByHash(gwTxHash);
-    if (transaction != null) {
-      return transaction.eth_tx_hash;
-    }
-
-    return null;
   }
 
   private async _rpcFilterRequestToGetLogsParams(
