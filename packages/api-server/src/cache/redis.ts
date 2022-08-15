@@ -24,15 +24,33 @@ export interface SetCommonOptions {
 export type SetOptions = SetTTL & SetGuards & SetCommonOptions;
 // endOf Typing
 
+const maxretries = 100;
+
 // create global redis client
 export const globalClient: RedisClientType = createClient({
   url: envConfig.redisUrl,
+  socket: {
+    reconnectStrategy: (attempts) => {
+      logger.debug(`[RedisGlobalClient] reconnecting attempt ${attempts}..`);
+      if (attempts > maxretries) {
+        return new Error(
+          `[RedisGlobalClient] failed to connect to ${envConfig.redisUrl} in ${maxretries} attempts`
+        );
+      }
+      // default wait time: https://github.com/redis/node-redis/blob/HEAD/docs/client-configuration.md#reconnect-strategy
+      return Math.min(attempts * 50, 500);
+    },
+  },
 });
-globalClient.connect();
 
-globalClient.on("error", (err: any) => logger.error("Redis Client Error", err));
-globalClient.on("end", () => logger.error("Redis Client terminated.."));
-// note: node-redis will auto reconnect if error occurs
-globalClient.on("reconnecting", () =>
-  logger.debug("Redis Client reconnecting..")
+globalClient.on("connect", () => {
+  logger.debug("[RedisGlobalClient] connected.");
+});
+globalClient.on("error", (err: any) =>
+  logger.error("[RedisGlobalClient] Error =>", err)
 );
+globalClient.on("end", () =>
+  logger.debug("[RedisGlobalClient] connection terminated..")
+);
+
+globalClient.connect();
