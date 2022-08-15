@@ -144,8 +144,10 @@ function updateEthTxHash(tx: DBTransaction, chainId: bigint): Hash {
   const r = BigInt("0x" + tx.r.toString("hex"));
   const s = BigInt("0x" + tx.s.toString("hex"));
 
+  // for non eip-155 txs(chain id = 0), v = 27 + last byte of signature(0 / 1)
   // v = chain_id * 2 + 35 + last byte of signature(0 / 1)
-  const v: bigint = chainId * 2n + 35n + BigInt(tx.v);
+  const v: bigint =
+    chainId === 0n ? 27n + BigInt(tx.v) : chainId * 2n + 35n + BigInt(tx.v);
 
   const data = "0x" + tx.input?.toString("hex");
   const to =

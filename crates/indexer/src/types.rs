@@ -88,8 +88,13 @@ impl Transaction {
 
     fn add_chain_replay_protection(&self) -> u64 {
         self.v as u64
-            + if let Some(n) = self.chain_id {
-                35 + n * 2
+            + if let Some(id) = self.chain_id {
+                // For non eip-155 txs
+                if id == 0 {
+                    27
+                } else {
+                    35 + id * 2
+                }
             } else {
                 27
             }
