@@ -519,19 +519,39 @@ impl Web3Indexer {
         let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
         let tx_hash_hex = hex(tx_hash.as_bytes())
             .unwrap_or_else(|_| format!("convert tx hash: {:?} to hex format failed", tx_hash));
-        let tx_receipt: TxReceipt = self
-            .godwoken_rpc_client
-            .get_transaction_receipt(&tx_hash)?
-            .ok_or_else(|| {
-                anyhow!(
-                    "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
-                    tx_hash_hex,
-                    block_number,
-                    tx_index
-                )
-            })?
-            .into();
-        Ok(tx_receipt)
+
+        let get_receipt = || -> Result<TxReceipt> {
+            let tx_receipt: TxReceipt = self
+                .godwoken_rpc_client
+                .get_transaction_receipt(&tx_hash)?
+                .ok_or_else(|| {
+                    anyhow!(
+                        "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
+                        tx_hash_hex,
+                        block_number,
+                        tx_index
+                    )
+                })?
+                .into();
+            Ok(tx_receipt)
+        };
+
+        let max_retry = 10;
+        let mut retry_times = 0;
+        while retry_times < max_retry {
+            let receipt = get_receipt();
+            match receipt {
+                Ok(tx_receipt) => return Ok(tx_receipt),
+                Err(err) => {
+                    log::error!("{}", err);
+                    retry_times += 1;
+                    // sleep and retry
+                    let sleep_time = std::time::Duration::from_secs(retry_times);
+                    std::thread::sleep(sleep_time);
+                }
+            }
+        }
+        get_receipt()
     }
 
     async fn build_web3_block(
