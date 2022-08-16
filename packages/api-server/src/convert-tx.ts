@@ -347,7 +347,7 @@ export async function parseRawTransactionData(
     args_data.slice(2);
 
   let chainId = gwConfig.web3ChainId;
-  // if v = 27 || 28, set chain_id = 0
+  // When `v = 27` or `v = 28`, the transaction is considered a non-eip155 transaction.
   if (v === "0x1b" || v === "0x1c") {
     chainId = "0x0";
   }
