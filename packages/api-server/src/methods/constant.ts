@@ -38,3 +38,6 @@ export const MAX_TRANSACTION_SIZE = BigInt("131072");
 export const MAX_ADDRESS_SIZE_PER_REGISTER_BATCH = 50;
 
 export const AUTO_CREATE_ACCOUNT_FROM_ID = "0x0";
+
+// if sync behind 3 blocks, something went wrong
+export const MAX_ALLOW_SYNC_BLOCKS_DIFF = 3;

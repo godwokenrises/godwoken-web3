@@ -29,6 +29,7 @@
     * [Type `ScriptInfo`](#type-scriptinfo)
     * [Type `BackendInfo`](#type-backendinfo)
     * [Type `AccountInfo`](#type-accountinfo)
+    * [Type `HealthStatus`](#type-healthstatus)
 
 ## RPC Methods
 
@@ -409,6 +410,42 @@ Response
 }
 ```
 
+#### Method `poly_getHealthStatus`
+* `poly_getHealthStatus()`
+* result: [`HealthStatus`](#type-h256)
+
+Get web3 server health status
+
+##### Examples
+
+Request
+
+```json
+{
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "poly_getHealthStatus",
+    "params": []
+}
+```
+
+Response
+
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+        "status": true,
+        "pingNode": "pong",
+        "pingFullNode": "pong",
+        "pingRedis": "PONG",
+        "isDBConnected": true,
+        "syncBlocksDiff": 0
+    }
+}
+```
+
 ## RPC Types
 
 ### Type `Uint32`
@@ -671,3 +708,20 @@ Describes the accounts web3 used.
 
 *   `defaultFrom`: [`AccountInfo`](#type-accountinfo) - Default from account used in `eth_call` and `eth_estimateGas`
 
+### Type `HealthStatus`
+
+Describes the web3 server health status.
+
+#### Fields
+
+*   `status`: `boolean` - Health status, should be true
+
+*   `pingNode`: `string` - Godwoken readonly node ping result, should be "pong"
+
+*   `pingFullNode`: `string` - Godwoken fullnode node ping result, should be "pong"
+
+*   `pingRedis`: `string` - Redis server ping result, should be "PONG"
+
+*   `isDBConnected`: `boolean` - Database connection status, should be true
+
+*   `syncBlocksDiff`: `number` - Web3 sync behind godwoken blocks count, eg 2 means sync behind 2 blocks, 0 means sync to the latest

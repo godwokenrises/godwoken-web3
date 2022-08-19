@@ -110,6 +110,7 @@ Get details at [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/de
 - poly_version
 - poly_getEthTxHashByGwTxHash
 - poly_getGwTxHashByEthTxHash
+- poly_getHealthStatus
 
 #### Usage
 
