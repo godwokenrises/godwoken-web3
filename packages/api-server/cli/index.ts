@@ -1,6 +1,10 @@
 import { Command } from "commander";
 import { fixEthTxHashRun, listWrongEthTxHashesRun } from "./fix-eth-tx-hash";
 import { version as packageVersion } from "../package.json";
+import {
+  fixLogTransactionIndexRun,
+  wrongLogTransactionIndexCountRun,
+} from "./fix-log-transaction-index";
 
 const program = new Command();
 program.version(packageVersion);
@@ -28,5 +32,21 @@ program
   )
   .option("-d, --database-url <database url>", "database url", undefined)
   .action(listWrongEthTxHashesRun);
+
+program
+  .command("fix-log-transaction-index")
+  .description("Fix wrong log's transaction_index")
+  .option(
+    "-d, --database-url <database url>",
+    "If not provide, will use env `DATABASE_URL`, throw error if not provided too",
+    undefined
+  )
+  .action(fixLogTransactionIndexRun);
+
+program
+  .command("wrong-log-transaction-index-count")
+  .description("Get log's count which transaction_index is wrong")
+  .option("-d, --database-url <database url>", "database url", undefined)
+  .action(wrongLogTransactionIndexCountRun);
 
 program.parse();
