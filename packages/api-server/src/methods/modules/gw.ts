@@ -462,11 +462,11 @@ export class Gw {
           throw gasPriceErr.padContext(`gw_submit_l2transaction`);
         }
 
-        // check intrinsic gas and enough fund
         const to = decodeData.isCreate
           ? undefined
           : "0x" + toScript.args.slice(2).slice((32 + 4) * 2);
 
+        // check intrinsic gas and enough fund
         let from = "0x" + fromScript.args.slice(2).slice(64, 104);
         // For auto create account tx, from address should recover from signature
         if (fromId === "0x0") {
