@@ -140,6 +140,18 @@ function numberToRlpEncode(num: HexString): HexString {
   return "0x" + BigInt(num).toString(16);
 }
 
+export function recoverEthAddressFromPolyjuiceTx(
+  rawTx: PolyjuiceTransaction
+): HexString {
+  const signature: HexString = getSignature(rawTx);
+
+  const message = calcMessage(rawTx);
+
+  const publicKey = recoverPublicKey(signature, message);
+  const fromEthAddress = publicKeyToEthAddress(publicKey);
+  return fromEthAddress;
+}
+
 function calcMessage(tx: PolyjuiceTransaction): HexString {
   let vInt = +tx.v;
   let finalVInt = undefined;
