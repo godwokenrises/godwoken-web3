@@ -21,7 +21,6 @@ impl Runner {
             config.rollup_type_hash,
             config.eth_account_lock_hash,
             config.godwoken_rpc_url.as_str(),
-            config.chain_id,
         );
         let godwoken_rpc_client = GodwokenRpcClient::new(config.godwoken_rpc_url.as_str());
         let runner = Runner {
