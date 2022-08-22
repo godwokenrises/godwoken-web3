@@ -412,7 +412,7 @@ Response
 
 #### Method `poly_getHealthStatus`
 * `poly_getHealthStatus()`
-* result: [`HealthStatus`](#type-h256)
+* result: [`HealthStatus`](#type-healthstatus)
 
 Get web3 server health status
 
