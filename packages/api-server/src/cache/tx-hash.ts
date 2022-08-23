@@ -1,4 +1,5 @@
-import { Hash } from "@ckb-lumos/base";
+import { Hash, HexString } from "@ckb-lumos/base";
+import { Query } from "../db";
 import {
   TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS,
   TX_HASH_MAPPING_PREFIX_KEY,
@@ -13,7 +14,6 @@ function gwTxHashCacheKey(gwTxHash: string) {
   return `${TX_HASH_MAPPING_PREFIX_KEY}:gw:${gwTxHash}`;
 }
 
-// TODO: refactor eth.ts with this
 export class TxHashMapping {
   private store: Store;
 
@@ -45,4 +45,42 @@ export class TxHashMapping {
     const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
     return await this.store.get(ethTxHashKey);
   }
+}
+
+export async function gwTxHashToEthTxHash(
+  gwTxHash: HexString,
+  query: Query,
+  cacheStore: Store
+) {
+  let ethTxHashInCache = await new TxHashMapping(cacheStore).getEthTxHash(
+    gwTxHash
+  );
+  if (ethTxHashInCache != null) {
+    return ethTxHashInCache;
+  }
+
+  // query from database
+  const gwTxHashInDb: Hash | undefined = await query.getEthTxHashByGwTxHash(
+    gwTxHash
+  );
+  return gwTxHashInDb;
+}
+
+export async function ethTxHashToGwTxHash(
+  ethTxHash: HexString,
+  query: Query,
+  cacheStore: Store
+) {
+  let gwTxHashInCache = await new TxHashMapping(cacheStore).getGwTxHash(
+    ethTxHash
+  );
+  if (gwTxHashInCache != null) {
+    return gwTxHashInCache;
+  }
+
+  // query from database
+  const ethTxHashInDb: Hash | undefined = await query.getGwTxHashByEthTxHash(
+    ethTxHash
+  );
+  return ethTxHashInDb;
 }

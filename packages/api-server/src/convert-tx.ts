@@ -132,14 +132,6 @@ export function getSignature(tx: PolyjuiceTransaction): HexString {
   return "0x" + tx.r.slice(2) + tx.s.slice(2) + realVWithoutPrefix;
 }
 
-function numberToRlpEncode(num: HexString): HexString {
-  if (num === "0x0" || num === "0x") {
-    return "0x";
-  }
-
-  return "0x" + BigInt(num).toString(16);
-}
-
 export function recoverEthAddressFromPolyjuiceTx(
   rawTx: PolyjuiceTransaction
 ): HexString {
@@ -152,37 +144,41 @@ export function recoverEthAddressFromPolyjuiceTx(
   return fromEthAddress;
 }
 
+// https://eips.ethereum.org/EIPS/eip-155
+// For non eip-155 txs, (nonce, gasprice, startgas, to, value, data)
+// For eip155 txs, (nonce, gasprice, startgas, to, value, data, chainid, 0, 0)
 function calcMessage(tx: PolyjuiceTransaction): HexString {
-  let vInt = +tx.v;
-  let finalVInt = undefined;
+  const v: bigint = BigInt(tx.v);
 
-  if (vInt === 27 || vInt === 28) {
-    throw new Error(
-      `only EIP155 transaction is allowed, illegal transaction recId ${tx.v}. more info: ${COMPATIBLE_DOCS_URL}`
-    );
+  const beforeEncode: any[] = [
+    toRlpNumber(tx.nonce),
+    toRlpNumber(tx.gasPrice),
+    toRlpNumber(tx.gasLimit),
+    tx.to,
+    toRlpNumber(tx.value),
+    tx.data,
+  ];
+
+  // if v = 27 / 28, it's non eip-155 txs
+  if (v !== 27n && v !== 28n) {
+    let chainId: bigint;
+    if (v % 2n === 0n) {
+      chainId = (v - 36n) / 2n;
+    } else {
+      chainId = (v - 35n) / 2n;
+    }
+
+    // chain id
+    beforeEncode.push(chainId);
+    // r
+    beforeEncode.push(0);
+    // s
+    beforeEncode.push(0);
   }
 
-  if (vInt % 2 === 0) {
-    finalVInt = "0x" + BigInt((vInt - 36) / 2).toString(16);
-  } else {
-    finalVInt = "0x" + BigInt((vInt - 35) / 2).toString(16);
-  }
+  const encoded: Buffer = rlp.encode(beforeEncode);
 
-  const rawTx: PolyjuiceTransaction = {
-    ...tx,
-    nonce: numberToRlpEncode(tx.nonce),
-    gasPrice: numberToRlpEncode(tx.gasPrice),
-    gasLimit: numberToRlpEncode(tx.gasLimit),
-    value: numberToRlpEncode(tx.value),
-    r: "0x",
-    s: "0x",
-    v: numberToRlpEncode(finalVInt),
-  };
-
-  const encoded = encodePolyjuiceTransaction(rawTx);
-
-  const message =
-    "0x" + keccak256(Buffer.from(encoded.slice(2), "hex")).toString("hex");
+  const message = "0x" + keccak256(encoded).toString("hex");
 
   return message;
 }
@@ -215,7 +211,7 @@ export async function parseRawTransactionData(
   rpc: GodwokenClient,
   polyjuiceRawTx: HexString
 ): Promise<[L2Transaction, [string, string] | undefined]> {
-  const { nonce, gasPrice, gasLimit, to, value, data } = rawTx;
+  const { nonce, gasPrice, gasLimit, to, value, data, v } = rawTx;
 
   // Reject transactions with too large size
   const rlpEncoded = encodePolyjuiceTransaction(rawTx);
@@ -362,8 +358,13 @@ export async function parseRawTransactionData(
     args_48_52.slice(2) +
     args_data.slice(2);
 
+  let chainId = gwConfig.web3ChainId;
+  // When `v = 27` or `v = 28`, the transaction is considered a non-eip155 transaction.
+  if (v === "0x1b" || v === "0x1c") {
+    chainId = "0x0";
+  }
   const godwokenRawL2Tx: RawL2Transaction = {
-    chain_id: gwConfig.web3ChainId,
+    chain_id: chainId,
     from_id: fromId,
     to_id: toId,
     nonce: nonce === "0x" ? "0x0" : nonce,

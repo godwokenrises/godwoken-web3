@@ -6,7 +6,7 @@ import { gwConfig } from "../../base/index";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { Query } from "../../db";
-import { TxHashMapping } from "../../cache/tx-hash";
+import { ethTxHashToGwTxHash, gwTxHashToEthTxHash } from "../../cache/tx-hash";
 import { middleware, validators } from "../validator";
 const { version: web3Version } = require("../../../package.json");
 
@@ -98,27 +98,11 @@ export class Poly {
 
   async getGwTxHashByEthTxHash(args: [Hash]): Promise<Hash | undefined> {
     const ethTxHash = args[0];
-    const gwTxHashInCache = await new TxHashMapping(
-      this.cacheStore
-    ).getGwTxHash(ethTxHash);
-    if (gwTxHashInCache != null) {
-      return gwTxHashInCache;
-    }
-    const gwTxHashInDb: Hash | undefined =
-      await this.query.getGwTxHashByEthTxHash(ethTxHash);
-    return gwTxHashInDb;
+    return await ethTxHashToGwTxHash(ethTxHash, this.query, this.cacheStore);
   }
 
   async getEthTxHashByGwTxHash(args: [Hash]): Promise<Hash | undefined> {
     const gwTxHash = args[0];
-    const ethTxHashInCache = await new TxHashMapping(
-      this.cacheStore
-    ).getEthTxHash(gwTxHash);
-    if (ethTxHashInCache != null) {
-      return ethTxHashInCache;
-    }
-    const ethTxHashInDb: Hash | undefined =
-      await this.query.getEthTxHashByGwTxHash(gwTxHash);
-    return ethTxHashInDb;
+    return await gwTxHashToEthTxHash(gwTxHash, this.query, this.cacheStore);
   }
 }
