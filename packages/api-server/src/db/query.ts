@@ -28,6 +28,7 @@ import {
 import { LimitExceedError } from "../methods/error";
 import { FilterParams } from "../base/filter";
 import KnexTimeoutError = knex.KnexTimeoutError;
+import { logger } from "../base/logger";
 
 const poolMax = envConfig.pgPoolMax || 20;
 const GLOBAL_KNEX = Knex({
@@ -44,6 +45,16 @@ export class Query {
 
   constructor() {
     this.knex = GLOBAL_KNEX;
+  }
+
+  async isConnected() {
+    try {
+      await this.knex.raw("SELECT 1");
+      return true;
+    } catch (error: any) {
+      logger.error(error.message);
+      return false;
+    }
   }
 
   async getEthTxHashByGwTxHash(gwTxHash: Hash): Promise<Hash | undefined> {

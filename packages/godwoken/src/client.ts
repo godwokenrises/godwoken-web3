@@ -199,6 +199,21 @@ export class GodwokenClient {
     return await this.rpcCall("get_mem_pool_state_root");
   }
 
+  public async ping(): Promise<string> {
+    const result = await this.rpcCall("ping");
+    return result;
+  }
+
+  public async pingFullNode(): Promise<string> {
+    const result = await this.writeRpcCall("ping");
+    return result;
+  }
+
+  public async getBlock(blockHash: HexString): Promise<any> {
+    const result = await this.rpcCall("get_block", blockHash);
+    return result;
+  }
+
   private async rpcCall(methodName: string, ...args: any[]): Promise<any> {
     const name = "gw_" + methodName;
     try {

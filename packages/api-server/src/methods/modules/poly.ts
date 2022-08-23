@@ -8,6 +8,7 @@ import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { Query } from "../../db";
 import { ethTxHashToGwTxHash, gwTxHashToEthTxHash } from "../../cache/tx-hash";
 import { middleware, validators } from "../validator";
+import { MAX_ALLOW_SYNC_BLOCKS_DIFF } from "../constant";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
@@ -104,5 +105,48 @@ export class Poly {
   async getEthTxHashByGwTxHash(args: [Hash]): Promise<Hash | undefined> {
     const gwTxHash = args[0];
     return await gwTxHashToEthTxHash(gwTxHash, this.query, this.cacheStore);
+  }
+
+  async getHealthStatus(_args: []) {
+    const [pingNode, pingFullNode, pingRedis, isDBConnected, syncBlocksDiff] =
+      await Promise.all([
+        this.rpc.ping(),
+        this.rpc.pingFullNode(),
+        this.cacheStore.client.PING(),
+        this.query.isConnected(),
+        this.syncBlocksDiff(),
+      ]);
+
+    const status =
+      pingNode === "pong" &&
+      pingFullNode === "pong" &&
+      pingRedis === "PONG" &&
+      isDBConnected &&
+      syncBlocksDiff <= MAX_ALLOW_SYNC_BLOCKS_DIFF;
+
+    return {
+      status,
+      pingNode,
+      pingFullNode,
+      pingRedis,
+      isDBConnected,
+      syncBlocksDiff,
+    };
+  }
+
+  // get block data sync status
+  private async syncBlocksDiff(): Promise<Number> {
+    const blockNum = await this.query.getTipBlockNumber();
+    if (blockNum == null) {
+      throw new Error("db tipBlockNumber is null");
+    }
+    const dbTipBlockNumber = +blockNum.toString();
+
+    const tipBlockHash = await this.rpc.getTipBlockHash();
+    const tipBlock = await this.rpc.getBlock(tipBlockHash);
+    const gwTipBlockNumber = +tipBlock.block.raw.number;
+
+    const diff = gwTipBlockNumber - dbTipBlockNumber;
+    return diff;
   }
 }
