@@ -132,6 +132,18 @@ export function getSignature(tx: PolyjuiceTransaction): HexString {
   return "0x" + tx.r.slice(2) + tx.s.slice(2) + realVWithoutPrefix;
 }
 
+export function recoverEthAddressFromPolyjuiceTx(
+  rawTx: PolyjuiceTransaction
+): HexString {
+  const signature: HexString = getSignature(rawTx);
+
+  const message = calcMessage(rawTx);
+
+  const publicKey = recoverPublicKey(signature, message);
+  const fromEthAddress = publicKeyToEthAddress(publicKey);
+  return fromEthAddress;
+}
+
 // https://eips.ethereum.org/EIPS/eip-155
 // For non eip-155 txs, (nonce, gasprice, startgas, to, value, data)
 // For eip155 txs, (nonce, gasprice, startgas, to, value, data, chainid, 0, 0)

@@ -101,7 +101,7 @@ impl Web3Indexer {
         Ok(row.and_then(|(n,)| n.to_u64()))
     }
 
-    // NOTE: remember to update `tx_index`, `cumulative_gas_used`
+    // NOTE: remember to update `tx_index`, `cumulative_gas_used`, `log.transaction_index`
     fn filter_single_transaction(
         &self,
         l2_transaction: L2Transaction,
@@ -196,8 +196,7 @@ impl Web3Indexer {
             let input = polyjuice_args.input.clone().unwrap_or_default();
 
             // read logs
-            let tx_receipt: TxReceipt =
-                self.get_transaction_receipt(gw_tx_hash, block_number, mock_tx_index)?;
+            let tx_receipt: TxReceipt = self.get_transaction_receipt(gw_tx_hash, block_number)?;
             let log_item_vec = tx_receipt.logs();
 
             // read polyjuice system log
@@ -347,7 +346,7 @@ impl Web3Indexer {
                     let nonce: u32 = l2_transaction.raw().nonce().unpack();
 
                     let tx_receipt: TxReceipt =
-                        self.get_transaction_receipt(gw_tx_hash, block_number, mock_tx_index)?;
+                        self.get_transaction_receipt(gw_tx_hash, block_number)?;
 
                     let exit_code: u8 = tx_receipt.exit_code().into();
                     let web3_transaction = Web3Transaction::new(
@@ -475,7 +474,17 @@ impl Web3Indexer {
                 .flatten()
                 .enumerate()
                 .map(|(tx_index, mut tx)| {
-                    tx.tx.transaction_index = tx_index as u32 + tx_index_cursor;
+                    let transaction_index = tx_index as u32 + tx_index_cursor;
+                    tx.tx.transaction_index = transaction_index;
+                    // update log.transaction_index too
+                    tx.logs = tx
+                        .logs
+                        .into_iter()
+                        .map(|mut log| {
+                            log.transaction_index = transaction_index;
+                            log
+                        })
+                        .collect();
                     cumulative_gas_used += tx.tx.gas_used;
                     tx.tx.cumulative_gas_used = cumulative_gas_used;
 
@@ -511,7 +520,6 @@ impl Web3Indexer {
         &self,
         gw_tx_hash: gw_common::H256,
         block_number: u64,
-        tx_index: u32,
     ) -> Result<TxReceipt> {
         let tx_hash = ckb_types::H256::from_slice(gw_tx_hash.as_slice())?;
         let tx_hash_hex = hex(tx_hash.as_bytes())
@@ -523,10 +531,9 @@ impl Web3Indexer {
                 .get_transaction_receipt(&tx_hash)?
                 .ok_or_else(|| {
                     anyhow!(
-                        "tx receipt not found by tx_hash: ({}) of block: {}, index: {}",
+                        "tx receipt not found by tx_hash: ({}) of block: {}",
                         tx_hash_hex,
                         block_number,
-                        tx_index
                     )
                 })?
                 .into();

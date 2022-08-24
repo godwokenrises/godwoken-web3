@@ -33,6 +33,10 @@ import {
 import { InvalidParamsError } from "../error";
 import { gwConfig } from "../../base";
 import { META_CONTRACT_ID } from "../constant";
+import {
+  PolyjuiceTransaction,
+  recoverEthAddressFromPolyjuiceTx,
+} from "../../convert-tx";
 
 export class Gw {
   private rpc: RPC;
@@ -462,11 +466,32 @@ export class Gw {
           throw gasPriceErr.padContext(`gw_submit_l2transaction`);
         }
 
-        // check intrinsic gas and enough fund
-        const from = "0x" + fromScript.args.slice(2).slice(64, 104);
         const to = decodeData.isCreate
           ? undefined
           : "0x" + toScript.args.slice(2).slice((32 + 4) * 2);
+
+        // check intrinsic gas and enough fund
+        let from = "0x" + fromScript.args.slice(2).slice(64, 104);
+        // For auto create account tx, from address should recover from signature
+        if (fromId === "0x0") {
+          const r = l2Tx.signature.slice(0, 66);
+          const s = "0x" + l2Tx.signature.slice(66, 130);
+          const recoverId = "0x" + l2Tx.signature.slice(130, 132);
+          const v = BigInt(l2Tx.raw.chain_id) * 2n + 35n + BigInt(recoverId);
+          const polyjuiceTransaction: PolyjuiceTransaction = {
+            nonce: l2Tx.raw.nonce,
+            gasPrice: decodeData.gasPrice,
+            gasLimit: decodeData.gasLimit,
+            to: to || "0x",
+            value: decodeData.value,
+            data: decodeData.input,
+            r,
+            s,
+            v: "0x" + v.toString(16),
+          };
+          from = recoverEthAddressFromPolyjuiceTx(polyjuiceTransaction);
+          logger.debug("gw_submit_l2transaction recovered from:", from);
+        }
         const value = decodeData.value;
         const input = decodeData.input;
         const gas = decodeData.gasLimit;
