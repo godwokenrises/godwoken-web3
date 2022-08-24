@@ -71,10 +71,10 @@ import {
 import {
   autoCreateAccountCacheKey,
   calcEthTxHash,
-  decodeRawTransactionData,
-  generateRawTransaction,
+  ethRawTx2PolyTx,
+  ethRawTx2GwTx,
   getSignature,
-  parseRawTransactionData,
+  polyTx2GwTx,
   polyjuiceRawTransactionToApiTransaction,
   PolyjuiceTransaction,
 } from "../../convert-tx";
@@ -1050,7 +1050,7 @@ export class Eth {
   async sendRawTransaction(args: [string]): Promise<Hash> {
     try {
       const data = args[0];
-      const [rawTx, autoCreateCacheKeyAndValue] = await generateRawTransaction(
+      const [rawTx, autoCreateCacheKeyAndValue] = await ethRawTx2GwTx(
         data,
         this.rpc
       );
@@ -1241,7 +1241,7 @@ export class Eth {
     rawTx: HexString,
     fromAddress: HexString
   ): Promise<boolean> {
-    const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+    const tx: PolyjuiceTransaction = ethRawTx2PolyTx(rawTx);
     const signature: HexString = getSignature(tx);
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
@@ -1260,7 +1260,7 @@ export class Eth {
     if (fromId == null) {
       return false;
     }
-    const [godwokenTx, _cacheKeyAndValue] = await parseRawTransactionData(
+    const [godwokenTx, _cacheKeyAndValue] = await polyTx2GwTx(
       tx,
       this.rpc,
       rawTx

@@ -91,10 +91,17 @@ export async function filterWeb3Transaction(
     const l2TxArgs: HexNumber = l2Tx.raw.args;
     const polyjuiceArgs = decodePolyjuiceArgs(l2TxArgs);
 
+    // For CREATE contracts, tx.to_address = null;
+    // for native transfers, tx.to_address = last 20 bytes of polyjuice_args;
+    // otherwise, tx.to_address equals to the eth_address of tx.to_id.
     let toAddress: HexString | undefined;
+
     // let polyjuiceChainId: HexNumber | undefined;
     if (polyjuiceArgs.isCreate) {
+      toAddress = undefined;
       // polyjuiceChainId = toIdHex;
+    } else if (polyjuiceArgs.toAddressWhenNativeTransfer != null) {
+      toAddress = polyjuiceArgs.toAddressWhenNativeTransfer;
     } else {
       // 74 = 2 + (32 + 4) * 2
       toAddress = "0x" + toScript.args.slice(74);

@@ -28,6 +28,7 @@ export interface PolyjuiceArgs {
   value: HexNumber;
   inputSize: HexNumber;
   input: HexString;
+  toAddressWhenNativeTransfer: HexString | undefined;
 }
 
 export function isPolyjuiceTransactionArgs(polyjuiceArgs: HexString) {
@@ -65,12 +66,25 @@ export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
   const inputSize = Uint32.fromLittleEndian(
     "0x" + buf.slice(48, 52).toString("hex")
   );
-  // check input size
-  if (buf.byteLength != 52 + inputSize.getValue()) {
-    throw new Error("Tx's input size not matched!");
+  let input: HexString;
+  let toAddressWhenNativeTransfer: HexString | undefined;
+  if (buf.byteLength === 52 + inputSize.getValue()) {
+    input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
+    toAddressWhenNativeTransfer = undefined;
+  } else if (buf.byteLength === 52 + inputSize.getValue() + 20) {
+    input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
+    toAddressWhenNativeTransfer =
+      "0x" +
+      buf
+        .slice(52 + inputSize.getValue(), 52 + inputSize.getValue() + 20)
+        .toString("hex");
+  } else {
+    throw new Error(
+      `unrecognizable polyjuice args, args_size: ${
+        buf.byteLength
+      }, input_size: ${inputSize.getValue()}`
+    );
   }
-
-  const input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
 
   return {
     isCreate,
@@ -79,6 +93,7 @@ export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
     value,
     inputSize: inputSize.toHex(),
     input,
+    toAddressWhenNativeTransfer,
   };
 }
 
