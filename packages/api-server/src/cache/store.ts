@@ -1,45 +1,14 @@
 require("newrelic");
-import { RedisClientType, createClient } from "redis";
-import { logger } from "../base/logger";
+import { RedisClientType } from "redis";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
-
-// redis SET type
-// take from https://github.com/redis/node-redis/blob/2a7a7c1c2e484950ceb57497f786658dacf19127/lib/commands/SET.ts
-type MaximumOneOf<T, K extends keyof T = keyof T> = K extends keyof T
-  ? { [P in K]?: T[K] } & Partial<Record<Exclude<keyof T, K>, never>>
-  : never;
-type SetTTL = MaximumOneOf<{
-  EX: number;
-  PX: number;
-  EXAT: number;
-  PXAT: number;
-  KEEPTTL: true;
-}>;
-type SetGuards = MaximumOneOf<{
-  NX: true;
-  XX: true;
-}>;
-interface SetCommonOptions {
-  GET?: true;
-}
-type SetOptions = SetTTL & SetGuards & SetCommonOptions;
+import { globalClient, SetOptions } from "./redis";
 
 export class Store {
-  public client: RedisClientType;
-  public setOptions: SetOptions;
+  private client: RedisClientType;
+  private setOptions: SetOptions;
 
-  constructor(
-    url?: string,
-    enableExpired?: boolean,
-    keyExpiredTimeMilSecs?: number
-  ) {
-    this.client = createClient({
-      url: url,
-    });
-    this.client.on("error", (err: any) =>
-      logger.error("Redis Client Error", err)
-    );
-
+  constructor(enableExpired?: boolean, keyExpiredTimeMilSecs?: number) {
+    this.client = globalClient;
     if (enableExpired == null) {
       enableExpired = false;
     }
@@ -49,10 +18,6 @@ export class Store {
           PX: keyExpiredTimeMilSecs || CACHE_EXPIRED_TIME_MILSECS,
         }
       : {};
-  }
-
-  async init() {
-    if (!this.client.isOpen) await this.client.connect();
   }
 
   async insert(
@@ -70,7 +35,8 @@ export class Store {
   }
 
   async delete(key: string) {
-    return await this.client.del(key);
+    // use unlink instead of DEL to avoid blocking
+    return await this.client.unlink(key);
   }
 
   async get(key: string) {
@@ -83,5 +49,13 @@ export class Store {
 
   async addSet(name: string, members: string | string[]) {
     return await this.client.sAdd(name, members);
+  }
+
+  async incr(key: string) {
+    return await this.client.incr(key);
+  }
+
+  async ttl(key: string) {
+    return await this.client.ttl(key);
   }
 }

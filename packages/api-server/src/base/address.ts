@@ -2,7 +2,6 @@ import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { Store } from "../cache/store";
 import { COMPATIBLE_DOCS_URL } from "../methods/constant";
-import { envConfig } from "./env-config";
 import { gwConfig } from "./index";
 import { logger } from "./logger";
 import { Uint32 } from "./types/uint";
@@ -10,8 +9,7 @@ import { Uint32 } from "./types/uint";
 const ZERO_ETH_ADDRESS = "0x" + "00".repeat(20);
 
 // the eth address vs script hash is not changeable, so we set no expire for cache
-const scriptHashCache = new Store(envConfig.redisUrl, false);
-scriptHashCache.init();
+const scriptHashCache = new Store(false);
 
 // Only support eth address now!
 export class EthRegistryAddress {

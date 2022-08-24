@@ -4,13 +4,13 @@ import { envConfig } from "../base/env-config";
 import crypto from "crypto";
 import { logger } from "../base/logger";
 
+// note: Subscribing to a channel requires a dedicated stand-alone connection
 // init publisher redis client
 export const pubClient = createClient({
   url: envConfig.redisUrl,
 });
 pubClient.connect();
 pubClient.on("error", (err) => logger.error("Redis Client Error", err));
-
 // init subscriber redis client
 export const subClient = createClient({
   url: envConfig.redisUrl,

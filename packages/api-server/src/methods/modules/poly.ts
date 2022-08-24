@@ -9,6 +9,7 @@ import { Query } from "../../db";
 import { ethTxHashToGwTxHash, gwTxHashToEthTxHash } from "../../cache/tx-hash";
 import { middleware, validators } from "../validator";
 import { MAX_ALLOW_SYNC_BLOCKS_DIFF } from "../constant";
+import { globalClient } from "../../cache/redis";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
@@ -21,12 +22,7 @@ export class Poly {
       envConfig.godwokenJsonRpc,
       envConfig.godwokenReadonlyJsonRpc
     );
-    this.cacheStore = new Store(
-      envConfig.redisUrl,
-      true,
-      CACHE_EXPIRED_TIME_MILSECS
-    );
-    this.cacheStore.init();
+    this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
     this.query = new Query();
 
     this.getGwTxHashByEthTxHash = middleware(
@@ -112,7 +108,7 @@ export class Poly {
       await Promise.all([
         this.rpc.ping(),
         this.rpc.pingFullNode(),
-        this.cacheStore.client.PING(),
+        globalClient.PING(),
         this.query.isConnected(),
         this.syncBlocksDiff(),
       ]);

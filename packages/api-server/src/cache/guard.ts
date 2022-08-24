@@ -1,7 +1,6 @@
 require("newrelic");
 import { Store } from "./store";
 import { HexString } from "@ckb-lumos/base";
-import { envConfig } from "../base/env-config";
 import fs from "fs";
 import path from "path";
 import { CACHE_EXPIRED_TIME_MILSECS } from "./constant";
@@ -49,20 +48,9 @@ export class AccessGuard {
     const config = getRateLimitConfig();
     logger.debug("rate-limit-config:", config);
     expiredTimeMilsecs = expiredTimeMilsecs || config.expired_time_milsec;
-    this.store =
-      store || new Store(envConfig.redisUrl, enableExpired, expiredTimeMilsecs);
+    this.store = store || new Store(enableExpired, expiredTimeMilsecs);
     this.rpcMethods = config.methods;
     this.expiredTimeMilsecs = expiredTimeMilsecs || CACHE_EXPIRED_TIME_MILSECS;
-  }
-
-  isConnected() {
-    return this.store.client.isOpen;
-  }
-
-  async connect() {
-    if (!this.isConnected()) {
-      await this.store.client.connect();
-    }
   }
 
   async setMaxReqLimit(rpcMethod: string, maxReqCount: number) {
@@ -91,7 +79,7 @@ export class AccessGuard {
     const isExist = await this.isExist(rpcMethod, reqId);
     if (isExist === true) {
       const id = getId(rpcMethod, reqId);
-      await this.store.client.incr(id);
+      await this.store.incr(id);
     }
   }
 
@@ -118,14 +106,14 @@ export class AccessGuard {
 
   async getKeyTTL(rpcMethod: string, reqId: string) {
     const id = getId(rpcMethod, reqId);
-    const remainSecs = await this.store.client.ttl(id);
+    const remainSecs = await this.store.ttl(id);
     if (remainSecs === -1) {
-      const value = (await this.store.client.get(id)) || "0";
+      const value = (await this.store.get(id)) || "0";
       logger.info(
         `key ${id} with no ttl, reset: ${this.expiredTimeMilsecs}ms, ${value}`
       );
-      await this.store.client.setEx(id, this.expiredTimeMilsecs / 1000, value);
-      return await this.store.client.ttl(id);
+      await this.store.insert(id, value, this.expiredTimeMilsecs / 1000);
+      return await this.store.ttl(id);
     }
     return remainSecs;
   }

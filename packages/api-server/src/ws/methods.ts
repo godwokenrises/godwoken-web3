@@ -7,19 +7,13 @@ import crypto from "crypto";
 import { HexNumber } from "@ckb-lumos/base";
 import { Log, LogQueryOption, toApiLog } from "../db/types";
 import { filterLogsByAddress, filterLogsByTopics, Query } from "../db";
-import { envConfig } from "../base/env-config";
 import { Store } from "../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 import { wsApplyRateLimitByIp } from "../rate-limit";
 import { gwTxHashToEthTxHash } from "../cache/tx-hash";
 
 const query = new Query();
-const cacheStore = new Store(
-  envConfig.redisUrl,
-  true,
-  CACHE_EXPIRED_TIME_MILSECS
-);
-cacheStore.init();
+const cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
 
 const newrelic = require("newrelic");
 
