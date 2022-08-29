@@ -76,10 +76,6 @@ export const validators = {
     return verifyHexNumber(params[index], index);
   },
 
-  storageKey(params: any[], index: number) {
-    return verifyStorageKey(params[index], index);
-  },
-
   /**
    * Hex number | "latest" | "earliest" | "pending"
    * @param params
@@ -424,17 +420,6 @@ export function verifyEstimateGasCallObject(
     return err.padContext("eth_estimateGas");
   }
 
-  return undefined;
-}
-
-export function verifyStorageKey(
-  key: string,
-  index: number
-): InvalidParamsError | undefined {
-  const err = verifyHexString(key, index);
-  if (err) {
-    return err.padContext("storageKey");
-  }
   return undefined;
 }
 

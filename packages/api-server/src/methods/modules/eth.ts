@@ -131,7 +131,7 @@ export class Eth {
     ]);
     this.getStorageAt = middleware(this.getStorageAt.bind(this), 3, [
       validators.address,
-      validators.storageKey,
+      validators.hexNumber,
       validators.blockParameter,
     ]);
     this.getTransactionCount = middleware(
