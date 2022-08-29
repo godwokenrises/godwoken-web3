@@ -49,6 +49,7 @@ import {
 import {
   HeaderNotFoundError,
   InvalidParamsError,
+  isRpcError,
   MethodNotSupportError,
   Web3Error,
 } from "../error";
@@ -60,7 +61,6 @@ import {
 } from "../../base/types/api";
 import { filterWeb3Transaction } from "../../filter-web3-tx";
 import { FilterManager } from "../../cache";
-import { parseGwRunResultError } from "../gw-error";
 import { Store } from "../../cache/store";
 import {
   AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS,
@@ -86,6 +86,7 @@ import { logger } from "../../base/logger";
 import { calcIntrinsicGas } from "../../util";
 import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
 import { Reader } from "@ckb-lumos/toolkit";
+import { handleGwError, isGwError } from "../gw-error";
 import { ethTxHashToGwTxHash } from "../../cache/tx-hash";
 
 const Config = require("../../../config/eth.json");
@@ -474,12 +475,11 @@ export class Eth {
         await this.parseBlockParameter(blockParameter);
 
       const executeCallResult = async () => {
-        let runResult: RunResult | undefined;
-        try {
-          runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
-        } catch (err) {
-          throw parseGwRunResultError(err);
-        }
+        let runResult: RunResult | undefined = await ethCallTx(
+          txCallObj,
+          this.rpc,
+          blockNumber
+        );
 
         logger.debug("RunResult:", runResult);
         return runResult.return_data;
@@ -517,6 +517,11 @@ export class Eth {
         return return_data;
       }
     } catch (error: any) {
+      if (isGwError(error)) {
+        handleGwError(error);
+      } else if (isRpcError(error)) {
+        throw error;
+      }
       throw new Web3Error(error.message, error.data);
     }
   }
@@ -536,16 +541,11 @@ export class Eth {
       const extraGas: bigint = BigInt(envConfig.extraEstimateGas || "0");
 
       const executeCallResult = async () => {
-        let runResult: RunResult | undefined;
-        try {
-          runResult = await ethCallTx(
-            txCallObj as TransactionCallObject,
-            this.rpc,
-            blockNumber
-          );
-        } catch (error) {
-          throw parseGwRunResultError(error);
-        }
+        let runResult: RunResult | undefined = await ethCallTx(
+          txCallObj as TransactionCallObject,
+          this.rpc,
+          blockNumber
+        );
 
         const polyjuiceSystemLog = extractPolyjuiceSystemLog(
           runResult.logs
@@ -600,6 +600,11 @@ export class Eth {
         return result;
       }
     } catch (error: any) {
+      if (isGwError(error)) {
+        handleGwError(error);
+      } else if (isRpcError(error)) {
+        throw error;
+      }
       throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
     }
   }
@@ -626,6 +631,9 @@ export class Eth {
         return apiBlock;
       }
     } catch (error: any) {
+      if (isRpcError(error)) {
+        throw error;
+      }
       throw new Web3Error(error.message);
     }
   }
@@ -1074,7 +1082,10 @@ export class Eth {
 
       return ethTxHash;
     } catch (error: any) {
-      logger.error(error);
+      logger.error("failed to sendRawTransaction, error: ", error);
+      if (isGwError(error)) {
+        handleGwError(error);
+      }
       throw new InvalidParamsError(error.message);
     }
   }

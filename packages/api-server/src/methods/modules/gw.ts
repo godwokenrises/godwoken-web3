@@ -1,4 +1,4 @@
-import { parseGwRpcError, parseGwRunResultError } from "../gw-error";
+import { handleGwError } from "../gw-error";
 import {
   RPC,
   RunResult,
@@ -110,7 +110,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_ping(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -119,7 +119,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_tip_block_hash(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -135,7 +135,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_block_hash(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -149,7 +149,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_block(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -165,7 +165,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_block_by_number(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -182,7 +182,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_balance(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -199,7 +199,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_storage_at(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -224,7 +224,7 @@ export class Gw {
       }
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -241,7 +241,7 @@ export class Gw {
       const result = await this.rpc.gw_get_nonce(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -255,7 +255,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_script(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -271,7 +271,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_script_hash(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -287,7 +287,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_data(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -301,7 +301,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_transaction_receipt(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -324,7 +324,7 @@ export class Gw {
       }
       return txWithStatus;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -338,7 +338,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_execute_l2transaction(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -354,12 +354,8 @@ export class Gw {
       args[1] = formatHexNumber(args[1]);
 
       const executeCallResult = async () => {
-        let result: RunResult;
-        try {
-          result = await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
-        } catch (error) {
-          throw parseGwRunResultError(error);
-        }
+        let result: RunResult =
+          await this.readonlyRpc.gw_execute_raw_l2transaction(...args);
         const stringifyResult = JSON.stringify(result);
         return stringifyResult;
       };
@@ -395,7 +391,7 @@ export class Gw {
         return JSON.parse(stringifyResult);
       }
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -556,7 +552,7 @@ export class Gw {
       const result = await this.rpc.gw_submit_l2transaction(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -570,7 +566,7 @@ export class Gw {
       const result = await this.rpc.gw_submit_withdrawal_request(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -586,7 +582,7 @@ export class Gw {
       );
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -617,7 +613,7 @@ export class Gw {
       }
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -631,7 +627,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_fee_config(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -645,7 +641,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_withdrawal(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -654,7 +650,7 @@ export class Gw {
       const result = await this.rpc.gw_get_last_submitted_info(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -663,7 +659,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_node_info(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
@@ -672,7 +668,7 @@ export class Gw {
       const result = await this.rpc.gw_is_request_in_queue(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 
