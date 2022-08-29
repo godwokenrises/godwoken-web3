@@ -677,7 +677,7 @@ export class Gw {
       const result = await this.readonlyRpc.gw_get_pending_tx_hashes(...args);
       return result;
     } catch (error) {
-      parseGwRpcError(error);
+      handleGwError(error);
     }
   }
 }

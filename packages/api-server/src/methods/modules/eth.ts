@@ -605,7 +605,7 @@ export class Eth {
       } else if (isRpcError(error)) {
         throw error;
       }
-      throw new Web3Error("UNPREDICTABLE_GAS_LIMIT: " + error.message);
+      throw new Web3Error(error.message);
     }
   }
 
