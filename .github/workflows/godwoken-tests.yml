@@ -17,4 +17,3 @@ jobs:
         MANUAL_BUILD_WEB3_INDEXER=true
         WEB3_GIT_URL=https://github.com/${{ github.repository }}
         WEB3_GIT_CHECKOUT=${{ github.ref }}
-        GODWOKEN_PREBUILD_IMAGE_NAME=ghcr.io/nervosnetwork/godwoken-prebuilds:1.4.2-rc2-202207211420
