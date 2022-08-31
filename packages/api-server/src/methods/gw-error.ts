@@ -74,6 +74,17 @@ export function handleGwError(gwJsonrpcError: any) {
  * @throws TransactionExecutionError
  */
 export function handleErrorTxReceipt(errorTxReceipt: ErrorTxReceipt) {
+  const GW_VM_MAX_CYCLE_EXIT_CODE = "0xff";
+
+  if (errorTxReceipt.exit_code === GW_VM_MAX_CYCLE_EXIT_CODE) {
+    throw new TransactionExecutionError("out of gas");
+  }
+
+  // fallback to general revert error
+  handleRevertError(errorTxReceipt);
+}
+
+function handleRevertError(errorTxReceipt: ErrorTxReceipt) {
   const returnData = errorTxReceipt.return_data;
   const message = parseReturnData(returnData);
   if (errorTxReceipt.return_data.length > 2) {
