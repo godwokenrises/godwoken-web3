@@ -26,7 +26,6 @@ import {
 } from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
-  COMPATIBLE_DOCS_URL,
   POLY_MAX_BLOCK_GAS_LIMIT,
   POLYJUICE_CONTRACT_CODE,
   POLYJUICE_SYSTEM_LOG_FLAG,
@@ -71,12 +70,13 @@ import {
 import {
   autoCreateAccountCacheKey,
   calcEthTxHash,
-  decodeRawTransactionData,
-  generateRawTransaction,
+  ethRawTxToPolyTx,
+  ethRawTxToGwTx,
   getSignature,
-  parseRawTransactionData,
+  polyTxToGwTx,
   polyjuiceRawTransactionToApiTransaction,
   PolyjuiceTransaction,
+  isEthNativeTransfer,
 } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
@@ -1050,7 +1050,7 @@ export class Eth {
   async sendRawTransaction(args: [string]): Promise<Hash> {
     try {
       const data = args[0];
-      const [rawTx, autoCreateCacheKeyAndValue] = await generateRawTransaction(
+      const [rawTx, autoCreateCacheKeyAndValue] = await ethRawTxToGwTx(
         data,
         this.rpc
       );
@@ -1241,7 +1241,7 @@ export class Eth {
     rawTx: HexString,
     fromAddress: HexString
   ): Promise<boolean> {
-    const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+    const tx: PolyjuiceTransaction = ethRawTxToPolyTx(rawTx);
     const signature: HexString = getSignature(tx);
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
@@ -1260,7 +1260,7 @@ export class Eth {
     if (fromId == null) {
       return false;
     }
-    const [godwokenTx, _cacheKeyAndValue] = await parseRawTransactionData(
+    const [godwokenTx, _cacheKeyAndValue] = await polyTxToGwTx(
       tx,
       this.rpc,
       rawTx
@@ -1326,11 +1326,12 @@ function uint32ToLeBytes(id: number) {
 }
 
 function buildPolyjuiceArgs(
-  toId: number,
+  isCreate: boolean,
   gas: bigint,
   gasPrice: bigint,
   value: bigint,
-  data: string
+  data: string,
+  toAddressWhenNativeTransfer?: HexString
 ) {
   const argsHeaderBuf = Buffer.from([
     0xff,
@@ -1341,7 +1342,7 @@ function buildPolyjuiceArgs(
     "L".charCodeAt(0),
     "Y".charCodeAt(0),
   ]);
-  const callKind = toId === +gwConfig.accounts.polyjuiceCreator.id ? 3 : 0;
+  const callKind = isCreate ? 3 : 0;
   const gasLimitBuf = Buffer.alloc(8);
   gasLimitBuf.writeBigUInt64LE(gas);
   const gasPriceBuf = Buffer.alloc(16);
@@ -1354,7 +1355,10 @@ function buildPolyjuiceArgs(
   const dataBuf = Buffer.from(data.slice(2), "hex");
   dataSizeBuf.writeUInt32LE(dataBuf.length);
 
-  const argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
+  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
+  if (toAddressWhenNativeTransfer != null) {
+    argsLength += 20;
+  }
   const argsBuf = Buffer.alloc(argsLength);
   argsHeaderBuf.copy(argsBuf, 0);
   argsBuf[7] = callKind;
@@ -1363,6 +1367,15 @@ function buildPolyjuiceArgs(
   valueBuf.copy(argsBuf, 32);
   dataSizeBuf.copy(argsBuf, 48);
   dataBuf.copy(argsBuf, 52);
+
+  if (toAddressWhenNativeTransfer != null) {
+    const toAddressBuf = Buffer.from(
+      toAddressWhenNativeTransfer.slice(2),
+      "hex"
+    );
+    toAddressBuf.copy(argsBuf, 52 + (data.length - 2));
+  }
+
   const argsHex = "0x" + argsBuf.toString("hex");
   return argsHex;
 }
@@ -1489,20 +1502,36 @@ async function buildEthCallTx(
     }
   }
 
-  const toId: number | undefined = await ethAddressToAccountId(toAddress, rpc);
-  if (toId == null) {
-    throw new Error(
-      `To id of address: ${toAddress} is missing. Is your to address a valid contract account? More info: ${COMPATIBLE_DOCS_URL}`
+  let toId: number | undefined;
+  let polyjuiceArgs: HexString;
+
+  if (await isEthNativeTransfer({ to: toAddress }, rpc)) {
+    const isCreate = false;
+    toId = +gwConfig.accounts.polyjuiceCreator.id;
+    polyjuiceArgs = buildPolyjuiceArgs(
+      isCreate,
+      BigInt(gas),
+      BigInt(gasPrice),
+      BigInt(value),
+      data,
+      toAddress
+    );
+  } else {
+    toId = await ethAddressToAccountId(toAddress, rpc);
+    const isCreate = toId === +gwConfig.accounts.polyjuiceCreator.id;
+    polyjuiceArgs = buildPolyjuiceArgs(
+      isCreate,
+      BigInt(gas),
+      BigInt(gasPrice),
+      BigInt(value),
+      data
     );
   }
+
+  if (toId == null) {
+    throw new Error(`account ${toAddress} doesn't exist`);
+  }
   const nonce = 0;
-  const polyjuiceArgs = buildPolyjuiceArgs(
-    toId,
-    BigInt(gas),
-    BigInt(gasPrice),
-    BigInt(value),
-    data
-  );
   const rawL2Transaction = buildRawL2Transaction(
     BigInt(gwConfig.web3ChainId),
     fromId!,

@@ -20,6 +20,7 @@ pub struct PolyjuiceArgs {
     pub gas_price: u128,
     pub value: u128,
     pub input: Option<Vec<u8>>,
+    pub to_address_when_native_transfer: Option<Vec<u8>>,
 }
 
 impl PolyjuiceArgs {
@@ -39,19 +40,36 @@ impl PolyjuiceArgs {
                 input_size
             ));
         }
-        if args.len() < 52 + input_size as usize {
-            return Err(anyhow!(
-                "polyjuice args input data too short: 0x{}",
-                hex(args)?
-            ));
+
+        let input: Option<Vec<u8>>;
+        let to_address_when_native_transfer: Option<Vec<u8>>;
+        match args.len() {
+            _ if args.len() == 52 + input_size as usize => {
+                input = Some(args[52..(52 + input_size as usize)].to_vec());
+                to_address_when_native_transfer = None;
+            }
+            _ if args.len() == 52 + input_size as usize + 20 => {
+                input = Some(args[52..(52 + input_size as usize)].to_vec());
+                to_address_when_native_transfer = Some(
+                    args[(52 + input_size as usize)..(52 + input_size as usize + 20)].to_vec(),
+                );
+            }
+            _ => {
+                return Err(anyhow!(
+                    "unrecognizable polyjuice args: 0x{}, args_size: {}, input_size: {}",
+                    hex(args)?,
+                    args.len(),
+                    input_size
+                ));
+            }
         }
-        let input: Vec<u8> = args[52..(52 + input_size as usize)].to_vec();
         Ok(PolyjuiceArgs {
             is_create,
             gas_limit,
             gas_price,
             value,
-            input: Some(input),
+            input,
+            to_address_when_native_transfer,
         })
     }
 }

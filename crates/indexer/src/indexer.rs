@@ -173,9 +173,16 @@ impl Web3Indexer {
         if to_script.code_hash().as_slice() == self.polyjuice_type_script_hash.0 {
             let l2_tx_args = l2_transaction.raw().args();
             let polyjuice_args = PolyjuiceArgs::decode(l2_tx_args.raw_data().as_ref())?;
-            // to_address is null if it's a contract deployment transaction
+
+            // For CREATE contracts, tx.to_address = null;
+            // for native transfers, tx.to_address = last 20 bytes of polyjuice_args;
+            // otherwise, tx.to_address equals to the eth_address of tx.to_id
             let (to_address, _polyjuice_chain_id) = if polyjuice_args.is_create {
                 (None, to_id)
+            } else if let Some(ref address_vec) = polyjuice_args.to_address_when_native_transfer {
+                let mut address = [0u8; 20];
+                address.copy_from_slice(&address_vec[..]);
+                (Some(address), to_id)
             } else {
                 let args: gw_types::bytes::Bytes = to_script.args().unpack();
                 let address = {

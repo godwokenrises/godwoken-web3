@@ -15,7 +15,6 @@ import { gwConfig } from "./base";
 import { logger } from "./base/logger";
 import {
   MAX_TRANSACTION_SIZE,
-  COMPATIBLE_DOCS_URL,
   AUTO_CREATE_ACCOUNT_FROM_ID,
 } from "./methods/constant";
 import {
@@ -52,7 +51,7 @@ export function polyjuiceRawTransactionToApiTransaction(
   tipBlockNumber: bigint,
   fromEthAddress: HexString
 ): EthTransaction {
-  const tx: PolyjuiceTransaction = decodeRawTransactionData(rawTx);
+  const tx: PolyjuiceTransaction = ethRawTxToPolyTx(rawTx);
 
   const pendingBlockHash = bumpHash(tipBlockHash);
   const pendingBlockNumber = new Uint64(tipBlockNumber + 1n).toHex();
@@ -81,14 +80,17 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
   return ethTxHash;
 }
 
-export async function generateRawTransaction(
+/**
+ * Convert the ETH raw transaction to Godwoken L2Transaction
+ */
+export async function ethRawTxToGwTx(
   data: HexString,
   rpc: GodwokenClient
 ): Promise<[L2Transaction, [string, string] | undefined]> {
   logger.debug("convert-tx, origin data:", data);
-  const polyjuiceTx: PolyjuiceTransaction = decodeRawTransactionData(data);
+  const polyjuiceTx: PolyjuiceTransaction = ethRawTxToPolyTx(data);
   logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
-  const [godwokenTx, cacheKeyAndValue] = await parseRawTransactionData(
+  const [godwokenTx, cacheKeyAndValue] = await polyTxToGwTx(
     polyjuiceTx,
     rpc,
     data
@@ -96,23 +98,23 @@ export async function generateRawTransaction(
   return [godwokenTx, cacheKeyAndValue];
 }
 
-export function decodeRawTransactionData(
-  dataParams: HexString
-): PolyjuiceTransaction {
-  const result: Buffer[] = rlp.decode(dataParams) as Buffer[];
-  // todo: r might be "0x" which cause inconvenient for down-stream
-  const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
-
+/**
+ * Convert ETH raw transaction to PolyjuiceTransaction
+ */
+export function ethRawTxToPolyTx(ethRawTx: HexString): PolyjuiceTransaction {
+  const result: Buffer[] = rlp.decode(ethRawTx) as Buffer[];
   if (result.length !== 9) {
-    throw new Error("decode raw transaction data error");
+    throw new Error("decode eth raw transaction data error");
   }
 
+  // todo: r might be "0x" which cause inconvenient for down-stream
+  const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
 
   // r & s is integer in RLP, convert to 32-byte hex string (add leading zeros)
   const rWithLeadingZeros: HexString = "0x" + r.slice(2).padStart(64, "0");
   const sWithLeadingZeros: HexString = "0x" + s.slice(2).padStart(64, "0");
-  const tx: PolyjuiceTransaction = {
+  return {
     nonce,
     gasPrice,
     gasLimit,
@@ -123,8 +125,6 @@ export function decodeRawTransactionData(
     r: rWithLeadingZeros,
     s: sWithLeadingZeros,
   };
-
-  return tx;
 }
 
 export function getSignature(tx: PolyjuiceTransaction): HexString {
@@ -206,10 +206,13 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
   return "0x" + result.toString("hex");
 }
 
-export async function parseRawTransactionData(
+/**
+ * Convert Polyjuice transaction to Godwoken transaction
+ */
+export async function polyTxToGwTx(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient,
-  polyjuiceRawTx: HexString
+  ethRawTx: HexString
 ): Promise<[L2Transaction, [string, string] | undefined]> {
   const { nonce, gasPrice, gasLimit, to, value, data, v } = rawTx;
 
@@ -224,16 +227,12 @@ export async function parseRawTransactionData(
 
   const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padContext(
-      `eth_sendRawTransaction ${parseRawTransactionData.name}`
-    );
+    throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
   const gasPriceErr = verifyGasPrice(gasPrice === "0x" ? "0x0" : gasPrice, 0);
   if (gasPriceErr) {
-    throw gasPriceErr.padContext(
-      `eth_sendRawTransaction ${parseRawTransactionData.name}`
-    );
+    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
   const signature: HexString = getSignature(rawTx);
@@ -268,7 +267,7 @@ export async function parseRawTransactionData(
     }
     const key = autoCreateAccountCacheKey(ethTxHash);
     const cacheValue: AutoCreateAccountCacheValue = {
-      tx: polyjuiceRawTx,
+      tx: ethRawTx,
       fromAddress: fromEthAddress,
     };
     cacheKeyAndValue = [key, JSON.stringify(cacheValue)];
@@ -285,7 +284,7 @@ export async function parseRawTransactionData(
   );
   if (intrinsicGasErr) {
     throw intrinsicGasErr.padContext(
-      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+      `eth_sendRawTransaction ${polyTxToGwTx.name}`
     );
   }
 
@@ -299,7 +298,7 @@ export async function parseRawTransactionData(
   );
   if (enoughBalanceErr) {
     throw enoughBalanceErr.padContext(
-      `eth_sendRawTransaction ${parseRawTransactionData.name}`
+      `eth_sendRawTransaction ${polyTxToGwTx.name}`
     );
   }
 
@@ -324,14 +323,15 @@ export async function parseRawTransactionData(
   const args_48_52 = UInt32ToLeBytes(dataByteLength);
   // data
   const args_data = data;
+  let args_7 = to === DEPLOY_TO_ADDRESS ? "0x03" : "0x00";
 
-  let args_7 = "";
+  const isEthNativeTransfer_ = await isEthNativeTransfer(rawTx, rpc);
   let toId: HexNumber | undefined;
   if (to === DEPLOY_TO_ADDRESS) {
-    args_7 = "0x03";
+    toId = gwConfig.accounts.polyjuiceCreator.id;
+  } else if (isEthNativeTransfer_) {
     toId = gwConfig.accounts.polyjuiceCreator.id;
   } else {
-    args_7 = "0x00";
     toId = await getAccountIdByEthAddress(to, rpc);
   }
 
@@ -339,16 +339,16 @@ export async function parseRawTransactionData(
     throw new Error(`to id not found by address: ${to}`);
   }
 
-  // disable to address is eoa case
-  const toScriptHash = await rpc.getScriptHash(Number(toId));
-  const eoaScriptHash = ethEoaAddressToScriptHash(to);
-  if (toScriptHash === eoaScriptHash) {
-    throw new Error(
-      `to_address can not be EOA address! more info: ${COMPATIBLE_DOCS_URL}`
-    );
-  }
-
-  const args =
+  // When it is a native transfer transaction, we do some modifications to Godwoken transaction:
+  //
+  // We make some convention for native transfer transaction:
+  // - Set `gwTx.to_id = <Polyjuice Creator Account ID>`, to mark the transaction is native transfer
+  // - Append the original `tx.to` address to `gwTx.args`, to pass the recipient information to Polyjuice
+  //
+  // See also:
+  // - https://github.com/nervosnetwork/godwoken/pull/784
+  // - https://github.com/nervosnetwork/godwoken-polyjuice/pull/173
+  let args: HexString =
     "0x" +
     args_0_7.slice(2) +
     args_7.slice(2) +
@@ -357,6 +357,9 @@ export async function parseRawTransactionData(
     args_32_48.slice(2) +
     args_48_52.slice(2) +
     args_data.slice(2);
+  if (isEthNativeTransfer_) {
+    args = args + rawTx.to.slice(2);
+  }
 
   let chainId = gwConfig.web3ChainId;
   // When `v = 27` or `v = 28`, the transaction is considered a non-eip155 transaction.
@@ -446,4 +449,32 @@ function publicKeyToEthAddress(publicKey: HexString): HexString {
 
 export function autoCreateAccountCacheKey(ethTxHash: string) {
   return `${AUTO_CREATE_ACCOUNT_PREFIX_KEY}:${ethTxHash}`;
+}
+
+/**
+ * Determine whether the transaction is a native transfer transaction.
+ *
+ * When tx.to refers to an EOA account or an account that doesn't exist, it is considered a native transfer transaction.
+ */
+export async function isEthNativeTransfer(
+  { to: toAddress }: { to: HexString },
+  rpc: GodwokenClient
+): Promise<boolean> {
+  if (toAddress.length === 42) {
+    const toId = await getAccountIdByEthAddress(toAddress, rpc);
+    return toId == null || isEthEOA(toAddress, toId, rpc);
+  }
+  return false;
+}
+
+/**
+ * Determine whether the account is EOA account
+ */
+export async function isEthEOA(
+  ethAddress: HexString,
+  accountId: HexNumber,
+  rpc: GodwokenClient
+): Promise<boolean> {
+  const scriptHash = await rpc.getScriptHash(Number(accountId));
+  return ethEoaAddressToScriptHash(ethAddress) === scriptHash;
 }
