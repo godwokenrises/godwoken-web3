@@ -1,6 +1,6 @@
 {
   "name": "@godwoken-web3/godwoken",
-  "version": "1.6.4",
+  "version": "1.7.0-rc1",
   "private": true,
   "main": "lib/index.js",
   "scripts": {
