@@ -73,7 +73,7 @@ import {
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
-import { gwConfig } from "../../base/index";
+import { gwConfig, readonlyPriceOracle } from "../../base/index";
 import { logger } from "../../base/logger";
 import { calcIntrinsicGas } from "../../util";
 import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
@@ -112,6 +112,7 @@ export class Eth {
     const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
     this.gasPriceCacheMilSec = cacheSeconds * 1000;
 
+    // middleware params validator
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
       validators.blockParameter,
       validators.bool,
@@ -315,18 +316,28 @@ export class Eth {
       }
     }
 
-    let medianGasPrice = await this.query.getMedianGasPrice();
-    const minGasPrice = BigInt(envConfig.minGasPrice || 0);
-    if (medianGasPrice < minGasPrice) {
-      medianGasPrice = minGasPrice;
-    }
-    const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+    try {
+      let [medianGasPrice, minGasPrice] = await Promise.all([
+        this.query.getMedianGasPrice(),
+        readonlyPriceOracle.minGasPrice(),
+      ]);
+      if (medianGasPrice < minGasPrice) {
+        medianGasPrice = minGasPrice;
+      }
+      const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
 
-    if (this.gasPriceCacheMilSec > 0) {
-      this.cacheStore.insert(key, medianGasPriceHex, this.gasPriceCacheMilSec);
-    }
+      if (this.gasPriceCacheMilSec > 0) {
+        this.cacheStore.insert(
+          key,
+          medianGasPriceHex,
+          this.gasPriceCacheMilSec
+        );
+      }
 
-    return medianGasPriceHex;
+      return medianGasPriceHex;
+    } catch (error: any) {
+      throw new Web3Error(error.message);
+    }
   }
 
   /**

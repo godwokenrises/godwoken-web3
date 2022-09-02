@@ -22,11 +22,11 @@ export const envConfig = {
   logFormat: getOptional("LOG_FORMAT"),
   logRequestBody: getOptional("WEB3_LOG_REQUEST_BODY"),
   port: getOptional("PORT"),
-  minGasPrice: getOptional("MIN_GAS_PRICE"),
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
-  feeRate: getOptional("FEE_RATE"),
   enableProfRpc: getOptional("ENABLE_PROF_RPC"),
+  minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
+  minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
 };
 
 function getRequired(name: string): string {
