@@ -3,7 +3,7 @@ import {
   formatDecimal,
   filterLogsByTopics,
   buildQueryLogTopics,
-} from "../../src/db";
+} from "../../src/db/helpers";
 import { Log } from "../../src/db/types";
 import knex from "knex";
 import { FilterTopic } from "../../src/base/filter";
