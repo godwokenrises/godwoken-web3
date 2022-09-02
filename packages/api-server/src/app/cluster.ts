@@ -23,7 +23,16 @@ if (cluster.isMaster) {
   blockEmitter.startForever();
 
   cluster.on("exit", (worker, _code, _signal) => {
-    logger.info(`worker ${worker.process.pid} died`);
+    if (worker.process.exitCode === 0) {
+      logger.warn(
+        `Worker ${worker.id} (pid: ${worker.process.pid}) died peacefully...`
+      );
+    } else {
+      logger.error(
+        `Worker ${worker.id} (pid: ${worker.process.pid}) died with exit code ${worker.process.exitCode}, restarting it`
+      );
+      cluster.fork();
+    }
   });
 } else {
   require("./www");
