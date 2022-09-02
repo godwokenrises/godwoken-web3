@@ -4,8 +4,13 @@ import dotenv from "dotenv";
 dotenv.config({ path: "./.env" });
 
 export const envConfig = {
-  databaseUrl: getRequired("DATABASE_URL"),
-  godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
+  get databaseUrl() {
+    return getRequired("DATABASE_URL");
+  },
+  get godwokenJsonRpc() {
+    return getRequired("GODWOKEN_JSON_RPC");
+  },
+
   _newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
