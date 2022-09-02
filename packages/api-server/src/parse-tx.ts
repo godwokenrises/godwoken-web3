@@ -66,24 +66,14 @@ export function decodePolyjuiceArgs(args: HexString): PolyjuiceArgs {
   const inputSize = Uint32.fromLittleEndian(
     "0x" + buf.slice(48, 52).toString("hex")
   );
-  let input: HexString;
-  let toAddressWhenNativeTransfer: HexString | undefined;
-  if (buf.byteLength === 52 + inputSize.getValue()) {
-    input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
-    toAddressWhenNativeTransfer = undefined;
-  } else if (buf.byteLength === 52 + inputSize.getValue() + 20) {
-    input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
+  const input = "0x" + buf.slice(52, 52 + inputSize.getValue()).toString("hex");
+  let toAddressWhenNativeTransfer: HexString | undefined = undefined;
+  if (buf.byteLength === 52 + inputSize.getValue() + 20) {
     toAddressWhenNativeTransfer =
       "0x" +
       buf
         .slice(52 + inputSize.getValue(), 52 + inputSize.getValue() + 20)
         .toString("hex");
-  } else {
-    throw new Error(
-      `unrecognizable polyjuice args, args_size: ${
-        buf.byteLength
-      }, input_size: ${inputSize.getValue()}`
-    );
   }
 
   return {

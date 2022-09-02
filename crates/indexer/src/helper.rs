@@ -43,20 +43,25 @@ impl PolyjuiceArgs {
 
         let input: Option<Vec<u8>>;
         let to_address_when_native_transfer: Option<Vec<u8>>;
-        if args.len() == 52 + input_size as usize {
-            input = Some(args[52..(52 + input_size as usize)].to_vec());
-            to_address_when_native_transfer = None;
-        } else if args.len() == 52 + input_size as usize + 20 {
-            input = Some(args[52..(52 + input_size as usize)].to_vec());
-            to_address_when_native_transfer =
-                Some(args[(52 + input_size as usize)..(52 + input_size as usize + 20)].to_vec());
-        } else {
-            return Err(anyhow!(
-                "unrecognizable polyjuice args: 0x{}, args_size: {}, input_size: {}",
-                hex(args)?,
-                args.len(),
-                input_size
-            ));
+        match args.len() {
+            _ if args.len() == 52 + input_size as usize => {
+                input = Some(args[52..(52 + input_size as usize)].to_vec());
+                to_address_when_native_transfer = None;
+            }
+            _ if args.len() == 52 + input_size as usize + 20 => {
+                input = Some(args[52..(52 + input_size as usize)].to_vec());
+                to_address_when_native_transfer = Some(
+                    args[(52 + input_size as usize)..(52 + input_size as usize + 20)].to_vec(),
+                );
+            }
+            _ => {
+                return Err(anyhow!(
+                    "unrecognizable polyjuice args: 0x{}, args_size: {}, input_size: {}",
+                    hex(args)?,
+                    args.len(),
+                    input_size
+                ));
+            }
         }
         Ok(PolyjuiceArgs {
             is_create,

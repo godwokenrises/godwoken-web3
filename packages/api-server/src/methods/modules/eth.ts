@@ -70,10 +70,10 @@ import {
 import {
   autoCreateAccountCacheKey,
   calcEthTxHash,
-  ethRawTx2PolyTx,
-  ethRawTx2GwTx,
+  ethRawTxToPolyTx,
+  ethRawTxToGwTx,
   getSignature,
-  polyTx2GwTx,
+  polyTxToGwTx,
   polyjuiceRawTransactionToApiTransaction,
   PolyjuiceTransaction,
   isEthNativeTransfer,
@@ -1050,7 +1050,7 @@ export class Eth {
   async sendRawTransaction(args: [string]): Promise<Hash> {
     try {
       const data = args[0];
-      const [rawTx, autoCreateCacheKeyAndValue] = await ethRawTx2GwTx(
+      const [rawTx, autoCreateCacheKeyAndValue] = await ethRawTxToGwTx(
         data,
         this.rpc
       );
@@ -1241,7 +1241,7 @@ export class Eth {
     rawTx: HexString,
     fromAddress: HexString
   ): Promise<boolean> {
-    const tx: PolyjuiceTransaction = ethRawTx2PolyTx(rawTx);
+    const tx: PolyjuiceTransaction = ethRawTxToPolyTx(rawTx);
     const signature: HexString = getSignature(tx);
     const signatureHash: Hash = utils
       .ckbHash(new Reader(signature).toArrayBuffer())
@@ -1260,7 +1260,7 @@ export class Eth {
     if (fromId == null) {
       return false;
     }
-    const [godwokenTx, _cacheKeyAndValue] = await polyTx2GwTx(
+    const [godwokenTx, _cacheKeyAndValue] = await polyTxToGwTx(
       tx,
       this.rpc,
       rawTx
@@ -1355,11 +1355,9 @@ function buildPolyjuiceArgs(
   const dataBuf = Buffer.from(data.slice(2), "hex");
   dataSizeBuf.writeUInt32LE(dataBuf.length);
 
-  let argsLength: number;
+  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
   if (toAddressWhenNativeTransfer != null) {
-    argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length + 20;
-  } else {
-    argsLength = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
+    argsLength += 20;
   }
   const argsBuf = Buffer.alloc(argsLength);
   argsHeaderBuf.copy(argsBuf, 0);
@@ -1506,6 +1504,7 @@ async function buildEthCallTx(
 
   let toId: number | undefined;
   let polyjuiceArgs: HexString;
+
   if (await isEthNativeTransfer({ to: toAddress }, rpc)) {
     const isCreate = false;
     toId = +gwConfig.accounts.polyjuiceCreator.id;
@@ -1518,8 +1517,8 @@ async function buildEthCallTx(
       toAddress
     );
   } else {
-    const isCreate = toId === +gwConfig.accounts.polyjuiceCreator.id;
     toId = await ethAddressToAccountId(toAddress, rpc);
+    const isCreate = toId === +gwConfig.accounts.polyjuiceCreator.id;
     polyjuiceArgs = buildPolyjuiceArgs(
       isCreate,
       BigInt(gas),

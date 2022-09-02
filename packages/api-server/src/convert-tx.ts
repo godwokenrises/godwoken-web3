@@ -51,7 +51,7 @@ export function polyjuiceRawTransactionToApiTransaction(
   tipBlockNumber: bigint,
   fromEthAddress: HexString
 ): EthTransaction {
-  const tx: PolyjuiceTransaction = ethRawTx2PolyTx(rawTx);
+  const tx: PolyjuiceTransaction = ethRawTxToPolyTx(rawTx);
 
   const pendingBlockHash = bumpHash(tipBlockHash);
   const pendingBlockNumber = new Uint64(tipBlockNumber + 1n).toHex();
@@ -83,14 +83,14 @@ export function calcEthTxHash(encodedSignedTx: HexString): Hash {
 /**
  * Convert the ETH raw transaction to Godwoken L2Transaction
  */
-export async function ethRawTx2GwTx(
+export async function ethRawTxToGwTx(
   data: HexString,
   rpc: GodwokenClient
 ): Promise<[L2Transaction, [string, string] | undefined]> {
   logger.debug("convert-tx, origin data:", data);
-  const polyjuiceTx: PolyjuiceTransaction = ethRawTx2PolyTx(data);
+  const polyjuiceTx: PolyjuiceTransaction = ethRawTxToPolyTx(data);
   logger.debug("convert-tx, decoded polyjuice tx:", polyjuiceTx);
-  const [godwokenTx, cacheKeyAndValue] = await polyTx2GwTx(
+  const [godwokenTx, cacheKeyAndValue] = await polyTxToGwTx(
     polyjuiceTx,
     rpc,
     data
@@ -99,19 +99,9 @@ export async function ethRawTx2GwTx(
 }
 
 /**
- * RLP decode the ETH raw transaction
+ * Convert ETH raw transaction to PolyjuiceTransaction
  */
-function rlpDecodeEthTx(ethRawTx: HexString): {
-  nonce: HexString;
-  gasPrice: HexString;
-  gasLimit: HexString;
-  to: HexString;
-  value: HexString;
-  data: HexString;
-  v: HexString;
-  r: HexString;
-  s: HexString;
-} {
+export function ethRawTxToPolyTx(ethRawTx: HexString): PolyjuiceTransaction {
   const result: Buffer[] = rlp.decode(ethRawTx) as Buffer[];
   if (result.length !== 9) {
     throw new Error("decode eth raw transaction data error");
@@ -120,35 +110,18 @@ function rlpDecodeEthTx(ethRawTx: HexString): {
   // todo: r might be "0x" which cause inconvenient for down-stream
   const resultHex = result.map((r) => "0x" + Buffer.from(r).toString("hex"));
   const [nonce, gasPrice, gasLimit, to, value, data, v, r, s] = resultHex;
-  return { nonce, gasPrice, gasLimit, to, value, data, v, r, s };
-}
 
-/**
- * Convert ETH raw transaction to PolyjuiceTransaction
- */
-export function ethRawTx2PolyTx(ethRawTx: HexString): PolyjuiceTransaction {
-  const ethTx = rlpDecodeEthTx(ethRawTx);
-  return ethTx2PolyTx(ethTx);
-}
-
-export function ethTx2PolyTx(ethTx: {
-  nonce: HexString;
-  gasPrice: HexString;
-  gasLimit: HexString;
-  to: HexString;
-  value: HexString;
-  data: HexString;
-  v: HexString;
-  r: HexString;
-  s: HexString;
-}): PolyjuiceTransaction {
   // r & s is integer in RLP, convert to 32-byte hex string (add leading zeros)
-  const rWithLeadingZeros: HexString =
-    "0x" + ethTx.r.slice(2).padStart(64, "0");
-  const sWithLeadingZeros: HexString =
-    "0x" + ethTx.s.slice(2).padStart(64, "0");
+  const rWithLeadingZeros: HexString = "0x" + r.slice(2).padStart(64, "0");
+  const sWithLeadingZeros: HexString = "0x" + s.slice(2).padStart(64, "0");
   return {
-    ...ethTx,
+    nonce,
+    gasPrice,
+    gasLimit,
+    to,
+    value,
+    data,
+    v,
     r: rWithLeadingZeros,
     s: sWithLeadingZeros,
   };
@@ -236,7 +209,7 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
 /**
  * Convert Polyjuice transaction to Godwoken transaction
  */
-export async function polyTx2GwTx(
+export async function polyTxToGwTx(
   rawTx: PolyjuiceTransaction,
   rpc: GodwokenClient,
   ethRawTx: HexString
@@ -254,12 +227,12 @@ export async function polyTx2GwTx(
 
   const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
-    throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTx2GwTx.name}`);
+    throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
   const gasPriceErr = verifyGasPrice(gasPrice === "0x" ? "0x0" : gasPrice, 0);
   if (gasPriceErr) {
-    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTx2GwTx.name}`);
+    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
   const signature: HexString = getSignature(rawTx);
@@ -311,7 +284,7 @@ export async function polyTx2GwTx(
   );
   if (intrinsicGasErr) {
     throw intrinsicGasErr.padContext(
-      `eth_sendRawTransaction ${polyTx2GwTx.name}`
+      `eth_sendRawTransaction ${polyTxToGwTx.name}`
     );
   }
 
@@ -325,7 +298,7 @@ export async function polyTx2GwTx(
   );
   if (enoughBalanceErr) {
     throw enoughBalanceErr.padContext(
-      `eth_sendRawTransaction ${polyTx2GwTx.name}`
+      `eth_sendRawTransaction ${polyTxToGwTx.name}`
     );
   }
 
@@ -375,29 +348,17 @@ export async function polyTx2GwTx(
   // See also:
   // - https://github.com/nervosnetwork/godwoken/pull/784
   // - https://github.com/nervosnetwork/godwoken-polyjuice/pull/173
-  let args: HexString;
+  let args: HexString =
+    "0x" +
+    args_0_7.slice(2) +
+    args_7.slice(2) +
+    args_8_16.slice(2) +
+    args_16_32.slice(2) +
+    args_32_48.slice(2) +
+    args_48_52.slice(2) +
+    args_data.slice(2);
   if (isEthNativeTransfer_) {
-    const toAddress = rawTx.to;
-    args =
-      "0x" +
-      args_0_7.slice(2) +
-      args_7.slice(2) +
-      args_8_16.slice(2) +
-      args_16_32.slice(2) +
-      args_32_48.slice(2) +
-      args_48_52.slice(2) +
-      args_data.slice(2) +
-      toAddress.slice(2);
-  } else {
-    args =
-      "0x" +
-      args_0_7.slice(2) +
-      args_7.slice(2) +
-      args_8_16.slice(2) +
-      args_16_32.slice(2) +
-      args_32_48.slice(2) +
-      args_48_52.slice(2) +
-      args_data.slice(2);
+    args = args + rawTx.to.slice(2);
   }
 
   let chainId = gwConfig.web3ChainId;
