@@ -8,25 +8,17 @@ import {
   SudtPayFeeLog,
   TransactionCallObject,
 } from "../types";
-import {
-  middleware,
-  validators,
-  verifyEnoughBalance,
-  verifyGasLimit,
-  verifyIntrinsicGas,
-} from "../validator";
+import { middleware, validators } from "../validator";
 import { AutoCreateAccountCacheValue } from "../../cache/types";
 import { HexNumber, Hash, Address, HexString, utils } from "@ckb-lumos/base";
 import {
   normalizers,
-  RawL2Transaction,
   RunResult,
   schemas,
   GodwokenClient,
 } from "@godwoken-web3/godwoken";
 import {
   CKB_SUDT_ID,
-  POLY_MAX_BLOCK_GAS_LIMIT,
   POLYJUICE_CONTRACT_CODE,
   POLYJUICE_SYSTEM_LOG_FLAG,
   POLYJUICE_SYSTEM_PREFIX,
@@ -76,7 +68,7 @@ import {
   polyTxToGwTx,
   polyjuiceRawTransactionToApiTransaction,
   PolyjuiceTransaction,
-  isEthNativeTransfer,
+  ethCallTxToGodwokenRawTx,
 } from "../../convert-tx";
 import { ethAddressToAccountId, EthRegistryAddress } from "../../base/address";
 import { keccakFromString } from "ethereumjs-util";
@@ -87,6 +79,7 @@ import { calcIntrinsicGas } from "../../util";
 import { FilterFlag, FilterParams, RpcFilterRequest } from "../../base/filter";
 import { Reader } from "@ckb-lumos/toolkit";
 import { ethTxHashToGwTxHash } from "../../cache/tx-hash";
+import { EthNormalizer } from "../normalizer";
 
 const Config = require("../../../config/eth.json");
 
@@ -103,6 +96,7 @@ export class Eth {
   private filterManager: FilterManager;
   private cacheStore: Store;
   private gasPriceCacheMilSec: number;
+  private ethNormalizer: EthNormalizer;
 
   constructor() {
     this.query = new Query();
@@ -111,8 +105,8 @@ export class Eth {
       envConfig.godwokenReadonlyJsonRpc
     );
     this.filterManager = new FilterManager(true);
-
     this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
+    this.ethNormalizer = new EthNormalizer(this.rpc);
 
     const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
     this.gasPriceCacheMilSec = cacheSeconds * 1000;
@@ -468,7 +462,9 @@ export class Eth {
     args: [TransactionCallObject, BlockParameter | undefined]
   ): Promise<HexString> {
     try {
-      const txCallObj = args[0];
+      const txCallObj = await this.ethNormalizer.normalizeEstimateGasTx(
+        args[0]
+      );
       const blockParameter = args[1] || "latest";
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
@@ -476,7 +472,7 @@ export class Eth {
       const executeCallResult = async () => {
         let runResult: RunResult | undefined;
         try {
-          runResult = await ethCallTx(txCallObj, this.rpc, blockNumber);
+          runResult = await doEthCall(txCallObj, this.rpc, blockNumber);
         } catch (err) {
           throw parseGwRunResultError(err);
         }
@@ -525,10 +521,9 @@ export class Eth {
     args: [Partial<TransactionCallObject>, BlockParameter | undefined]
   ): Promise<HexNumber> {
     try {
-      const txCallObj = args[0];
-      if (txCallObj.to == null) {
-        txCallObj.to = "0x";
-      }
+      const txCallObj = await this.ethNormalizer.normalizeEstimateGasTx(
+        args[0]
+      );
       const blockParameter = args[1] || "latest";
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
@@ -538,11 +533,7 @@ export class Eth {
       const executeCallResult = async () => {
         let runResult: RunResult | undefined;
         try {
-          runResult = await ethCallTx(
-            txCallObj as TransactionCallObject,
-            this.rpc,
-            blockNumber
-          );
+          runResult = await doEthCall(txCallObj, this.rpc, blockNumber);
         } catch (error) {
           throw parseGwRunResultError(error);
         }
@@ -1325,78 +1316,6 @@ function uint32ToLeBytes(id: number) {
   return array;
 }
 
-function buildPolyjuiceArgs(
-  isCreate: boolean,
-  gas: bigint,
-  gasPrice: bigint,
-  value: bigint,
-  data: string,
-  toAddressWhenNativeTransfer?: HexString
-) {
-  const argsHeaderBuf = Buffer.from([
-    0xff,
-    0xff,
-    0xff,
-    "P".charCodeAt(0),
-    "O".charCodeAt(0),
-    "L".charCodeAt(0),
-    "Y".charCodeAt(0),
-  ]);
-  const callKind = isCreate ? 3 : 0;
-  const gasLimitBuf = Buffer.alloc(8);
-  gasLimitBuf.writeBigUInt64LE(gas);
-  const gasPriceBuf = Buffer.alloc(16);
-  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
-  gasPriceBuf.writeBigUInt64LE(gasPrice >> BigInt(64), 8);
-  const valueBuf = Buffer.alloc(16);
-  valueBuf.writeBigUInt64LE(value & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
-  valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
-  const dataSizeBuf = Buffer.alloc(4);
-  const dataBuf = Buffer.from(data.slice(2), "hex");
-  dataSizeBuf.writeUInt32LE(dataBuf.length);
-
-  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
-  if (toAddressWhenNativeTransfer != null) {
-    argsLength += 20;
-  }
-  const argsBuf = Buffer.alloc(argsLength);
-  argsHeaderBuf.copy(argsBuf, 0);
-  argsBuf[7] = callKind;
-  gasLimitBuf.copy(argsBuf, 8);
-  gasPriceBuf.copy(argsBuf, 16);
-  valueBuf.copy(argsBuf, 32);
-  dataSizeBuf.copy(argsBuf, 48);
-  dataBuf.copy(argsBuf, 52);
-
-  if (toAddressWhenNativeTransfer != null) {
-    const toAddressBuf = Buffer.from(
-      toAddressWhenNativeTransfer.slice(2),
-      "hex"
-    );
-    toAddressBuf.copy(argsBuf, 52 + (data.length - 2));
-  }
-
-  const argsHex = "0x" + argsBuf.toString("hex");
-  return argsHex;
-}
-
-function buildRawL2Transaction(
-  chainId: bigint,
-  fromId: number,
-  toId: number,
-  nonce: number,
-  args: string
-) {
-  const rawL2Transaction = {
-    chain_id: "0x" + chainId.toString(16),
-    from_id: "0x" + BigInt(fromId).toString(16),
-    to_id: "0x" + BigInt(toId).toString(16),
-    nonce: "0x" + BigInt(nonce).toString(16),
-    args: args,
-  };
-  return rawL2Transaction;
-}
-
 function buildStorageKey(storagePosition: string) {
   let key = storagePosition.slice(2);
   // If b is larger than len(h), b will be cropped from the left.
@@ -1410,15 +1329,13 @@ function buildStorageKey(storagePosition: string) {
   return "0x" + key;
 }
 
-async function ethCallTx(
-  txCallObj: TransactionCallObject,
+async function doEthCall(
+  tx: Required<TransactionCallObject>,
   rpc: GodwokenClient,
   blockNumber?: U64
 ): Promise<RunResult> {
-  const [rawL2Transaction, serializedRegistryAddress] = await buildEthCallTx(
-    txCallObj,
-    rpc
-  );
+  const [rawL2Transaction, serializedRegistryAddress] =
+    await ethCallTxToGodwokenRawTx(tx, rpc);
   const runResult = await rpc.executeRawL2Transaction(
     rawL2Transaction,
     blockNumber,
@@ -1426,123 +1343,6 @@ async function ethCallTx(
   );
 
   return runResult;
-}
-
-async function buildEthCallTx(
-  txCallObj: TransactionCallObject,
-  rpc: GodwokenClient
-): Promise<[RawL2Transaction, HexString | undefined]> {
-  const fromAddress = txCallObj.from;
-  const toAddress = txCallObj.to;
-  const gas =
-    txCallObj.gas || "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
-  // we should set price to 0 instead of minGasPrice,
-  // otherwise read operation might fail the balance check.
-  const gasPrice = txCallObj.gasPrice || "0x0";
-  const value = txCallObj.value || "0x0";
-  const data = txCallObj.data || "0x";
-  let fromId: number | undefined;
-
-  const gasLimitErr = verifyGasLimit(gas, 0);
-  if (gasLimitErr) {
-    throw gasLimitErr.padContext(buildEthCallTx.name);
-  }
-
-  const intrinsicGasErr = verifyIntrinsicGas(toAddress, data, gas, 0);
-  if (intrinsicGasErr) {
-    throw intrinsicGasErr.padContext(buildEthCallTx.name);
-  }
-
-  if (!fromAddress) {
-    fromId = +gwConfig.accounts.defaultFrom.id;
-    logger.debug(`use default fromId: ${fromId}`);
-  }
-
-  if (fromAddress != null && typeof fromAddress === "string") {
-    fromId = await ethAddressToAccountId(fromAddress, rpc);
-    logger.debug(`fromId: ${fromId}`);
-  }
-
-  let serializedRegistryAddress: HexString | undefined;
-  if (fromId == null && fromAddress != null) {
-    logger.info(
-      `aca tx: action: call/estimateGas, from_address: ${fromAddress}`
-    );
-    const registryAddress: EthRegistryAddress = new EthRegistryAddress(
-      fromAddress
-    );
-    fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
-    serializedRegistryAddress = registryAddress.serialize();
-  }
-
-  // check if from address have enough balance
-  // when gasPrice in ethCallObj is provided.
-  if (txCallObj.gasPrice != null) {
-    const defaultFromScript = await rpc.getScript(
-      gwConfig.accounts.defaultFrom.scriptHash
-    );
-    if (defaultFromScript == null) {
-      throw new Error("default from script is null");
-    }
-    const defaultFromAddress = "0x" + defaultFromScript.args.slice(2).slice(64);
-    const from = fromAddress || defaultFromAddress;
-
-    const balanceErr = await verifyEnoughBalance(
-      rpc,
-      from,
-      value,
-      gas,
-      gasPrice,
-      0
-    );
-    if (balanceErr) {
-      throw balanceErr.padContext(
-        `${buildEthCallTx.name}: from account ${from}`
-      );
-    }
-  }
-
-  let toId: number | undefined;
-  let polyjuiceArgs: HexString;
-
-  if (await isEthNativeTransfer({ to: toAddress }, rpc)) {
-    const isCreate = false;
-    toId = +gwConfig.accounts.polyjuiceCreator.id;
-    polyjuiceArgs = buildPolyjuiceArgs(
-      isCreate,
-      BigInt(gas),
-      BigInt(gasPrice),
-      BigInt(value),
-      data,
-      toAddress
-    );
-  } else {
-    toId = await ethAddressToAccountId(toAddress, rpc);
-    const isCreate = toId === +gwConfig.accounts.polyjuiceCreator.id;
-    polyjuiceArgs = buildPolyjuiceArgs(
-      isCreate,
-      BigInt(gas),
-      BigInt(gasPrice),
-      BigInt(value),
-      data
-    );
-  }
-
-  if (toId == null) {
-    throw new Error(`account ${toAddress} doesn't exist`);
-  }
-  const nonce = 0;
-  const rawL2Transaction = buildRawL2Transaction(
-    BigInt(gwConfig.web3ChainId),
-    fromId!,
-    toId,
-    nonce,
-    polyjuiceArgs
-  );
-  logger.debug(
-    `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
-  );
-  return [rawL2Transaction, serializedRegistryAddress];
 }
 
 function extractPolyjuiceSystemLog(logItems: LogItem[]): GodwokenLog {
