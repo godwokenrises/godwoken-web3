@@ -10,6 +10,7 @@ import * as secp256k1 from "secp256k1";
 import {
   ethAddressToAccountId,
   ethEoaAddressToScriptHash,
+  EthRegistryAddress,
 } from "./base/address";
 import { gwConfig } from "./base";
 import { logger } from "./base/logger";
@@ -29,6 +30,7 @@ import { EthTransaction } from "./base/types/api";
 import { bumpHash, PENDING_TRANSACTION_INDEX } from "./filter-web3-tx";
 import { Uint64 } from "./base/types/uint";
 import { AutoCreateAccountCacheValue } from "./cache/types";
+import { TransactionCallObject } from "./methods/types";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -44,6 +46,145 @@ export interface PolyjuiceTransaction {
   s: HexString;
 }
 
+// execute raw transaction
+export async function ethCallTxToGodwokenRawTx(
+  tx: Required<TransactionCallObject>,
+  rpc: GodwokenClient
+): Promise<[RawL2Transaction, HexString | undefined]> {
+  let fromId: number | undefined;
+  fromId = await ethAddressToAccountId(tx.from, rpc);
+  logger.debug(`fromId: ${fromId}`);
+  if (fromId === +gwConfig.accounts.defaultFrom.id) {
+    logger.debug(`use default fromId: ${fromId}`);
+  }
+
+  // check aca tx
+  let serializedRegistryAddress: HexString | undefined;
+  if (fromId == null) {
+    logger.info(`aca tx: action: call/estimateGas, from_address: ${tx.from}`);
+    const registryAddress: EthRegistryAddress = new EthRegistryAddress(tx.from);
+    fromId = +AUTO_CREATE_ACCOUNT_FROM_ID;
+    serializedRegistryAddress = registryAddress.serialize();
+  }
+
+  let toId: number | undefined;
+  let polyjuiceArgs: HexString;
+
+  if (await isEthNativeTransfer({ to: tx.to }, rpc)) {
+    const isCreate = false;
+    toId = +gwConfig.accounts.polyjuiceCreator.id;
+    polyjuiceArgs = buildPolyjuiceArgs(
+      isCreate,
+      BigInt(tx.gas),
+      BigInt(tx.gasPrice),
+      BigInt(tx.value),
+      tx.data,
+      tx.to
+    );
+  } else {
+    toId = await ethAddressToAccountId(tx.to, rpc);
+    const isCreate = toId === +gwConfig.accounts.polyjuiceCreator.id;
+    polyjuiceArgs = buildPolyjuiceArgs(
+      isCreate,
+      BigInt(tx.gas),
+      BigInt(tx.gasPrice),
+      BigInt(tx.value),
+      tx.data
+    );
+  }
+
+  if (toId == null) {
+    throw new Error(`account ${tx.to} doesn't exist`);
+  }
+
+  // not checking nonce for execute raw tx
+  const nonce = 0;
+  const rawL2Transaction = buildRawL2Transaction(
+    BigInt(gwConfig.web3ChainId),
+    fromId!,
+    toId,
+    nonce,
+    polyjuiceArgs
+  );
+  logger.debug(
+    `rawL2Transaction: ${JSON.stringify(rawL2Transaction, null, 2)}`
+  );
+  return [rawL2Transaction, serializedRegistryAddress];
+}
+
+export function buildPolyjuiceArgs(
+  isCreate: boolean,
+  gas: bigint,
+  gasPrice: bigint,
+  value: bigint,
+  data: string,
+  toAddressWhenNativeTransfer?: HexString
+) {
+  const argsHeaderBuf = Buffer.from([
+    0xff,
+    0xff,
+    0xff,
+    "P".charCodeAt(0),
+    "O".charCodeAt(0),
+    "L".charCodeAt(0),
+    "Y".charCodeAt(0),
+  ]);
+  const callKind = isCreate ? 3 : 0;
+  const gasLimitBuf = Buffer.alloc(8);
+  gasLimitBuf.writeBigUInt64LE(gas);
+  const gasPriceBuf = Buffer.alloc(16);
+  gasPriceBuf.writeBigUInt64LE(gasPrice & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
+  gasPriceBuf.writeBigUInt64LE(gasPrice >> BigInt(64), 8);
+  const valueBuf = Buffer.alloc(16);
+  valueBuf.writeBigUInt64LE(value & BigInt("0xFFFFFFFFFFFFFFFF"), 0);
+  valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
+  const dataSizeBuf = Buffer.alloc(4);
+  const dataBuf = Buffer.from(data.slice(2), "hex");
+  dataSizeBuf.writeUInt32LE(dataBuf.length);
+
+  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
+  if (toAddressWhenNativeTransfer != null) {
+    argsLength += 20;
+  }
+  const argsBuf = Buffer.alloc(argsLength);
+  argsHeaderBuf.copy(argsBuf, 0);
+  argsBuf[7] = callKind;
+  gasLimitBuf.copy(argsBuf, 8);
+  gasPriceBuf.copy(argsBuf, 16);
+  valueBuf.copy(argsBuf, 32);
+  dataSizeBuf.copy(argsBuf, 48);
+  dataBuf.copy(argsBuf, 52);
+
+  if (toAddressWhenNativeTransfer != null) {
+    const toAddressBuf = Buffer.from(
+      toAddressWhenNativeTransfer.slice(2),
+      "hex"
+    );
+    toAddressBuf.copy(argsBuf, 52 + (data.length - 2));
+  }
+
+  const argsHex = "0x" + argsBuf.toString("hex");
+  return argsHex;
+}
+
+export function buildRawL2Transaction(
+  chainId: bigint,
+  fromId: number,
+  toId: number,
+  nonce: number,
+  args: string
+) {
+  const rawL2Transaction = {
+    chain_id: "0x" + chainId.toString(16),
+    from_id: "0x" + BigInt(fromId).toString(16),
+    to_id: "0x" + BigInt(toId).toString(16),
+    nonce: "0x" + BigInt(nonce).toString(16),
+    args: args,
+  };
+  return rawL2Transaction;
+}
+
+// submit signed transaction
 export function polyjuiceRawTransactionToApiTransaction(
   rawTx: HexString,
   ethTxHash: Hash,
