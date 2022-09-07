@@ -30,10 +30,18 @@ export class EthNormalizer {
     // otherwise read operation might fail the balance check.
     const gasPrice = txCallObj.gasPrice || "0x0";
 
-    // TODO: set default gas limit to min(maxBlockGas, userBalanceAvailableGas)
+    // set default gas limit to min(maxBlockGas, userBalanceAvailableGas)
+    // TODO: use real blockAvailableGas to replace POLY_MAX_BLOCK_GAS_LIMIT
     const maxBlockGasLimit =
       "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
-    const gas = txCallObj.gas || maxBlockGasLimit;
+    const defaultGasLimit =
+      +gasPrice === 0
+        ? maxBlockGasLimit
+        : min(
+            maxBlockGasLimit,
+            await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
+          );
+    const gas = txCallObj.gas || defaultGasLimit;
 
     const gasLimitErr = verifyGasLimit(gas, 0);
     if (gasLimitErr) {
