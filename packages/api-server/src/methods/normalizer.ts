@@ -34,14 +34,15 @@ export class EthNormalizer {
     // TODO: use real blockAvailableGas to replace POLY_MAX_BLOCK_GAS_LIMIT
     const maxBlockGasLimit =
       "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
-    const defaultGasLimit =
-      +gasPrice === 0
-        ? maxBlockGasLimit
-        : min(
-            maxBlockGasLimit,
-            await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
-          );
-    const gas = txCallObj.gas || defaultGasLimit;
+    let gas = txCallObj.gas;
+    if (gas == null) {
+        gas = +gasPrice === 0
+            ? maxBlockGasLimit
+            : min(
+                maxBlockGasLimit,
+                await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
+              );
+    }
 
     const gasLimitErr = verifyGasLimit(gas, 0);
     if (gasLimitErr) {
