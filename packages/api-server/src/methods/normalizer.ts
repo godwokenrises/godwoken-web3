@@ -36,12 +36,13 @@ export class EthNormalizer {
       "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
     let gas = txCallObj.gas;
     if (gas == null) {
-        gas = +gasPrice === 0
-            ? maxBlockGasLimit
-            : min(
-                maxBlockGasLimit,
-                await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
-              );
+      gas =
+        +gasPrice === 0
+          ? maxBlockGasLimit
+          : min(
+              maxBlockGasLimit,
+              await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
+            );
     }
 
     const gasLimitErr = verifyGasLimit(gas, 0);
