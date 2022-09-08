@@ -4,10 +4,6 @@ import * as errcode from "../../src/methods/error-code";
 
 test("gw_get_storage_at", async (t) => {
   const res: JSONResponse = await client.request(t.title, []);
-  console.log(res);
-  console.log(res.error);
-  console.log(JSON.stringify(res));
-  console.log(JSON.stringify(res.error));
   t.truthy(res.error);
   t.is(res.error?.code, errcode.INVALID_PARAMS);
 });

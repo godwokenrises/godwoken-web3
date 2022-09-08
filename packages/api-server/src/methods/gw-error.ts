@@ -27,16 +27,16 @@ export function isGwError(err: any): boolean {
 /**
  * Parse the given Godwoken error, translate into RpcError and then throw it
  *
- * @param gwJsonrpcError
+ * @param gwJsonRpcError
  *
  * @throws RpcError
  */
-export function handleGwError(gwJsonrpcError: any) {
-  if (!isGwError(gwJsonrpcError)) {
-    throw gwJsonrpcError;
+export function handleGwError(gwJsonRpcError: any) {
+  if (!isGwError(gwJsonRpcError)) {
+    throw gwJsonRpcError;
   }
 
-  const message: string = gwJsonrpcError?.message || gwJsonrpcError;
+  const message: string = gwJsonRpcError?.message || gwJsonRpcError;
   const err = JSON.parse(
     message.slice(GODWOKEN_SERVER_ERROR_MESSAGE_PREFIX.length)
   );
@@ -62,7 +62,7 @@ export function handleGwError(gwJsonrpcError: any) {
 
   throw new RpcError(
     err.code || INTERNAL_ERROR,
-    err.message || gwJsonrpcError.toString(),
+    err.message || gwJsonRpcError.toString(),
     err.data
   );
 }

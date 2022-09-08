@@ -519,7 +519,8 @@ export class Eth {
     } catch (error: any) {
       if (isGwError(error)) {
         handleGwError(error);
-      } else if (isRpcError(error)) {
+      }
+      if (isRpcError(error)) {
         throw error;
       }
       throw new Web3Error(error.message, error.data);
@@ -602,7 +603,8 @@ export class Eth {
     } catch (error: any) {
       if (isGwError(error)) {
         handleGwError(error);
-      } else if (isRpcError(error)) {
+      }
+      if (isRpcError(error)) {
         throw error;
       }
       throw new Web3Error(error.message);

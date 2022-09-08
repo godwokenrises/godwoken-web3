@@ -22,7 +22,6 @@ export class RpcError extends Error implements JSONRPCError {
 
     this.code = code;
     this.data = data;
-    this.message = message;
   }
 }
 

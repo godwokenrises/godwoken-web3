@@ -286,7 +286,8 @@ export function parseExecuteResult(res: string) {
   const executionResult = JSON.parse(res);
   if (executionResult?.status === PublishExecuteResultStatus.Success) {
     return (executionResult as PublishExecuteResult).data;
-  } else if (executionResult?.err != null) {
+  }
+  if (executionResult?.err != null) {
     handleGwError(executionResult.err);
   }
 
