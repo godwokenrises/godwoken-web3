@@ -2,6 +2,7 @@ import { JSONRPCError } from "jayson";
 import { logger } from "../base/logger";
 import { HEADER_NOT_FOUND_ERR_MESSAGE } from "./constant";
 import {
+  TRANSACTION_EXECUTION_ERROR,
   HEADER_NOT_FOUND_ERROR,
   INTERNAL_ERROR,
   INVALID_PARAMS,
@@ -9,17 +10,28 @@ import {
   METHOD_NOT_SUPPORT,
   WEB3_ERROR,
 } from "./error-code";
+import { HexString } from "@ckb-lumos/base";
 
 export class RpcError extends Error implements JSONRPCError {
   code: number;
-  data?: object;
+  data?: any;
 
-  constructor(code: number, message: string, data?: object) {
+  constructor(code: number, message: string, data?: any) {
     super(message);
     this.name = "RpcError";
 
     this.code = code;
     this.data = data;
+  }
+}
+
+export function isRpcError(err: any): err is RpcError {
+  return err.name === "RpcError";
+}
+
+export class TransactionExecutionError extends RpcError {
+  constructor(message: string, data?: HexString) {
+    super(TRANSACTION_EXECUTION_ERROR, message, data);
   }
 }
 

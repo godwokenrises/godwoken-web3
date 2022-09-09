@@ -24,6 +24,26 @@ export interface RunResult {
   logs: LogItem[];
 }
 
+/**
+ * @see {@link https://github.com/nervosnetwork/godwoken/blob/c4be58f30744aef83717e2a12d60fe4d50b165ab/crates/jsonrpc-types/src/godwoken.rs#L1310-L1317}
+ */
+export interface ErrorTxReceipt {
+  tx_hash: Hash;
+  block_number: HexU64;
+  return_data: HexString;
+  last_log?: LogItem[];
+  exit_code: HexU32;
+}
+
+export function isErrorTxReceipt(obj: any): obj is ErrorTxReceipt {
+  return (
+    "tx_hash" in obj &&
+    "block_number" in obj &&
+    "return_data" in obj &&
+    "exit_code" in obj
+  );
+}
+
 export interface RawL2Transaction {
   chain_id: HexU64;
   from_id: HexU32;

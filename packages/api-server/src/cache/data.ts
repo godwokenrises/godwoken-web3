@@ -1,3 +1,5 @@
+import { handleGwError } from "../methods/gw-error";
+
 require("newrelic");
 import { createClient } from "redis";
 import { envConfig } from "../base/env-config";
@@ -178,7 +180,7 @@ export class RedisDataCache {
             );
           }
           await releaseLock(lockValue);
-          throw new Error(error.message);
+          throw error;
         }
       }
 
@@ -199,7 +201,7 @@ export class RedisDataCache {
             `[${this.constructor.name}]: subscribe err:`,
             error.message
           );
-          throw new Error(error.message);
+          throw error;
         }
       }
 
@@ -281,12 +283,15 @@ export function errorResult(reason: string) {
 }
 
 export function parseExecuteResult(res: string) {
-  const jsonRes: PublishExecuteResult = JSON.parse(res);
-  if (jsonRes.status === PublishExecuteResultStatus.Success) {
-    return jsonRes.data!;
+  const executionResult = JSON.parse(res);
+  if (executionResult?.status === PublishExecuteResultStatus.Success) {
+    return (executionResult as PublishExecuteResult).data;
+  }
+  if (executionResult?.err != null) {
+    handleGwError(executionResult.err);
   }
 
-  throw new Error("[RedisSubscribeResult]" + jsonRes.err);
+  throw new Error("[RedisSubscribeResult] unrecognizable result: " + res);
 }
 
 const asyncSleep = async (ms = 0) => {
