@@ -111,6 +111,8 @@ export async function getMaxGasByBalance(
 }
 
 export function min(...values: HexNumber[]): HexNumber {
-  const num = Math.min(...values.map((v) => +v));
-  return "0x" + num.toString(16);
+  const num = values.reduce((previousValue, currentValue) =>
+    BigInt(currentValue) < BigInt(previousValue) ? currentValue : previousValue
+  );
+  return num;
 }
