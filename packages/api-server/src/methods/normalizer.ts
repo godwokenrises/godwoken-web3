@@ -77,7 +77,7 @@ export class EthNormalizer {
     txEstimateGasObj: Partial<TransactionCallObject>
   ): Promise<Required<TransactionCallObject>> {
     const to = txEstimateGasObj.to || "0x";
-    return this.normalizeCallTx({ ...{ to }, ...txEstimateGasObj });
+    return this.normalizeCallTx({ ...txEstimateGasObj, to });
   }
 }
 

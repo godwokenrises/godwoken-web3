@@ -176,9 +176,9 @@ export function buildRawL2Transaction(
 ) {
   const rawL2Transaction = {
     chain_id: "0x" + chainId.toString(16),
-    from_id: "0x" + BigInt(fromId).toString(16),
-    to_id: "0x" + BigInt(toId).toString(16),
-    nonce: "0x" + BigInt(nonce).toString(16),
+    from_id: "0x" + fromId.toString(16),
+    to_id: "0x" + toId.toString(16),
+    nonce: "0x" + nonce.toString(16),
     args: args,
   };
   return rawL2Transaction;
