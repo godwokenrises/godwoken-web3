@@ -41,7 +41,7 @@ export class EthNormalizer {
           ? maxBlockGasLimit
           : min(
               maxBlockGasLimit,
-              await getMaxGasByBalance(this.rpc, fromAddress, gasPrice)
+              await getMaxGasByBalance(this.rpc, fromAddress, gasPrice, value)
             );
     }
 
@@ -105,10 +105,11 @@ async function getDefaultFromAddress(rpc: GodwokenClient): Promise<HexString> {
 export async function getMaxGasByBalance(
   rpc: GodwokenClient,
   from: HexString,
-  gasPrice: HexNumber
-) {
+  gasPrice: HexNumber,
+  txValue: HexNumber = "0x0"
+): Promise<HexNumber> {
   if (gasPrice === "0x" || gasPrice === "0x0") {
-    throw new Error("gasPrice should > 0");
+    throw new Error(`[${getMaxGasByBalance.name}] gasPrice should > 0`);
   }
 
   const registryAddress: EthRegistryAddress = new EthRegistryAddress(from);
@@ -116,7 +117,15 @@ export async function getMaxGasByBalance(
     registryAddress.serialize(),
     +CKB_SUDT_ID
   );
-  const maxGas = balance / BigInt(gasPrice);
+
+  if (balance < BigInt(txValue)) {
+    throw new Error(
+      `[${getMaxGasByBalance.name}] insufficient funds for transfer`
+    );
+  }
+
+  const availableBalance = balance - BigInt(txValue);
+  const maxGas = availableBalance / BigInt(gasPrice);
   return "0x" + maxGas.toString(16);
 }
 
