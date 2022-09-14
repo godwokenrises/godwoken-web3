@@ -76,7 +76,7 @@ export class CKBPriceOracle extends BaseWorker {
 
   async minFeeRate(): Promise<bigint> {
     const ckbPrice = await this.price();
-    return Price.from(ckbPrice).toMinGasPrice();
+    return Price.from(ckbPrice).toMinFeeRate();
   }
 
   private async sendRequest(url: string) {
