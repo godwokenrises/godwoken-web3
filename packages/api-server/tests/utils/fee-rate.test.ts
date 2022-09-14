@@ -26,7 +26,7 @@ const serializeMetaContractCreateAccountL2Tx =
 const serializeMetaContractBatchCreateEthAccountL2Tx =
   prepareMetaContractBatchCreateEthAccountTx();
 
-const ckbPrice = 0.0038;
+const ckbPrice = "0.0038";
 const price = new Price(ckbPrice);
 
 test(`${ckbPrice} ckb price fee rate for setMapping`, (t) => {
