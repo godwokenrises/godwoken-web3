@@ -2,6 +2,7 @@ import { Store } from "./cache/store";
 import fetch from "cross-fetch";
 import { BaseWorker } from "./base/worker";
 import { Price } from "./base/gas-price";
+import Decimal from "decimal.js";
 
 // worker const
 const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
@@ -61,12 +62,12 @@ export class CKBPriceOracle extends BaseWorker {
     return this.pollTimeInterval;
   }
 
-  async price(): Promise<number> {
+  async price(): Promise<string> {
     const price = await this.cacheStore.get(CKB_PRICE_CACHE_KEY);
     if (price == null) {
       return await this.pollPrice();
     }
-    return +price;
+    return price;
   }
 
   async minGasPrice(): Promise<bigint> {
@@ -89,7 +90,7 @@ export class CKBPriceOracle extends BaseWorker {
     }
   }
 
-  private async pollPrice() {
+  private async pollPrice(): Promise<string> {
     // rate-limit: 50 requests 1 minute
     const coingecko = async () => {
       const tokenId = "nervos-network";
@@ -99,7 +100,7 @@ export class CKBPriceOracle extends BaseWorker {
       if (!("usd" in resObj[tokenId])) {
         throw new Error(`request to ${url} error, result: ${res}`);
       }
-      return +resObj[tokenId].usd;
+      return new Decimal(resObj[tokenId].usd).toString();
     };
 
     // rate-limit: 160000 requests 1 day, 50 requests 10 seconds
@@ -115,7 +116,7 @@ export class CKBPriceOracle extends BaseWorker {
       ) {
         throw new Error(`request to ${url} error, result: ${res}`);
       }
-      return +resObj[0]["price"];
+      return new Decimal(resObj[0]["price"]).toString();
     };
 
     // rate-limit: 100 requests per second each
@@ -127,7 +128,7 @@ export class CKBPriceOracle extends BaseWorker {
       if (resObj.code != 0 || !("result" in resObj)) {
         throw new Error(`request to ${url} error, result: ${res}`);
       }
-      return +resObj.result.data[0].p;
+      return new Decimal(resObj.result.data[0].p).toString();
     };
 
     const prices = await Promise.all([coingecko(), binance(), cryptocom()]);
