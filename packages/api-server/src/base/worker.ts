@@ -11,6 +11,7 @@ export class BaseWorker {
   protected isRunning: boolean;
   protected pollTimeInterval: number;
   protected livenessCheckInterval: number;
+  private intervalHandler: NodeJS.Timer | undefined;
 
   constructor({
     pollTimeInterval = POLL_TIME_INTERVAL,
@@ -24,7 +25,7 @@ export class BaseWorker {
   // Main worker
   async startForever() {
     await this.start();
-    setInterval(async () => {
+    this.intervalHandler = setInterval(async () => {
       if (!this.running()) {
         logger.error(
           `${this.constructor.name} has stopped, maybe check the log?`
@@ -32,6 +33,14 @@ export class BaseWorker {
         await this.start();
       }
     }, this.livenessCheckInterval);
+  }
+
+  async stopForever() {
+    await this.stop();
+    if (this.intervalHandler != null) {
+      clearInterval(this.intervalHandler);
+      logger.debug(`call ${this.constructor.name} to stop forever`);
+    }
   }
 
   async start() {
@@ -47,10 +56,10 @@ export class BaseWorker {
     return this.isRunning;
   }
 
-  protected scheduleLoop(timeout = 1) {
+  protected scheduleLoop(ms?: number) {
     setTimeout(() => {
       this.loop();
-    }, timeout);
+    }, ms);
   }
 
   protected loop() {
