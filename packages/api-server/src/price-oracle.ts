@@ -3,6 +3,8 @@ import fetch from "cross-fetch";
 import { BaseWorker } from "./base/worker";
 import { Price } from "./base/gas-price";
 import Decimal from "decimal.js";
+import { Query } from "./db/query";
+import { envConfig } from "./base/env-config";
 
 // worker const
 const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
@@ -14,9 +16,14 @@ const PRICE_DIFF = 0.05; // 5%
 const PRICE_UPDATE_WINDOW = 5 * 60000; // 5 minutes
 const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 
+// gas price cache
+const GAS_PRICE_CACHE_KEY = `priceOracle:gasPrice`;
+
 export class CKBPriceOracle extends BaseWorker {
   private cacheStore: Store;
   private readonly: boolean;
+  private query: Query;
+  private gasPriceCacheMilSec: number;
 
   constructor({
     readonly = false,
@@ -27,6 +34,11 @@ export class CKBPriceOracle extends BaseWorker {
     super({ pollTimeInterval, livenessCheckInterval });
     this.cacheStore = new Store(true, expiredTime);
     this.readonly = readonly;
+
+    this.query = new Query();
+
+    const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
+    this.gasPriceCacheMilSec = cacheSeconds * 1000;
   }
 
   startForever(): Promise<void> {
@@ -68,6 +80,37 @@ export class CKBPriceOracle extends BaseWorker {
       return await this.pollPrice();
     }
     return price;
+  }
+
+  // Return median gas_price of latest ${LATEST_MEDIAN_GAS_PRICE} transactions
+  async gasPrice(): Promise<bigint> {
+    // using cache
+    if (this.gasPriceCacheMilSec > 0) {
+      const cachedGasPrice = await this.cacheStore.get(GAS_PRICE_CACHE_KEY);
+      if (cachedGasPrice != null) {
+        return BigInt(cachedGasPrice);
+      }
+    }
+
+    let [medianGasPrice, minGasPrice] = await Promise.all([
+      this.query.getMedianGasPrice(),
+      this.minGasPrice(),
+    ]);
+    if (medianGasPrice < minGasPrice) {
+      medianGasPrice = minGasPrice;
+    }
+
+    // save cache
+    if (this.gasPriceCacheMilSec > 0) {
+      const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+      this.cacheStore.insert(
+        GAS_PRICE_CACHE_KEY,
+        medianGasPriceHex,
+        this.gasPriceCacheMilSec
+      );
+    }
+
+    return medianGasPrice;
   }
 
   async minGasPrice(): Promise<bigint> {

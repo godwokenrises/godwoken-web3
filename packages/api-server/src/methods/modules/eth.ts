@@ -96,7 +96,6 @@ export class Eth {
   private rpc: GodwokenClient;
   private filterManager: FilterManager;
   private cacheStore: Store;
-  private gasPriceCacheMilSec: number;
   private ethNormalizer: EthNormalizer;
 
   constructor() {
@@ -108,9 +107,6 @@ export class Eth {
     this.filterManager = new FilterManager(true);
     this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
     this.ethNormalizer = new EthNormalizer(this.rpc);
-
-    const cacheSeconds: number = +(envConfig.gasPriceCacheSeconds || "0");
-    this.gasPriceCacheMilSec = cacheSeconds * 1000;
 
     // middleware params validator
     this.getBlockByNumber = middleware(this.getBlockByNumber.bind(this), 2, [
@@ -308,33 +304,10 @@ export class Eth {
    * @returns
    */
   async gasPrice(_args: []): Promise<HexNumber> {
-    const key = `eth.eth_gasPrice`;
-    if (this.gasPriceCacheMilSec > 0) {
-      const cachedGasPrice = await this.cacheStore.get(key);
-      if (cachedGasPrice != null) {
-        return cachedGasPrice;
-      }
-    }
-
     try {
-      let [medianGasPrice, minGasPrice] = await Promise.all([
-        this.query.getMedianGasPrice(),
-        readonlyPriceOracle.minGasPrice(),
-      ]);
-      if (medianGasPrice < minGasPrice) {
-        medianGasPrice = minGasPrice;
-      }
-      const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
-
-      if (this.gasPriceCacheMilSec > 0) {
-        this.cacheStore.insert(
-          key,
-          medianGasPriceHex,
-          this.gasPriceCacheMilSec
-        );
-      }
-
-      return medianGasPriceHex;
+      const gasPrice = await readonlyPriceOracle.gasPrice();
+      const gasPriceHex = "0x" + gasPrice.toString(16);
+      return gasPriceHex;
     } catch (error: any) {
       throw new Web3Error(error.message);
     }
