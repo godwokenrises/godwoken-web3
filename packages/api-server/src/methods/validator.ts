@@ -7,7 +7,7 @@ import {
 } from "../util";
 import { BlockParameter, BlockSpecifier } from "./types";
 import { logger } from "../base/logger";
-import { InvalidParamsError, RpcError } from "./error";
+import { InvalidParamsError, isRpcError, RpcError } from "./error";
 import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { envConfig } from "../base/env-config";
@@ -39,6 +39,9 @@ export function middleware(
 
       const err = validators[i](params, i);
       if (err) {
+        if (isRpcError(err)) {
+          throw err;
+        }
         throw new RpcError(err.code, err.message, err.data);
       }
     }
@@ -51,6 +54,9 @@ export function middleware(
       logger.error(
         `JSONRPC Server Error: [${method.name}] ${err} ${err.stack}`
       );
+      if (isRpcError(err)) {
+        throw err;
+      }
       throw new RpcError(err.code, err.message, err.data);
     }
   };
