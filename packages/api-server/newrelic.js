@@ -33,6 +33,14 @@ exports.config = {
      */
     enabled: true
   },
+  error_collector: {
+    /**
+     * Enables/disables error collection.
+     *
+     * @env NEW_RELIC_ERROR_COLLECTOR_ENABLED
+     */
+    enabled: true,
+  },
   logging: {
     /**
      * Level at which to log. 'trace' is most useful to New Relic when diagnosing
