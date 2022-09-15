@@ -10,6 +10,7 @@ import { ethTxHashToGwTxHash, gwTxHashToEthTxHash } from "../../cache/tx-hash";
 import { middleware, validators } from "../validator";
 import { MAX_ALLOW_SYNC_BLOCKS_DIFF } from "../constant";
 import { globalClient } from "../../cache/redis";
+import { CKB_PRICE_CACHE_KEY } from "../../price-oracle";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
@@ -104,21 +105,29 @@ export class Poly {
   }
 
   async getHealthStatus(_args: []) {
-    const [pingNode, pingFullNode, pingRedis, isDBConnected, syncBlocksDiff] =
-      await Promise.all([
-        this.rpc.ping(),
-        this.rpc.pingFullNode(),
-        globalClient.PING(),
-        this.query.isConnected(),
-        this.syncBlocksDiff(),
-      ]);
+    const [
+      pingNode,
+      pingFullNode,
+      pingRedis,
+      isDBConnected,
+      syncBlocksDiff,
+      ckbOraclePrice,
+    ] = await Promise.all([
+      this.rpc.ping(),
+      this.rpc.pingFullNode(),
+      globalClient.PING(),
+      this.query.isConnected(),
+      this.syncBlocksDiff(),
+      this.getCkbOraclePrice(),
+    ]);
 
     const status =
       pingNode === "pong" &&
       pingFullNode === "pong" &&
       pingRedis === "PONG" &&
       isDBConnected &&
-      syncBlocksDiff <= MAX_ALLOW_SYNC_BLOCKS_DIFF;
+      syncBlocksDiff <= MAX_ALLOW_SYNC_BLOCKS_DIFF &&
+      ckbOraclePrice != null;
 
     return {
       status,
@@ -127,6 +136,7 @@ export class Poly {
       pingRedis,
       isDBConnected,
       syncBlocksDiff,
+      ckbOraclePrice,
     };
   }
 
@@ -144,5 +154,10 @@ export class Poly {
 
     const diff = gwTipBlockNumber - dbTipBlockNumber;
     return diff;
+  }
+
+  private async getCkbOraclePrice(): Promise<string | null> {
+    const price = await globalClient.get(CKB_PRICE_CACHE_KEY);
+    return price;
   }
 }
