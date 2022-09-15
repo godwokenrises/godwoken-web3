@@ -14,7 +14,7 @@ const LIVENESS_CHECK_INTERVAL = 5000; // 5s
 // ckb price const
 const PRICE_DIFF = 0.05; // 5%
 const PRICE_UPDATE_WINDOW = 5 * 60000; // 5 minutes
-const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
+export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 
 // gas price cache
 const GAS_PRICE_CACHE_KEY = `priceOracle:gasPrice`;
@@ -129,7 +129,9 @@ export class CKBPriceOracle extends BaseWorker {
       let data = await response.text();
       return data;
     } else {
-      throw new Error("fetch failed, error code " + response.status);
+      throw new Error(
+        `[${CKBPriceOracle.name}] sendRequest: fetch failed, error code ${response.status}`
+      );
     }
   }
 
@@ -141,7 +143,9 @@ export class CKBPriceOracle extends BaseWorker {
       const res = await this.sendRequest(url);
       const resObj = JSON.parse(res);
       if (!("usd" in resObj[tokenId])) {
-        throw new Error(`request to ${url} error, result: ${res}`);
+        throw new Error(
+          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+        );
       }
       return new Decimal(resObj[tokenId].usd).toString();
     };
@@ -157,7 +161,9 @@ export class CKBPriceOracle extends BaseWorker {
         resObj.length != 1 ||
         !("price" in resObj[0])
       ) {
-        throw new Error(`request to ${url} error, result: ${res}`);
+        throw new Error(
+          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+        );
       }
       return new Decimal(resObj[0]["price"]).toString();
     };
@@ -169,7 +175,9 @@ export class CKBPriceOracle extends BaseWorker {
       const res = await this.sendRequest(url);
       const resObj = JSON.parse(res);
       if (resObj.code != 0 || !("result" in resObj)) {
-        throw new Error(`request to ${url} error, result: ${res}`);
+        throw new Error(
+          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+        );
       }
       return new Decimal(resObj.result.data[0].p).toString();
     };
