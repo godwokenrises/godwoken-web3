@@ -1,5 +1,5 @@
 import { Store } from "./cache/store";
-import fetch from "cross-fetch";
+import axios from "axios";
 import { BaseWorker } from "./base/worker";
 import {
   FEE_RATE_MULTIPLIER,
@@ -15,6 +15,9 @@ import { logger } from "./base/logger";
 const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
 const POLL_TIME_INTERVAL = 30000; // 30s
 const LIVENESS_CHECK_INTERVAL = 5000; // 5s
+
+// poll price timeout
+const POLL_REQUEST_TIME_OUT = 10000; // 10s
 
 // ckb price const
 const PRICE_DIFF_PERCENTAGE_THRESHOLD = "0.05"; // if diff larger than 5%, update the price
@@ -140,15 +143,37 @@ export class CKBPriceOracle extends BaseWorker {
   }
 
   private async sendRequest(url: string) {
-    let response = await fetch(url);
-    if (response.status === 200) {
-      let data = await response.text();
-      return data;
-    } else {
-      throw new Error(
-        `[${CKBPriceOracle.name}] sendRequest: fetch failed, error code ${response.status}`
-      );
-    }
+    const validateStatus = function (status: number) {
+      return status === 200;
+    };
+    const options = {
+      validateStatus,
+      timeout: POLL_REQUEST_TIME_OUT,
+    };
+
+    let response = await axios.get(url, options).catch((error) => {
+      if (error.response) {
+        // The request was made and the server responded with wrong status code
+        throw new Error(
+          `[${CKBPriceOracle.name}] sendRequest: response failed, statusCode: ${error.response.status}, data: ${error.response.data}, header: ${error.response.headers}`
+        );
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        throw new Error(
+          `[${
+            CKBPriceOracle.name
+          }] sendRequest: request failed, ${JSON.stringify(error.toJSON())}`
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        throw new Error(
+          `[${CKBPriceOracle.name}] sendRequest: setup request failed, ${error.message}`
+        );
+      }
+    });
+    return response.data;
   }
 
   private async pollPrice(): Promise<string | null> {
@@ -156,11 +181,10 @@ export class CKBPriceOracle extends BaseWorker {
     const coingecko = async () => {
       const tokenId = "nervos-network";
       const url = `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd`;
-      const res = await this.sendRequest(url);
-      const resObj = JSON.parse(res);
+      const resObj = await this.sendRequest(url);
       if (!("usd" in resObj[tokenId])) {
         throw new Error(
-          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+          `[${CKBPriceOracle.name}] pollPrice: response from ${url} error, result: ${resObj}`
         );
       }
       return new Decimal(resObj[tokenId].usd).toString();
@@ -170,15 +194,14 @@ export class CKBPriceOracle extends BaseWorker {
     const binance = async () => {
       const symbol = "CKBUSDT";
       const url = `https://api.binance.com/api/v3/trades?symbol=${symbol}&limit=1`;
-      const res = await this.sendRequest(url);
-      const resObj = JSON.parse(res);
+      const resObj = await this.sendRequest(url);
       if (
         !Array.isArray(resObj) ||
         resObj.length != 1 ||
         !("price" in resObj[0])
       ) {
         throw new Error(
-          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+          `[${CKBPriceOracle.name}] pollPrice: response from ${url} error, result: ${resObj}`
         );
       }
       return new Decimal(resObj[0]["price"]).toString();
@@ -188,11 +211,10 @@ export class CKBPriceOracle extends BaseWorker {
     const cryptocom = async () => {
       const symbol = "CKB_USDT";
       const url = `https://api.crypto.com/v2/public/get-trades?instrument_name=${symbol}`;
-      const res = await this.sendRequest(url);
-      const resObj = JSON.parse(res);
+      const resObj = await this.sendRequest(url);
       if (resObj.code != 0 || !("result" in resObj)) {
         throw new Error(
-          `[${CKBPriceOracle.name}] pollPrice: request to ${url} error, result: ${res}`
+          `[${CKBPriceOracle.name}] pollPrice: response from ${url} error, result: ${resObj}`
         );
       }
       return new Decimal(resObj.result.data[0].p).toString();
@@ -207,7 +229,7 @@ export class CKBPriceOracle extends BaseWorker {
     logger.warn(
       settledResult
         .filter((p) => p.status === "rejected")
-        .map((p) => p as PromiseRejectedResult)
+        .map((p) => (p as PromiseRejectedResult).reason)
     );
 
     const prices = settledResult
