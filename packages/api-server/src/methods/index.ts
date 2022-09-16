@@ -2,8 +2,9 @@ import * as modules from "./modules";
 import { Callback } from "./types";
 import * as Sentry from "@sentry/node";
 import { INVALID_PARAMS } from "./error-code";
-import { RpcError } from "./error";
+import { isRpcError, RpcError } from "./error";
 import { envConfig } from "../base/env-config";
+const newrelic = require("newrelic");
 
 /**
  * get all methods. e.g., getBlockByNumber in eth module
@@ -42,20 +43,29 @@ function getMethods(argsList: ModConstructorArgs = {}) {
                 extra: { method: concatedMethodName, params: args },
               });
             }
-            if (err.name === "RpcError") {
+
+            if (isRpcError(err)) {
               if (err.data) {
-                return cb({
+                cb({
                   code: err.code,
                   message: err.message,
                   data: err.data,
                 } as RpcError);
+              } else {
+                cb({
+                  code: err.code,
+                  message: err.message,
+                });
               }
-              return cb({
-                code: err.code,
-                message: err.message,
-              });
+
+              // NOTE: Our error responses are not automatically collected by NewRelic because we use Jayson instead of
+              // express' error handler.
+              //
+              // Note: In order to link errors to transaction traces, we pass linking metadata.
+              newrelic.noticeError(err, newrelic.getLinkingMetadata());
+            } else {
+              throw err;
             }
-            throw err;
           }
         };
       });
