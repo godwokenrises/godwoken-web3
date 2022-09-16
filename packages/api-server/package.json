@@ -36,6 +36,7 @@
     "@godwoken-web3/godwoken": "1.7.0",
     "@newrelic/native-metrics": "^7.0.1",
     "@sentry/node": "^6.11.0",
+    "axios": "^0.27.2",
     "blake2b": "2.1.3",
     "commander": "^9.4.0",
     "cors": "^2.8.5",
