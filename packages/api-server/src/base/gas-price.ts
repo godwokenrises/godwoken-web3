@@ -16,27 +16,21 @@ const GAS_PRICE_DIVIDER = envConfig.gasPriceDivider
   : DEFAULT_GAS_PRICE_DIVIDER;
 
 // feeRate = gasPrice * multiplier
-const FEE_RATE_MULTIPLIER = BigInt(100);
+export const FEE_RATE_MULTIPLIER = BigInt(100);
 
 // upper-limit and lower-limit to prevent gas-price goes off-track
-const DEFAULT_MIN_GAS_PRICE_LOWER_LIMIT = "0.00001"; // uint: pCKB(ether)
-const DEFAULT_MIN_GAS_PRICE_UPPER_LIMIT = "0.00004"; // uint: pCKB(ether)
+export const MIN_GAS_PRICE_LOWER_LIMIT = pCKBToWei(
+  envConfig.minGasPriceLowerLimit || "0.00001"
+);
+export const MIN_GAS_PRICE_UPPER_LIMIT = pCKBToWei(
+  envConfig.minGasPriceUpperLimit || "0.00004"
+);
 
 export class Price {
   private ckbPrice: string;
-  private upperLimit: bigint; // uint: wei, 18
-  private lowerLimit: bigint; // uint: wei, 18
 
   constructor(ckbPrice: string) {
     this.ckbPrice = ckbPrice;
-
-    this.upperLimit = pCKBToWei(
-      envConfig.minGasPriceUpperLimit || DEFAULT_MIN_GAS_PRICE_UPPER_LIMIT
-    );
-
-    this.lowerLimit = pCKBToWei(
-      envConfig.minGasPriceLowerLimit || DEFAULT_MIN_GAS_PRICE_LOWER_LIMIT
-    );
   }
 
   toGasPrice(): bigint {
@@ -47,8 +41,8 @@ export class Price {
 
   toMinGasPrice(): bigint {
     const p = this.toGasPrice();
-    if (p > this.upperLimit) return this.upperLimit;
-    if (p < this.lowerLimit) return this.lowerLimit;
+    if (p > MIN_GAS_PRICE_UPPER_LIMIT) return MIN_GAS_PRICE_UPPER_LIMIT;
+    if (p < MIN_GAS_PRICE_LOWER_LIMIT) return MIN_GAS_PRICE_LOWER_LIMIT;
     return p;
   }
 
