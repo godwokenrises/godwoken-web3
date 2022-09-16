@@ -34,6 +34,7 @@ PORT=<optional, the api-server running port, default to 8024>
 MAX_QUERY_NUMBER=<optional, integer number, maximum number of records to be returned in one query from database>
 MAX_QUERY_TIME_MILSECS=<optional, integer number, maximum number of time for database query>
 ENABLE_PROF_RPC=<optional, boolean, default to false>
+GAS_PRICE_DIVIDER=<optional, a system value to adjust gasPrice with ckbPrice, default to 76000000000000000 (0.00002pCKB with 0.0038 ckb price)>
 MIN_GAS_PRICE_UPPER_LIMIT=<optional, uint pCKB(ether), default to 0.00001>
 MIN_GAS_PRICE_LOWER_LIMIT=<optional, uint pCKB(ether), default to 0.00004>
 EOF
