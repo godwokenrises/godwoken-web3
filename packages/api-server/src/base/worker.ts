@@ -24,26 +24,26 @@ export class BaseWorker {
 
   // Main worker
   async startForever() {
-    await this.start();
+    this.start();
     this.intervalHandler = setInterval(async () => {
       if (!this.running()) {
         logger.error(
           `${this.constructor.name} has stopped, maybe check the log?`
         );
-        await this.start();
+        this.start();
       }
     }, this.livenessCheckInterval);
   }
 
   async stopForever() {
-    await this.stop();
+    this.stop();
     if (this.intervalHandler != null) {
       clearInterval(this.intervalHandler);
       logger.debug(`call ${this.constructor.name} to stop forever`);
     }
   }
 
-  async start() {
+  start() {
     this.isRunning = true;
     this.scheduleLoop();
   }

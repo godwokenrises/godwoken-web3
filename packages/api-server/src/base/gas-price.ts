@@ -3,11 +3,8 @@ import { envConfig } from "./env-config";
 import { Decimal } from "decimal.js";
 import { parseFixed } from "@ethersproject/bignumber";
 
-// lower ckb-usd-price
 // we enlarger it to be an integer instead of float
 const LOWER_CKB_PRICE = enlargeCkbPrice("0.0038");
-// gas-price <= 0.00002 pCKB is desireable,
-// since ImToken has an global config: MAX_GAS_PRICE = 21000 GWei
 const UPPER_GAS_PRICE = web3Utils.toWei("0.00002", "ether");
 
 // when ckbPrice goes up, the gasPrice goes down (vice versa)

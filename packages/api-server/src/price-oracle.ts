@@ -48,7 +48,7 @@ export class CKBPriceOracle extends BaseWorker {
     return super.startForever();
   }
 
-  start(): Promise<void> {
+  start(): void {
     if (this.readonly) {
       throw new Error("readonly oracle cannot start working");
     }
