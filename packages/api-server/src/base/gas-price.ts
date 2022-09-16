@@ -6,11 +6,14 @@ import { parseFixed } from "@ethersproject/bignumber";
 // we enlarger it to be an integer instead of float
 const LOWER_CKB_PRICE = enlargeCkbPrice("0.0038");
 const UPPER_GAS_PRICE = web3Utils.toWei("0.00002", "ether");
+const DEFAULT_GAS_PRICE_DIVIDER =
+  BigInt(UPPER_GAS_PRICE) * BigInt(LOWER_CKB_PRICE);
 
 // when ckbPrice goes up, the gasPrice goes down (vice versa)
-//   1. gasPrice = divider / ckbPrice
-//   2. divider = LOWER_CKB_PRICE * UPPER_GAS_PRICE
-const GAS_PRICE_DIVIDER = BigInt(UPPER_GAS_PRICE) * BigInt(LOWER_CKB_PRICE);
+//   gasPrice = divider / ckbPrice
+const GAS_PRICE_DIVIDER = envConfig.gasPriceDivider
+  ? BigInt(envConfig.gasPriceDivider)
+  : DEFAULT_GAS_PRICE_DIVIDER;
 
 // feeRate = gasPrice * multiplier
 const FEE_RATE_MULTIPLIER = BigInt(100);
