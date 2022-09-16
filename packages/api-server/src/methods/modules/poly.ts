@@ -2,7 +2,7 @@ import { Hash, HexNumber } from "@ckb-lumos/base";
 import { envConfig } from "../../base/env-config";
 import { MethodNotSupportError, Web3Error } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { gwConfig } from "../../base/index";
+import { gwConfig, readonlyPriceOracle } from "../../base/index";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { Query } from "../../db";
@@ -10,7 +10,6 @@ import { ethTxHashToGwTxHash, gwTxHashToEthTxHash } from "../../cache/tx-hash";
 import { middleware, validators } from "../validator";
 import { MAX_ALLOW_SYNC_BLOCKS_DIFF } from "../constant";
 import { globalClient } from "../../cache/redis";
-import { CKB_PRICE_CACHE_KEY } from "../../price-oracle";
 const { version: web3Version } = require("../../../package.json");
 
 export class Poly {
@@ -118,7 +117,7 @@ export class Poly {
       globalClient.PING(),
       this.query.isConnected(),
       this.syncBlocksDiff(),
-      this.getCkbOraclePrice(),
+      readonlyPriceOracle.price(),
     ]);
 
     const status =
@@ -154,10 +153,5 @@ export class Poly {
 
     const diff = gwTipBlockNumber - dbTipBlockNumber;
     return diff;
-  }
-
-  private async getCkbOraclePrice(): Promise<string | null> {
-    const price = await globalClient.get(CKB_PRICE_CACHE_KEY);
-    return price;
   }
 }

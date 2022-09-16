@@ -1,10 +1,15 @@
 import { Store } from "./cache/store";
 import fetch from "cross-fetch";
 import { BaseWorker } from "./base/worker";
-import { Price } from "./base/gas-price";
+import {
+  FEE_RATE_MULTIPLIER,
+  MIN_GAS_PRICE_LOWER_LIMIT,
+  Price,
+} from "./base/gas-price";
 import Decimal from "decimal.js";
 import { Query } from "./db/query";
 import { envConfig } from "./base/env-config";
+import { logger } from "./base/logger";
 
 // worker const
 const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
@@ -12,7 +17,7 @@ const POLL_TIME_INTERVAL = 30000; // 30s
 const LIVENESS_CHECK_INTERVAL = 5000; // 5s
 
 // ckb price const
-const PRICE_DIFF = 0.05; // 5%
+const PRICE_DIFF_PERCENTAGE_THRESHOLD = "0.05"; // if diff larger than 5%, update the price
 const PRICE_UPDATE_WINDOW = 5 * 60000; // 5 minutes
 export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 
@@ -62,10 +67,16 @@ export class CKBPriceOracle extends BaseWorker {
       this.cacheStore.ttl(CKB_PRICE_CACHE_KEY),
     ]);
 
+    if (newPrice == null) {
+      // polling somehow failed, skip;
+      return this.pollTimeInterval;
+    }
+
+    // condition to update ckb price
     if (
       price == null ||
       ttl <= CACHE_EXPIRED_TIME - PRICE_UPDATE_WINDOW ||
-      calcDiff(+newPrice, +price) > PRICE_DIFF
+      isPriceDiffOverThreshold(newPrice, price)
     ) {
       await this.cacheStore.insert(CKB_PRICE_CACHE_KEY, newPrice);
       return this.pollTimeInterval;
@@ -74,11 +85,8 @@ export class CKBPriceOracle extends BaseWorker {
     return this.pollTimeInterval;
   }
 
-  async price(): Promise<string> {
+  async price(): Promise<string | null> {
     const price = await this.cacheStore.get(CKB_PRICE_CACHE_KEY);
-    if (price == null) {
-      return await this.pollPrice();
-    }
     return price;
   }
 
@@ -115,11 +123,19 @@ export class CKBPriceOracle extends BaseWorker {
 
   async minGasPrice(): Promise<bigint> {
     const ckbPrice = await this.price();
+    if (ckbPrice == null) {
+      // fallback to minimal
+      return MIN_GAS_PRICE_LOWER_LIMIT;
+    }
     return Price.from(ckbPrice).toMinGasPrice();
   }
 
   async minFeeRate(): Promise<bigint> {
     const ckbPrice = await this.price();
+    if (ckbPrice == null) {
+      // fallback to minimal
+      return MIN_GAS_PRICE_LOWER_LIMIT * FEE_RATE_MULTIPLIER;
+    }
     return Price.from(ckbPrice).toMinFeeRate();
   }
 
@@ -135,7 +151,7 @@ export class CKBPriceOracle extends BaseWorker {
     }
   }
 
-  private async pollPrice(): Promise<string> {
+  private async pollPrice(): Promise<string | null> {
     // rate-limit: 50 requests 1 minute
     const coingecko = async () => {
       const tokenId = "nervos-network";
@@ -182,13 +198,61 @@ export class CKBPriceOracle extends BaseWorker {
       return new Decimal(resObj.result.data[0].p).toString();
     };
 
-    const prices = await Promise.all([coingecko(), binance(), cryptocom()]);
+    const settledResult = await Promise.allSettled([
+      coingecko(),
+      binance(),
+      cryptocom(),
+    ]);
 
-    // return median price;
-    return prices.sort()[1];
+    logger.warn(
+      settledResult
+        .filter((p) => p.status === "rejected")
+        .map((p) => p as PromiseRejectedResult)
+    );
+
+    const prices = settledResult
+      .filter((p) => p.status === "fulfilled")
+      .map((p) => (p as PromiseFulfilledResult<string>).value);
+
+    if (prices.length === 3) {
+      // return median price
+      return prices.sort((a, b) =>
+        new Decimal(a).sub(new Decimal(b)).toNumber()
+      )[1];
+    }
+
+    if (prices.length === 2) {
+      // return average price
+      return average(...prices);
+    }
+
+    // only tolerate one request failed
+    logger.warn(
+      `[${CKBPriceOracle.name}] pollPrice requests only succeed ${prices.length}, required at least 2`
+    );
+    return null;
   }
 }
 
-function calcDiff(n1: number, n2: number) {
-  return Math.abs(n1 - n2) / n2;
+function isPriceDiffOverThreshold(newPrice: string, oldPrice: string): boolean {
+  const threshold = new Decimal(PRICE_DIFF_PERCENTAGE_THRESHOLD);
+
+  // calc diff percentage
+  const d1 = new Decimal(newPrice);
+  const d2 = new Decimal(oldPrice);
+  const diff = d1.sub(d2).abs().div(d2);
+
+  return diff.gt(threshold);
+}
+
+function average(...nums: string[]) {
+  if (nums.length === 0) {
+    throw new Error("at least one when computing average");
+  }
+
+  return nums
+    .map((n) => new Decimal(n))
+    .reduce((prev, current) => prev.add(current), new Decimal(0))
+    .div(nums.length)
+    .toString();
 }
