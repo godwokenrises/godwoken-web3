@@ -188,13 +188,25 @@ export function unpackPanic(returnData: HexString): string {
       "Too much memory was allocated, or an array was created that is too large",
     "0x51": "Called a zero-initialized variable of internal function type",
   };
-  const code: HexNumber =
-    "0x" + BigInt(returnData.slice(PANIC_SELECTOR.length)).toString(16);
-  const reason = panicCodeToReason[code];
-  if (reason != null) {
-    return `execution reverted: panic code ${code} (${reason})`;
-  } else {
-    return `execution reverted: panic code ${code}`;
+
+  const abi = abiCoder as unknown as AbiCoder;
+  try {
+    const parsedArgs = abi.decodeParameters(
+      ["uint256"],
+      returnData.slice(PANIC_SELECTOR.length)
+    );
+    const code: HexNumber = "0x" + BigInt(parsedArgs[0]).toString(16);
+    const reason = panicCodeToReason[code];
+    if (reason != null) {
+      return `execution reverted: panic code ${code} (${reason})`;
+    } else {
+      return `execution reverted: panic code ${code}`;
+    }
+  } catch (err: any) {
+    logger.error(
+      `fail to decode panic error code, error: ${err}, returnData: ${returnData}`
+    );
+    return "execution reverted";
   }
 }
 
