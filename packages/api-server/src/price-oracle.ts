@@ -27,6 +27,10 @@ export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 // gas price cache
 const GAS_PRICE_CACHE_KEY = `priceOracle:gasPrice`;
 
+const BLOCK_CONGESTION_GAS_USED = BigInt(
+  envConfig.blockCongestionGasUsed || "33848315"
+);
+
 export class CKBPriceOracle extends BaseWorker {
   private cacheStore: Store;
   private readonly: boolean;
@@ -103,25 +107,34 @@ export class CKBPriceOracle extends BaseWorker {
       }
     }
 
+    let gasPrice: bigint;
     let [medianGasPrice, minGasPrice] = await Promise.all([
       this.query.getMedianGasPrice(),
       this.minGasPrice(),
     ]);
     if (medianGasPrice < minGasPrice) {
-      medianGasPrice = minGasPrice;
+      gasPrice = minGasPrice;
+    } else {
+      const lastBlockGasUsed = await this.getLastBlockGasUsed();
+      if (lastBlockGasUsed < BLOCK_CONGESTION_GAS_USED) {
+        // blockchain is quite free, lower the gas price
+        gasPrice = minGasPrice;
+      } else {
+        gasPrice = medianGasPrice;
+      }
     }
 
     // save cache
     if (this.gasPriceCacheMilSec > 0) {
-      const medianGasPriceHex = "0x" + medianGasPrice.toString(16);
+      const gasPriceHex = "0x" + gasPrice.toString(16);
       this.cacheStore.insert(
         GAS_PRICE_CACHE_KEY,
-        medianGasPriceHex,
+        gasPriceHex,
         this.gasPriceCacheMilSec
       );
     }
 
-    return medianGasPrice;
+    return gasPrice;
   }
 
   async minGasPrice(): Promise<bigint> {
@@ -254,6 +267,16 @@ export class CKBPriceOracle extends BaseWorker {
       `[${CKBPriceOracle.name}] pollPrice requests only succeed ${prices.length}, required at least 2`
     );
     return null;
+  }
+
+  private async getLastBlockGasUsed() {
+    const lastBlock = await this.query.getTipBlock();
+    if (lastBlock == null) {
+      throw new Error(
+        `[${CKBPriceOracle.name}] getLastBlockGasUsed: tip block not found`
+      );
+    }
+    return lastBlock.gas_used;
   }
 }
 
