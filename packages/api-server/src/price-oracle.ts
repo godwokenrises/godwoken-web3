@@ -226,11 +226,12 @@ export class CKBPriceOracle extends BaseWorker {
       cryptocom(),
     ]);
 
-    logger.warn(
-      settledResult
-        .filter((p) => p.status === "rejected")
-        .map((p) => (p as PromiseRejectedResult).reason)
-    );
+    const failedResult = settledResult
+      .filter((p) => p.status === "rejected")
+      .map((p) => (p as PromiseRejectedResult).reason);
+    if (failedResult.length > 0) {
+      logger.warn(failedResult);
+    }
 
     const prices = settledResult
       .filter((p) => p.status === "fulfilled")
