@@ -2,7 +2,7 @@ import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
-import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
+import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT, TX_GAS } from "./constant";
 import { TransactionCallObject } from "./types";
 import {
   verifyEnoughBalance,
@@ -86,8 +86,46 @@ export class EthNormalizer {
   async normalizeEstimateGasTx(
     txEstimateGasObj: Partial<TransactionCallObject>
   ): Promise<Required<TransactionCallObject>> {
-    const to = txEstimateGasObj.to || "0x";
-    return this.normalizeCallTx({ ...txEstimateGasObj, to });
+    const data = txEstimateGasObj.data || "0x";
+    const toAddress = txEstimateGasObj.to || "0x";
+    const fromAddress =
+      txEstimateGasObj.from || (await getDefaultFromAddress(this.rpc));
+    const gasPrice = txEstimateGasObj.gasPrice || "0x0";
+    const value = txEstimateGasObj.value || "0x0";
+
+    // TODO: use real blockAvailableGas to replace POLY_MAX_BLOCK_GAS_LIMIT
+    const maxBlockGasLimit =
+      "0x" + BigInt(POLY_MAX_BLOCK_GAS_LIMIT).toString(16);
+
+    // normalize the gas limit
+    let gas = txEstimateGasObj.gas || maxBlockGasLimit;
+
+    // check gas-limit cap with user available gas
+    if (+gasPrice > 0) {
+      const gasCap = await getMaxGasByBalance(
+        this.rpc,
+        fromAddress,
+        gasPrice,
+        value
+      );
+      if (BigInt(gas) > BigInt(gasCap)) {
+        gas = gasCap;
+      }
+    }
+    // check gas-limit lower bound
+    const gasLow = "0x" + TX_GAS.toString(16);
+    if (BigInt(gas) < BigInt(gasLow)) {
+      gas = gasLow;
+    }
+
+    return {
+      value,
+      data,
+      to: toAddress,
+      from: fromAddress,
+      gas,
+      gasPrice,
+    };
   }
 }
 
