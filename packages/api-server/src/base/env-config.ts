@@ -33,6 +33,7 @@ export const envConfig = {
   gasPriceDivider: getOptional("GAS_PRICE_DIVIDER"),
   minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
   minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
+  blockCongestionGasUsed: getOptional("BLOCK_CONGESTION_GAS_USED"),
 };
 
 function getRequired(name: string): string {
