@@ -27,8 +27,11 @@ export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 // gas price cache
 const GAS_PRICE_CACHE_KEY = `priceOracle:gasPrice`;
 
+// we set the default value to 33,848,315 which is the sum of 166 tx gasUsed in one of recent mainnet block
+// https://gwscan.com/block/0xc1ba61c212a885de4f2e88d818ba869a42373327bd122ef0103b33a7b56978ea
+const DEFAULT_BLOCK_CONGESTION_GAS_USED = "33848315";
 const BLOCK_CONGESTION_GAS_USED = BigInt(
-  envConfig.blockCongestionGasUsed || "33848315"
+  envConfig.blockCongestionGasUsed || DEFAULT_BLOCK_CONGESTION_GAS_USED
 );
 
 export class CKBPriceOracle extends BaseWorker {
