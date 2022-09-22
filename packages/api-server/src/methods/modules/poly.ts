@@ -117,7 +117,9 @@ export class Poly {
       globalClient.PING(),
       this.query.isConnected(),
       this.syncBlocksDiff(),
-      readonlyPriceOracle.price(),
+      envConfig.enablePriceOracle == "true"
+        ? readonlyPriceOracle.price()
+        : "PriceOracleNotEnabled",
     ]);
 
     const status =

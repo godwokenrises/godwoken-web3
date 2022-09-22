@@ -23,8 +23,10 @@ if (cluster.isMaster) {
   const blockEmitter = new BlockEmitter();
   blockEmitter.startForever();
 
-  const ckbPriceOracle = new CKBPriceOracle();
-  ckbPriceOracle.startForever();
+  if (envConfig.enablePriceOracle == "true") {
+    const ckbPriceOracle = new CKBPriceOracle();
+    ckbPriceOracle.startForever();
+  }
 
   cluster.on("exit", (worker, _code, _signal) => {
     if (worker.process.exitCode === 0) {

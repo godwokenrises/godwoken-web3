@@ -727,4 +727,4 @@ Describes the web3 server health status.
 
 *   `syncBlocksDiff`: `number` - Web3 sync behind godwoken blocks count, eg 2 means sync behind 2 blocks, 0 means sync to the latest
 
-*   `ckbOraclePrice`: `string` - CKBPriceOracle updating value, should not be null
+*   `ckbOraclePrice`: `string` - CKBPriceOracle updating value or "PriceOracleNotEnabled" if it is turned off, should not be null

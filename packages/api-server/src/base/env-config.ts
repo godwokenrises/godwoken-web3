@@ -30,6 +30,7 @@ export const envConfig = {
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
   enableProfRpc: getOptional("ENABLE_PROF_RPC"),
+  enablePriceOracle: getOptional("ENABLE_PRICE_ORACLE"),
   gasPriceDivider: getOptional("GAS_PRICE_DIVIDER"),
   minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
   minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
