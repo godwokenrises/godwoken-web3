@@ -10,6 +10,7 @@ import Decimal from "decimal.js";
 import { Query } from "./db/query";
 import { envConfig } from "./base/env-config";
 import { logger } from "./base/logger";
+const newrelic = require("newrelic");
 
 // worker const
 const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
@@ -244,7 +245,11 @@ export class CKBPriceOracle extends BaseWorker {
 
     const failedResult = settledResult
       .filter((p) => p.status === "rejected")
-      .map((p) => (p as PromiseRejectedResult).reason);
+      .map((p) => {
+        const reason = (p as PromiseRejectedResult).reason;
+        newrelic.noticeError(reason);
+        return reason;
+      });
     if (failedResult.length > 0) {
       logger.warn(failedResult);
     }
