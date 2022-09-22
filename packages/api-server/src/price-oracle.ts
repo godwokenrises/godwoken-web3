@@ -172,7 +172,11 @@ export class CKBPriceOracle extends BaseWorker {
       if (error.response) {
         // The request was made and the server responded with wrong status code
         throw new Error(
-          `[${CKBPriceOracle.name}] sendRequest: response failed, statusCode: ${error.response.status}, data: ${error.response.data}, header: ${error.response.headers}`
+          `[${CKBPriceOracle.name}] sendRequest: response failed, statusCode: ${
+            error.response.status
+          }, data: ${error.response.data}, header: ${JSON.stringify(
+            error.response.headers
+          )}`
         );
       } else if (error.request) {
         // The request was made but no response was received
