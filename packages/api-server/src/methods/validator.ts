@@ -10,7 +10,6 @@ import { logger } from "../base/logger";
 import { InvalidParamsError, isRpcError, RpcError } from "./error";
 import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexNumber, HexString } from "@ckb-lumos/base";
-import { envConfig } from "../base/env-config";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { EthRegistryAddress } from "../base/address";
 
@@ -553,6 +552,7 @@ export function verifyGasLimit(
 
 export function verifyGasPrice(
   gasPrice: HexNumber,
+  minGasPrice: bigint,
   index: number
 ): InvalidParamsError | undefined {
   const gasPriceErr = verifyHexNumber(gasPrice, index);
@@ -560,13 +560,10 @@ export function verifyGasPrice(
     return gasPriceErr.padContext("gasPrice");
   }
 
-  if (
-    envConfig.minGasPrice != null &&
-    BigInt(gasPrice) < BigInt(envConfig.minGasPrice)
-  ) {
+  if (BigInt(gasPrice) < minGasPrice) {
     return invalidParamsError(
       index,
-      `minimal gas price ${envConfig.minGasPrice} required. got ${BigInt(
+      `minimal gas price ${minGasPrice.toString(10)} required. got ${BigInt(
         gasPrice
       ).toString(10)}`
     );
@@ -577,6 +574,7 @@ export function verifyGasPrice(
 export function verifyL2TxFee(
   fee: HexNumber,
   serializedL2Tx: HexString,
+  minFeeRate: bigint,
   index: number
 ): InvalidParamsError | undefined {
   const feeErr = verifyHexNumber(fee, index);
@@ -588,8 +586,7 @@ export function verifyL2TxFee(
     return txErr.padContext("L2Tx Fee");
   }
 
-  const feeRate = BigInt(envConfig.feeRate || 0);
-  const requiredFee = calcFee(serializedL2Tx, feeRate);
+  const requiredFee = calcFee(serializedL2Tx, minFeeRate);
   if (BigInt(fee) < requiredFee) {
     return invalidParamsError(
       index,

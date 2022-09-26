@@ -12,7 +12,7 @@ import {
   ethEoaAddressToScriptHash,
   EthRegistryAddress,
 } from "./base/address";
-import { gwConfig } from "./base";
+import { gwConfig, readonlyPriceOracle } from "./base";
 import { logger } from "./base/logger";
 import {
   MAX_TRANSACTION_SIZE,
@@ -371,7 +371,12 @@ export async function polyTxToGwTx(
     throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
-  const gasPriceErr = verifyGasPrice(gasPrice === "0x" ? "0x0" : gasPrice, 0);
+  const minGasPrice = await readonlyPriceOracle.minGasPrice();
+  const gasPriceErr = verifyGasPrice(
+    gasPrice === "0x" ? "0x0" : gasPrice,
+    minGasPrice,
+    0
+  );
   if (gasPriceErr) {
     throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }

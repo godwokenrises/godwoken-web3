@@ -3,6 +3,7 @@ import { cpus } from "os";
 import { envConfig } from "../base/env-config";
 import { logger } from "../base/logger";
 import { BlockEmitter } from "../block-emitter";
+import { CKBPriceOracle } from "../price-oracle";
 import { initSentry } from "../sentry";
 
 const numCPUs = cpus().length;
@@ -21,6 +22,11 @@ if (cluster.isMaster) {
 
   const blockEmitter = new BlockEmitter();
   blockEmitter.startForever();
+
+  if (envConfig.enablePriceOracle == "true") {
+    const ckbPriceOracle = new CKBPriceOracle();
+    ckbPriceOracle.startForever();
+  }
 
   cluster.on("exit", (worker, _code, _signal) => {
     if (worker.process.exitCode === 0) {

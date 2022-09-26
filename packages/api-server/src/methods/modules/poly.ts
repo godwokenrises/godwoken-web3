@@ -2,7 +2,7 @@ import { Hash, HexNumber } from "@ckb-lumos/base";
 import { envConfig } from "../../base/env-config";
 import { MethodNotSupportError, Web3Error } from "../error";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { gwConfig } from "../../base/index";
+import { gwConfig, readonlyPriceOracle } from "../../base/index";
 import { Store } from "../../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../../cache/constant";
 import { Query } from "../../db";
@@ -104,21 +104,31 @@ export class Poly {
   }
 
   async getHealthStatus(_args: []) {
-    const [pingNode, pingFullNode, pingRedis, isDBConnected, syncBlocksDiff] =
-      await Promise.all([
-        this.rpc.ping(),
-        this.rpc.pingFullNode(),
-        globalClient.PING(),
-        this.query.isConnected(),
-        this.syncBlocksDiff(),
-      ]);
+    const [
+      pingNode,
+      pingFullNode,
+      pingRedis,
+      isDBConnected,
+      syncBlocksDiff,
+      ckbOraclePrice,
+    ] = await Promise.all([
+      this.rpc.ping(),
+      this.rpc.pingFullNode(),
+      globalClient.PING(),
+      this.query.isConnected(),
+      this.syncBlocksDiff(),
+      envConfig.enablePriceOracle == "true"
+        ? readonlyPriceOracle.price()
+        : "PriceOracleNotEnabled",
+    ]);
 
     const status =
       pingNode === "pong" &&
       pingFullNode === "pong" &&
       pingRedis === "PONG" &&
       isDBConnected &&
-      syncBlocksDiff <= MAX_ALLOW_SYNC_BLOCKS_DIFF;
+      syncBlocksDiff <= MAX_ALLOW_SYNC_BLOCKS_DIFF &&
+      ckbOraclePrice != null;
 
     return {
       status,
@@ -127,6 +137,7 @@ export class Poly {
       pingRedis,
       isDBConnected,
       syncBlocksDiff,
+      ckbOraclePrice,
     };
   }
 

@@ -16,6 +16,7 @@ import { Reader } from "@ckb-lumos/toolkit";
 import web3Utils from "web3-utils";
 import { MAX_ADDRESS_SIZE_PER_REGISTER_BATCH } from "../../src/methods/constant";
 import { calcFee } from "../../src/util";
+import { Price } from "../../src/base/gas-price";
 
 const serializedRegSetMappingL2Tx = prepareRegSetMappingTx();
 const serializedRegBatchSetMappingL2Tx = prepareRegBatchSetMappingTx();
@@ -25,47 +26,56 @@ const serializeMetaContractCreateAccountL2Tx =
 const serializeMetaContractBatchCreateEthAccountL2Tx =
   prepareMetaContractBatchCreateEthAccountTx();
 
-test("8000000000000000 fee rate for setMapping", (t) => {
-  const feeRate = BigInt("8000000000000000");
+const ckbPrice = "0.0038";
+const price = new Price(ckbPrice);
+
+test(`${ckbPrice} ckb price fee rate for setMapping`, (t) => {
+  const feeRate = price.toFeeRate();
   const requiredFee = calcFee(serializedRegSetMappingL2Tx, feeRate);
   const consumed = web3Utils.fromWei(requiredFee.toString(10), "ether");
-  console.log(`setMapping tx consume ${consumed} CKB`);
+  console.log(`${feeRate} fee rate => setMapping tx consume ${consumed} CKB`);
   t.true(+consumed > 0);
 });
 
-test(`8000000000000000 fee rate for ${MAX_ADDRESS_SIZE_PER_REGISTER_BATCH} hashes batchSetMapping`, (t) => {
-  const feeRate = BigInt("8000000000000000");
+test(`${ckbPrice} ckb price fee rate for ${MAX_ADDRESS_SIZE_PER_REGISTER_BATCH} hashes batchSetMapping`, (t) => {
+  const feeRate = price.toFeeRate();
   const requiredFee = calcFee(serializedRegBatchSetMappingL2Tx, feeRate);
   const consumed = web3Utils.fromWei(requiredFee.toString(10), "ether");
-  console.log(`batchSetMapping tx consume ${consumed} CKB`);
+  console.log(
+    `${feeRate} fee rate => batchSetMapping tx consume ${consumed} CKB`
+  );
   t.true(+consumed > 0);
 });
 
-test(`8000000000000000 fee rate for sudt transfer`, (t) => {
-  const feeRate = BigInt("8000000000000000");
+test(`${ckbPrice} ckb price fee rate for sudt transfer`, (t) => {
+  const feeRate = price.toFeeRate();
   const requiredFee = calcFee(serializedSudtTransferL2Tx, feeRate);
   const consumed = web3Utils.fromWei(requiredFee.toString(10), "ether");
-  console.log(`sudt transfer tx consume ${consumed} CKB`);
+  console.log(
+    `${feeRate} fee rate => sudt transfer tx consume ${consumed} CKB`
+  );
   t.true(+consumed > 0);
 });
 
-test(`8000000000000000 fee rate for MetaContract create account`, (t) => {
-  const feeRate = BigInt("8000000000000000");
+test(`${ckbPrice} ckb price fee rate for MetaContract create account`, (t) => {
+  const feeRate = price.toFeeRate();
   const requiredFee = calcFee(serializeMetaContractCreateAccountL2Tx, feeRate);
   const consumed = web3Utils.fromWei(requiredFee.toString(10), "ether");
-  console.log(`MetaContract create account tx consume ${consumed} CKB`);
+  console.log(
+    `${feeRate} fee rate => MetaContract create account tx consume ${consumed} CKB`
+  );
   t.true(+consumed > 0);
 });
 
-test(`8000000000000000 fee rate for MetaContract batch create eth account`, (t) => {
-  const feeRate = BigInt("8000000000000000");
+test(`${ckbPrice} ckb price fee rate for MetaContract batch create eth account`, (t) => {
+  const feeRate = price.toFeeRate();
   const requiredFee = calcFee(
     serializeMetaContractBatchCreateEthAccountL2Tx,
     feeRate
   );
   const consumed = web3Utils.fromWei(requiredFee.toString(10), "ether");
   console.log(
-    `MetaContract batch create eth account tx consume ${consumed} CKB`
+    `${feeRate} fee rate => MetaContract batch create eth account tx consume ${consumed} CKB`
   );
   t.true(+consumed > 0);
 });
