@@ -441,7 +441,8 @@ Response
         "pingFullNode": "pong",
         "pingRedis": "PONG",
         "isDBConnected": true,
-        "syncBlocksDiff": 0
+        "syncBlocksDiff": 0,
+        "ckbOraclePrice": "0.00408"
     }
 }
 ```
@@ -725,3 +726,5 @@ Describes the web3 server health status.
 *   `isDBConnected`: `boolean` - Database connection status, should be true
 
 *   `syncBlocksDiff`: `number` - Web3 sync behind godwoken blocks count, eg 2 means sync behind 2 blocks, 0 means sync to the latest
+
+*   `ckbOraclePrice`: `string` - CKBPriceOracle updating value or "PriceOracleNotEnabled" if it is turned off, should not be null
