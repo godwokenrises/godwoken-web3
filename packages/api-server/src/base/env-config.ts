@@ -4,8 +4,13 @@ import dotenv from "dotenv";
 dotenv.config({ path: "./.env" });
 
 export const envConfig = {
-  databaseUrl: getRequired("DATABASE_URL"),
-  godwokenJsonRpc: getRequired("GODWOKEN_JSON_RPC"),
+  get databaseUrl() {
+    return getRequired("DATABASE_URL");
+  },
+  get godwokenJsonRpc() {
+    return getRequired("GODWOKEN_JSON_RPC");
+  },
+
   _newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
   redisUrl: getOptional("REDIS_URL"),
@@ -22,11 +27,14 @@ export const envConfig = {
   logFormat: getOptional("LOG_FORMAT"),
   logRequestBody: getOptional("WEB3_LOG_REQUEST_BODY"),
   port: getOptional("PORT"),
-  minGasPrice: getOptional("MIN_GAS_PRICE"),
   maxQueryNumber: getOptional("MAX_QUERY_NUMBER"),
   maxQueryTimeInMilliseconds: getOptional("MAX_QUERY_TIME_MILSECS"),
-  feeRate: getOptional("FEE_RATE"),
   enableProfRpc: getOptional("ENABLE_PROF_RPC"),
+  enablePriceOracle: getOptional("ENABLE_PRICE_ORACLE"),
+  gasPriceDivider: getOptional("GAS_PRICE_DIVIDER"),
+  minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
+  minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
+  blockCongestionGasUsed: getOptional("BLOCK_CONGESTION_GAS_USED"),
 };
 
 function getRequired(name: string): string {

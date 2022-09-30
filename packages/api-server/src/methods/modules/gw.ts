@@ -31,7 +31,7 @@ import {
   parseSerializeSudtArgs,
 } from "../../parse-tx";
 import { InvalidParamsError } from "../error";
-import { gwConfig } from "../../base";
+import { gwConfig, readonlyPriceOracle } from "../../base";
 import { META_CONTRACT_ID } from "../constant";
 import {
   PolyjuiceTransaction,
@@ -439,6 +439,11 @@ export class Gw {
         );
       }
 
+      const [minFeeRate, minGasPrice] = await Promise.all([
+        readonlyPriceOracle.minFeeRate(),
+        readonlyPriceOracle.minGasPrice(),
+      ]);
+
       // 1. validate polyjuice tx params
       if (
         toScript.code_hash ===
@@ -452,7 +457,7 @@ export class Gw {
           throw gasLimitErr.padContext(`gw_submit_l2transaction`);
         }
 
-        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, 0);
+        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, minGasPrice, 0);
         if (gasPriceErr) {
           throw gasPriceErr.padContext(`gw_submit_l2transaction`);
         }
@@ -513,7 +518,7 @@ export class Gw {
         const sudtArgs = parseSerializeSudtArgs(l2Tx.raw.args);
         if (sudtArgs.type === SudtArgsType.SUDTTransfer) {
           const fee = (sudtArgs.value as SudtTransfer).fee.amount;
-          const feeErr = verifyL2TxFee(fee, serializedL2Tx, 0);
+          const feeErr = verifyL2TxFee(fee, serializedL2Tx, minFeeRate, 0);
           if (feeErr) {
             throw feeErr.padContext(`gw_submit_l2transaction`);
           }
@@ -534,7 +539,7 @@ export class Gw {
         ) {
           const fee = (regArgs.value as SetMapping | BatchSetMapping).fee
             .amount;
-          const feeErr = verifyL2TxFee(fee, serializedL2Tx, 0);
+          const feeErr = verifyL2TxFee(fee, serializedL2Tx, minFeeRate, 0);
           if (feeErr) {
             throw feeErr.padContext(
               `gw_submit_l2transaction ethAddrReg ${regArgs.type}`
