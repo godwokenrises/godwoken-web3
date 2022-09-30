@@ -1,6 +1,5 @@
 import Knex from "knex";
 import { Store } from "../cache/store";
-import { envConfig } from "../base/env-config";
 import { logger } from "../base/logger";
 import {
   TIP_BLOCK_HASH_CACHE_KEY,
@@ -8,12 +7,7 @@ import {
 } from "../cache/constant";
 
 // init cache
-const cacheStore: Store = new Store(
-  envConfig.redisUrl,
-  true,
-  QUERY_CACHE_EXPIRED_TIME_MS
-);
-cacheStore.init();
+const cacheStore: Store = new Store(true, QUERY_CACHE_EXPIRED_TIME_MS);
 
 const MAX_CACHE_SIZE = 100 * 1024; // 100k
 

@@ -14,12 +14,7 @@ import {
 const newrelic = require("newrelic");
 
 // init cache
-const cacheStore: Store = new Store(
-  envConfig.redisUrl,
-  true,
-  TIP_BLOCK_HASH_CACHE_EXPIRED_TIME_MS
-);
-cacheStore.init();
+const cacheStore: Store = new Store(true, TIP_BLOCK_HASH_CACHE_EXPIRED_TIME_MS);
 
 // Only start in main worker, and `startWorker` in workers to get emitter.
 export class BlockEmitter {
