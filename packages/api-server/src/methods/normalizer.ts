@@ -2,7 +2,8 @@ import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
-import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT, TX_GAS } from "./constant";
+import { calcIntrinsicGas } from "../util";
+import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
 import { TransactionCallObject } from "./types";
 import {
   verifyEnoughBalance,
@@ -100,22 +101,31 @@ export class EthNormalizer {
     // normalize the gas limit
     let gas = txEstimateGasObj.gas || maxBlockGasLimit;
 
+    // check gas-limit lower bound
+    const intrinsicGas = calcIntrinsicGas(toAddress, data);
+    const gasLow = "0x" + intrinsicGas.toString(16);
+    if (BigInt(gas) < BigInt(gasLow)) {
+      gas = gasLow;
+    }
+
     // check gas-limit cap with user available gas
-    if (+gasPrice > 0) {
+    if (BigInt(gasPrice) > 0n) {
       const gasCap = await getMaxGasByBalance(
         this.rpc,
         fromAddress,
         gasPrice,
         value
       );
+
+      if (BigInt(gasCap) < BigInt(gasLow)) {
+        throw new Error(
+          `balance available gas ${gasCap} not enough for minimal required ${gasLow}`
+        );
+      }
+
       if (BigInt(gas) > BigInt(gasCap)) {
         gas = gasCap;
       }
-    }
-    // check gas-limit lower bound
-    const gasLow = "0x" + TX_GAS.toString(16);
-    if (BigInt(gas) < BigInt(gasLow)) {
-      gas = gasLow;
     }
 
     return {
