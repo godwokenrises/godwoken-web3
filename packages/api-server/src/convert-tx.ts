@@ -112,6 +112,7 @@ export async function ethCallTxToGodwokenRawTx(
   return [rawL2Transaction, serializedRegistryAddress];
 }
 
+// todo: add unit test for this function
 export function buildPolyjuiceArgs(
   isCreate: boolean,
   gas: bigint,
