@@ -1353,9 +1353,9 @@ function buildPolyjuiceArgs(
   valueBuf.writeBigUInt64LE(value >> BigInt(64), 8);
   const dataSizeBuf = Buffer.alloc(4);
   const dataBuf = Buffer.from(data.slice(2), "hex");
-  dataSizeBuf.writeUInt32LE(dataBuf.length);
+  dataSizeBuf.writeUInt32LE(dataBuf.byteLength);
 
-  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.length;
+  let argsLength: number = 8 + 8 + 16 + 16 + 4 + dataBuf.byteLength;
   if (toAddressWhenNativeTransfer != null) {
     argsLength += 20;
   }
@@ -1373,7 +1373,7 @@ function buildPolyjuiceArgs(
       toAddressWhenNativeTransfer.slice(2),
       "hex"
     );
-    toAddressBuf.copy(argsBuf, 52 + (data.length - 2));
+    toAddressBuf.copy(argsBuf, 52 + dataBuf.byteLength);
   }
 
   const argsHex = "0x" + argsBuf.toString("hex");
