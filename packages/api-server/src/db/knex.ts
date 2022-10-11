@@ -43,9 +43,8 @@ Knex.QueryBuilder.extend("cache", function useCache(this) {
           return data;
         }
 
-        let sData;
         try {
-          sData == serializeData(data);
+          // call serializeData to allow deserialize later with correct data type restored
           cacheStore.insert(cacheKey, JSON.stringify(serializeData(data)));
         } catch (error: any) {
           logger.error("abort to cache the result, ", error.message);
@@ -85,7 +84,7 @@ function getCacheKey(builder: any) {
 function normalizeDataType(data: any): Data {
   if (data == null) {
     return {
-      type: DataType.NULLABLE,
+      type: DataType.NULL_OR_UNDEFINED,
       value: undefined,
     };
   }
@@ -146,13 +145,13 @@ function normalizeDataType(data: any): Data {
     };
   }
 
-  throw new Error("un supported type" + typeof data);
+  throw new Error(`Unsupported type: ${typeof data}`);
 }
 
 function serializeData(data: any): SerializableData {
   const { type, value } = normalizeDataType(data);
   switch (type) {
-    case DataType.NULLABLE:
+    case DataType.NULL_OR_UNDEFINED:
       return {
         type,
         value: "undefined",
@@ -230,7 +229,7 @@ function deserializeData(data: any): DataValue {
   const { type, value } = data;
 
   switch (type) {
-    case DataType.NULLABLE:
+    case DataType.NULL_OR_UNDEFINED:
       return undefined;
 
     case DataType.STRING:
@@ -273,7 +272,7 @@ function deserializeData(data: any): DataValue {
     }
 
     default:
-      throw new Error("unsupported type: " + type);
+      throw new Error(`Unsupported type: ${type}`);
   }
 }
 
@@ -283,7 +282,7 @@ interface Data {
 }
 
 enum DataType {
-  NULLABLE,
+  NULL_OR_UNDEFINED = 0,
   STRING,
   NUMBER,
   BIGINT,
@@ -295,7 +294,7 @@ enum DataType {
 }
 
 type DataValue =
-  | Nullable
+  | NullOrUndefined
   | string
   | number
   | bigint
@@ -312,4 +311,4 @@ interface SerializableData {
 
 type SerializableDataValue = string | number | Array<SerializableData>;
 
-type Nullable = null | undefined;
+type NullOrUndefined = null | undefined;
