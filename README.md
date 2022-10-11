@@ -36,8 +36,8 @@ MAX_QUERY_TIME_MILSECS=<optional, integer number, maximum number of time for dat
 ENABLE_PROF_RPC=<optional, boolean, default to false>
 ENABLE_PRICE_ORACLE=<optional, boolean, decide if use dynamic gas price based on price oracle, default to false>
 GAS_PRICE_DIVIDER=<optional, a system value to adjust gasPrice with ckbPrice, default to 76000000000000000 (0.00002pCKB with 0.0038 ckb price)>
-MIN_GAS_PRICE_UPPER_LIMIT=<optional, uint pCKB(ether), default to 0.00001>
-MIN_GAS_PRICE_LOWER_LIMIT=<optional, uint pCKB(ether), default to 0.00004>
+MIN_GAS_PRICE_UPPER_LIMIT=<optional, uint pCKB(ether), default to 0.00004>
+MIN_GAS_PRICE_LOWER_LIMIT=<optional, uint pCKB(ether), default to 0.00001>
 BLOCK_CONGESTION_GAS_USED=<optional, default to 33848315>
 EOF
 
