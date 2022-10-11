@@ -281,16 +281,24 @@ interface Data {
   value: DataValue;
 }
 
+/*
+  Note: 
+    since DataType will be stored in redis db, if one data type needs to be deprecated, 
+    just simply add comment and not using it, do NOT overwrite the original enum value, 
+    otherwise the old data from redis might be in a wrong type.
+
+    when adding new DataType, simply add append it to the tail.
+*/
 enum DataType {
   NULL_OR_UNDEFINED = 0,
-  STRING,
-  NUMBER,
-  BIGINT,
-  BOOLEAN,
-  BUFFER,
-  DATE,
-  ARRAY,
-  OBJ,
+  STRING = 1,
+  NUMBER = 2,
+  BIGINT = 3,
+  BOOLEAN = 4,
+  BUFFER = 5,
+  DATE = 6,
+  ARRAY = 7,
+  OBJ = 8,
 }
 
 type DataValue =
