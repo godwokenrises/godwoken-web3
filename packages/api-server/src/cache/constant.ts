@@ -11,3 +11,9 @@ export const TX_HASH_MAPPING_CACHE_EXPIRED_TIME_MILSECS = 2 * 60 * 60 * 1000; //
 export const AUTO_CREATE_ACCOUNT_PREFIX_KEY = "AutoCreateAccount";
 export const AUTO_CREATE_ACCOUNT_CACHE_EXPIRED_TIME_MILSECS =
   2 * 60 * 60 * 1000; // 2 hours
+
+export const TIP_BLOCK_HASH_CACHE_KEY = "tipBlockHash";
+export const TIP_BLOCK_HASH_CACHE_EXPIRED_TIME_MS = 1000 * 60 * 5; // 5 minutes
+
+// knex db query cache time
+export const QUERY_CACHE_EXPIRED_TIME_MS = 1000 * 45; // 45 seconds ~= block produce interval
