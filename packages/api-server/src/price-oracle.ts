@@ -13,16 +13,19 @@ import { logger } from "./base/logger";
 const newrelic = require("newrelic");
 
 // worker const
-const CACHE_EXPIRED_TIME = 5 * 60000 + 30000; // 5 and a half minutes
-const POLL_TIME_INTERVAL = 30000; // 30s
+const CACHE_EXPIRED_TIME = +(
+  envConfig.priceOracleExpiredTime || 10 * 60000 + 30000
+); // default: 10 and a half minutes
+const POLL_TIME_INTERVAL = +(envConfig.priceOraclePollInterval || 2 * 60000); // default: 2 minutes
 const LIVENESS_CHECK_INTERVAL = 5000; // 5s
 
 // poll price timeout
 const POLL_REQUEST_TIME_OUT = 10000; // 10s
 
 // ckb price const
-const PRICE_DIFF_PERCENTAGE_THRESHOLD = "0.05"; // if diff larger than 5%, update the price
-const PRICE_UPDATE_WINDOW = 5 * 60000; // 5 minutes
+const PRICE_DIFF_PERCENTAGE_THRESHOLD =
+  envConfig.priceOracleDiffThreshold || "0.05"; // if diff larger than 5%, update the price
+const PRICE_UPDATE_WINDOW = +(envConfig.priceOracleUpdateWindow || 10 * 60000); // default: 10 minutes
 export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
 
 // gas price cache
