@@ -12,21 +12,19 @@ import { envConfig } from "./base/env-config";
 import { logger } from "./base/logger";
 const newrelic = require("newrelic");
 
-// worker const
-const CACHE_EXPIRED_TIME = +(
-  envConfig.priceOracleExpiredTime || 10 * 60000 + 30000
-); // default: 10 and a half minutes
-const POLL_TIME_INTERVAL = +(envConfig.priceOraclePollInterval || 2 * 60000); // default: 2 minutes
-const LIVENESS_CHECK_INTERVAL = 5000; // 5s
-
-// poll price timeout
-const POLL_REQUEST_TIME_OUT = 10000; // 10s
-
 // ckb price const
 const PRICE_DIFF_PERCENTAGE_THRESHOLD =
   envConfig.priceOracleDiffThreshold || "0.05"; // if diff larger than 5%, update the price
 const PRICE_UPDATE_WINDOW = +(envConfig.priceOracleUpdateWindow || 10 * 60000); // default: 10 minutes
 export const CKB_PRICE_CACHE_KEY = "priceOracle:ckbUsd";
+
+// worker const
+const CACHE_EXPIRED_TIME = PRICE_UPDATE_WINDOW + 30000; // update_window + 30s for network request, default 10 and a half minutes
+const POLL_TIME_INTERVAL = +(envConfig.priceOraclePollInterval || 2 * 60000); // default: 2 minutes
+const LIVENESS_CHECK_INTERVAL = 5000; // 5s
+
+// poll price timeout
+const POLL_REQUEST_TIME_OUT = 10000; // 10s
 
 // gas price cache
 const GAS_PRICE_CACHE_KEY = `priceOracle:gasPrice`;
