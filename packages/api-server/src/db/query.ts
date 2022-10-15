@@ -174,11 +174,13 @@ export class Query {
     return await this.getTransactions({ block_number: blockNumber.toString() });
   }
 
+  // Order by `transaction_index`, now only for search txs in a block
   private async getTransactions(
     params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
   ): Promise<Transaction[]> {
     const transactions = await this.knex<DBTransaction>("transactions")
       .where(params)
+      .orderBy("transaction_index", "asc")
       .cache();
 
     return transactions.map((tx) => formatTransaction(tx));
@@ -233,31 +235,6 @@ export class Query {
     return formatTransaction(transaction);
   }
 
-  async getTransactionHashesByBlockHash(blockHash: Hash): Promise<Hash[]> {
-    return await this.getTransactionHashes({
-      block_hash: hexToBuffer(blockHash),
-    });
-  }
-
-  async getTransactionHashesByBlockNumber(
-    blockNumber: bigint
-  ): Promise<Hash[]> {
-    return await this.getTransactionHashes({
-      block_number: blockNumber.toString(),
-    });
-  }
-
-  private async getTransactionHashes(
-    params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
-  ): Promise<Hash[]> {
-    const transactionHashes = await this.knex<DBTransaction>("transactions")
-      .select("hash")
-      .where(params)
-      .cache();
-
-    return transactionHashes.map((tx) => bufferToHex(tx.hash));
-  }
-
   async getTransactionEthHashesByBlockHash(blockHash: Hash): Promise<Hash[]> {
     return await this.getTransactionEthHashes({
       block_hash: hexToBuffer(blockHash),
@@ -272,12 +249,14 @@ export class Query {
     });
   }
 
+  // Order by `transaction_index`, only for search tx eth hashes in a block.
   private async getTransactionEthHashes(
     params: Readonly<Partial<KnexType.MaybeRawRecord<DBTransaction>>>
   ): Promise<Hash[]> {
     const transactionHashes = await this.knex<DBTransaction>("transactions")
       .select("eth_tx_hash")
       .where(params)
+      .orderBy("transaction_index", "asc")
       .cache();
 
     return transactionHashes.map((tx) => bufferToHex(tx.eth_tx_hash));
@@ -325,6 +304,7 @@ export class Query {
       .where({
         transaction_hash: hexToBuffer(txHash),
       })
+      .orderBy("log_index", "asc")
       .cache();
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
