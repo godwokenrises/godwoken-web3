@@ -276,9 +276,10 @@ impl Web3Indexer {
                 exit_code,
             );
 
+            // log_index is a log's index in block, not transaction
+            let mut log_index = 0;
             let web3_logs = {
                 let mut logs: Vec<Web3Log> = vec![];
-                let mut log_index = 0;
                 for log_item in log_item_vec {
                     let log = parse_log(&log_item, &gw_tx_hash)?;
                     match log {
