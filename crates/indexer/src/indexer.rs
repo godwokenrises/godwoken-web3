@@ -276,10 +276,10 @@ impl Web3Indexer {
                 exit_code,
             );
 
-            // log_index is a log's index in block, not transaction
-            let mut log_index = 0;
             let web3_logs = {
                 let mut logs: Vec<Web3Log> = vec![];
+                // log_index is a log's index in block, not transaction, should update later.
+                let mut log_index = 0;
                 for log_item in log_item_vec {
                     let log = parse_log(&log_item, &gw_tx_hash)?;
                     match log {
@@ -466,6 +466,7 @@ impl Web3Indexer {
         let mut pg_tx = pool.begin().await?;
 
         let mut tx_index_cursor: u32 = 0;
+        let mut log_index_cursor: u32 = 0;
 
         let mut cumulative_gas_used: u128 = 0;
         let mut total_gas_limit: u128 = 0;
@@ -497,6 +498,17 @@ impl Web3Indexer {
                     tx.tx.cumulative_gas_used = cumulative_gas_used;
 
                     total_gas_limit += tx.tx.gas_limit;
+
+                    // Update tx.log.index
+                    tx.logs = tx
+                        .logs
+                        .into_iter()
+                        .map(|mut log| {
+                            log.log_index += log_index_cursor;
+                            log
+                        })
+                        .collect();
+                    log_index_cursor += tx.logs.len() as u32;
 
                     tx
                 })
