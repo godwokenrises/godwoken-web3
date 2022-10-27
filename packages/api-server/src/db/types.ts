@@ -165,8 +165,8 @@ export function toApiTransaction(t: Transaction): EthTransaction {
     nonce: new Uint64(t.nonce || 0n).toHex(), // TODO: check default value
     value: new Uint256(t.value).toHex(),
     v: new Uint64(t.v).toHex(),
-    r: t.r,
-    s: t.s,
+    r: "0x" + BigInt(t.r).toString(16),
+    s: "0x" + BigInt(t.s).toString(16),
   };
 }
 

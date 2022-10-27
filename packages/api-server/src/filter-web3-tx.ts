@@ -77,9 +77,13 @@ export async function filterWeb3Transaction(
 
   const signature: HexString = l2Tx.signature;
   // 0..32 bytes
-  const r = "0x" + signature.slice(2, 66);
+  let r = "0x" + signature.slice(2, 66);
+  // Remove r left zeros
+  r = "0x" + BigInt(r).toString(16);
   // 32..64 bytes
-  const s = "0x" + signature.slice(66, 130);
+  let s = "0x" + signature.slice(66, 130);
+  // Remove s left zeros
+  s = "0x" + BigInt(s).toString(16);
   // signature[65] byte
   const v = Uint32.fromHex("0x" + signature.slice(130, 132));
 
