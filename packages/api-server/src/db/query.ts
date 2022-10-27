@@ -8,6 +8,7 @@ import {
   DBTransaction,
   DBLog,
 } from "./types";
+import "./knex";
 import Knex, { knex, Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
@@ -87,7 +88,8 @@ export class Query {
     const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
       .orderBy("number", "desc")
-      .first();
+      .first()
+      .cache();
 
     return toBigIntOpt(blockData?.number);
   }
@@ -95,7 +97,8 @@ export class Query {
   async getTipBlock(): Promise<Block | undefined> {
     const block = await this.knex<DBBlock>("blocks")
       .orderBy("number", "desc")
-      .first();
+      .first()
+      .cache();
 
     if (!block) {
       return undefined;
@@ -118,8 +121,10 @@ export class Query {
   private async getBlock(
     params: Readonly<Partial<KnexType.MaybeRawRecord<DBBlock>>>
   ): Promise<Block | undefined> {
-    const block = await this.knex<DBBlock>("blocks").where(params).first();
-
+    const block = await this.knex<DBBlock>("blocks")
+      .where(params)
+      .first()
+      .cache();
     if (!block) {
       return undefined;
     }
@@ -137,7 +142,8 @@ export class Query {
     const blocks = await this.knex<DBBlock>("blocks")
       .where("number", ">", minBlockNumber.toString())
       .andWhere("number", "<=", maxBlockNumber.toString())
-      .orderBy("number", "asc");
+      .orderBy("number", "asc")
+      .cache();
     return blocks.map((block) => formatBlock(block));
   }
 
@@ -151,7 +157,8 @@ export class Query {
     }>("blocks")
       .select("hash", "number")
       .where("number", ">", number.toString())
-      .orderBy("number", order);
+      .orderBy("number", order)
+      .cache();
     return arrayOfHashAndNumber.map((hn) => {
       return { hash: bufferToHex(hn.hash), number: BigInt(hn.number) };
     });
@@ -173,7 +180,8 @@ export class Query {
   ): Promise<Transaction[]> {
     const transactions = await this.knex<DBTransaction>("transactions")
       .where(params)
-      .orderBy("transaction_index", "asc");
+      .orderBy("transaction_index", "asc")
+      .cache();
 
     return transactions.map((tx) => formatTransaction(tx));
   }
@@ -217,7 +225,8 @@ export class Query {
   ): Promise<Transaction | undefined> {
     const transaction = await this.knex<DBTransaction>("transactions")
       .where(params)
-      .first();
+      .first()
+      .cache();
 
     if (transaction == null) {
       return undefined;
@@ -247,7 +256,8 @@ export class Query {
     const transactionHashes = await this.knex<DBTransaction>("transactions")
       .select("eth_tx_hash")
       .where(params)
-      .orderBy("transaction_index", "asc");
+      .orderBy("transaction_index", "asc")
+      .cache();
 
     return transactionHashes.map((tx) => bufferToHex(tx.eth_tx_hash));
   }
@@ -270,7 +280,8 @@ export class Query {
   ): Promise<number> {
     const data = await this.knex<DBTransaction>("transactions")
       .where(params)
-      .count();
+      .count()
+      .cache();
 
     const count: number = +data[0].count;
 
@@ -282,7 +293,8 @@ export class Query {
   ): Promise<[Transaction, Log[]] | undefined> {
     const tx = await this.knex<DBTransaction>("transactions")
       .where({ hash: hexToBuffer(txHash) })
-      .first();
+      .first()
+      .cache();
 
     if (!tx) {
       return undefined;
@@ -292,13 +304,17 @@ export class Query {
       .where({
         transaction_hash: hexToBuffer(txHash),
       })
-      .orderBy("log_index", "asc");
+      .orderBy("log_index", "asc")
+      .cache();
 
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
 
   async getTipLog() {
-    let log = await this.knex<DBLog>("logs").orderBy("id", "desc").first();
+    let log = await this.knex<DBLog>("logs")
+      .orderBy("id", "desc")
+      .first()
+      .cache();
     if (log != null) {
       return formatLog(log);
     }
@@ -333,6 +349,7 @@ export class Query {
       .join("logs", { "logs.transaction_hash": "transactions.hash" });
     let logs: DBLog[] = await selectLogsJoinTransactions
       .timeout(MAX_QUERY_TIME_MILSECS, { cancel: true })
+      .cache()
       .catch((knexError: any) => {
         if (knexError instanceof KnexTimeoutError) {
           throw new LimitExceedError(`query timeout exceeded`);
