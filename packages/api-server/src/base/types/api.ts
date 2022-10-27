@@ -14,8 +14,8 @@ export interface EthTransaction {
   nonce: HexNumber;
   value: HexNumber;
   v: HexNumber;
-  r: HexString;
-  s: HexString;
+  r: HexNumber;
+  s: HexNumber;
 }
 
 export interface EthBlock {
