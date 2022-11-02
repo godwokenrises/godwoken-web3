@@ -25,6 +25,7 @@ import { gwConfig } from "./base/index";
 import { logger } from "./base/logger";
 import { EthRegistryAddress } from "./base/address";
 import { decodePolyjuiceArgs } from "./parse-tx";
+import { getRealV } from "./db";
 
 export const PENDING_TRANSACTION_INDEX = "0x0";
 
@@ -85,7 +86,11 @@ export async function filterWeb3Transaction(
   // Remove s left zeros
   s = "0x" + BigInt(s).toString(16);
   // signature[65] byte
-  const v = Uint32.fromHex("0x" + signature.slice(130, 132));
+  const signatureV = Uint32.fromHex("0x" + signature.slice(130, 132));
+  const chainId = l2Tx.raw.chain_id;
+  const v = new Uint128(
+    getRealV(BigInt(signatureV.getValue()), BigInt(chainId))
+  );
 
   const nonce: HexU32 = l2Tx.raw.nonce;
 
