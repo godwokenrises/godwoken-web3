@@ -70,6 +70,7 @@ pub struct DbTransaction {
     gas_used: BigDecimal,
     contract_address: Option<Vec<u8>>,
     exit_code: Decimal,
+    chain_id: Option<Decimal>,
 }
 
 impl TryFrom<Transaction> for DbTransaction {
@@ -98,6 +99,7 @@ impl TryFrom<Transaction> for DbTransaction {
             gas_used: u128_to_big_decimal(&tx.gas_used)?,
             contract_address: web3_contract_address,
             exit_code: tx.exit_code.into(),
+            chain_id: tx.chain_id.map(|id| id.into()),
         };
         Ok(db_transaction)
     }
@@ -199,7 +201,7 @@ pub async fn insert_web3_txs_and_logs(
 
     let mut txs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 "INSERT INTO transactions
-                (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code) "
+                (hash, eth_tx_hash, block_number, block_hash, transaction_index, from_address, to_address, value, nonce, gas_limit, gas_price, input, v, r, s, cumulative_gas_used, gas_used, contract_address, exit_code, chain_id) "
             );
 
     txs_query_builder
@@ -222,7 +224,8 @@ pub async fn insert_web3_txs_and_logs(
                 .push_bind(tx.cumulative_gas_used)
                 .push_bind(tx.gas_used)
                 .push_bind(tx.contract_address)
-                .push_bind(tx.exit_code);
+                .push_bind(tx.exit_code)
+                .push_bind(tx.chain_id);
         })
         .push(" RETURNING id");
 
