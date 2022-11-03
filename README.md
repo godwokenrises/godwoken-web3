@@ -2,6 +2,8 @@
 
 A Web3 RPC compatible layer build upon Godwoken/Polyjuice.
 
+Checkout [additional feature](docs/addtional-feature.md).
+
 ## Development
 
 ### Config database
@@ -121,9 +123,26 @@ docker exec -it <CONTAINER NAME> /bin/bash
 $ root@ec562fe2172b:/godwoken-web3# pm2 monit
 ```
 
-Http url: http://your-url/
+#### URLs
 
-WebSocket url: ws://your-url/ws
+```sh
+# Http 
+http://example_web3_rpc_url
+
+# WebSocket
+ws://example_web3_rpc_url/ws
+```
+
+With instant-finality feature turn on:
+
+```sh
+# Http 
+http://example_web3_rpc_url?instant-finality-hack=true
+http://example_web3_rpc_url/instant-finality-hack
+
+# WebSocket
+ws://example_web3_rpc_url/ws?instant-finality-hack=true
+```
 
 ### Docker Prebuilds
 

@@ -94,16 +94,18 @@ type GodwokenBlockParameter = U64 | undefined;
 export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
+  private instantFinalityHackMode: boolean;
   private filterManager: FilterManager;
   private cacheStore: Store;
   private ethNormalizer: EthNormalizer;
 
-  constructor() {
+  constructor(instantFinalityHackMode: boolean = false) {
     this.query = new Query();
     this.rpc = new GodwokenClient(
       envConfig.godwokenJsonRpc,
       envConfig.godwokenReadonlyJsonRpc
     );
+    this.instantFinalityHackMode = instantFinalityHackMode;
     this.filterManager = new FilterManager(true);
     this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
     this.ethNormalizer = new EthNormalizer(this.rpc);
@@ -718,86 +720,94 @@ export class Eth {
 
   async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
     const ethTxHash: Hash = args[0];
-    const cacheKey = autoCreateAccountCacheKey(ethTxHash);
+    const acaCacheKey = autoCreateAccountCacheKey(ethTxHash);
 
     // 1. Find in db
     const tx = await this.query.getTransactionByEthTxHash(ethTxHash);
     if (tx != null) {
       // no need await
       // delete auto create account tx if already in db
-      this.cacheStore.delete(cacheKey);
+      this.cacheStore.delete(acaCacheKey);
       const apiTx = toApiTransaction(tx);
       return apiTx;
     }
 
-    // 2. If null, find pending transactions
-    const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
-    const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
-    if (gwTxHash != null) {
-      const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-      if (godwokenTxWithStatus == null) {
-        return null;
-      }
-      const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-      const tipBlock = await this.query.getTipBlock();
-      if (tipBlock == null) {
-        throw new Error("tip block not found!");
-      }
-      let ethTxInfo = undefined;
-      try {
-        ethTxInfo = await filterWeb3Transaction(
-          ethTxHash,
-          this.rpc,
-          tipBlock.number,
-          tipBlock.hash,
-          godwokenTxWithStatus.transaction,
-          godwokenTxReceipt
+    // 2. If under instant-finality hack mode, find tx from gw mempool block
+    if (this.instantFinalityHackMode) {
+      logger.debug(
+        `[eth_getTransactionByHash] find with instant-finality hack`
+      );
+      // A. find pending transactions
+      const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
+      const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
+      if (gwTxHash != null) {
+        const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
+        if (godwokenTxWithStatus == null) {
+          return null;
+        }
+        const godwokenTxReceipt = await this.rpc.getTransactionReceipt(
+          gwTxHash
         );
-      } catch (err) {
-        logger.error("filterWeb3Transaction:", err);
-        logger.info("godwoken tx:", godwokenTxWithStatus);
-        logger.info("godwoken receipt:", godwokenTxReceipt);
-        throw err;
-      }
-      if (ethTxInfo != null) {
-        const ethTx = ethTxInfo[0];
-        return ethTx;
-      }
-    }
-
-    // 3. Find by auto create account tx
-    // TODO: delete cache store if dropped by godwoken
-    // convert to tx hash mapping store if account id generated ?
-    const polyjuiceRawTx = await this.cacheStore.get(cacheKey);
-    if (polyjuiceRawTx != null) {
-      const tipBlock = await this.query.getTipBlock();
-      if (tipBlock == null) {
-        throw new Error("tip block not found!");
-      }
-      // Convert polyjuice tx to api transaction
-      const { tx, fromAddress }: AutoCreateAccountCacheValue =
-        JSON.parse(polyjuiceRawTx);
-      const isAcaTxExist: boolean = await this.isAcaTxExist(
-        ethTxHash,
-        tx,
-        fromAddress
-      );
-      logger.info(
-        `aca tx: action: getTransactionByHash, eth_tx_hash: ${ethTxHash}, is_tx_exist: ${isAcaTxExist}`
-      );
-      if (isAcaTxExist) {
-        const apiTransaction: EthTransaction =
-          polyjuiceRawTransactionToApiTransaction(
-            tx,
+        const tipBlock = await this.query.getTipBlock();
+        if (tipBlock == null) {
+          throw new Error("tip block not found!");
+        }
+        let ethTxInfo = undefined;
+        try {
+          ethTxInfo = await filterWeb3Transaction(
             ethTxHash,
-            tipBlock.hash,
+            this.rpc,
             tipBlock.number,
-            fromAddress
+            tipBlock.hash,
+            godwokenTxWithStatus.transaction,
+            godwokenTxReceipt
           );
-        return apiTransaction;
-      } else {
-        // If not found, means dropped by godwoken, should delete cache
-        this.cacheStore.delete(cacheKey);
+        } catch (err) {
+          logger.error("filterWeb3Transaction:", err);
+          logger.info("godwoken tx:", godwokenTxWithStatus);
+          logger.info("godwoken receipt:", godwokenTxReceipt);
+          throw err;
+        }
+        if (ethTxInfo != null) {
+          const ethTx = ethTxInfo[0];
+          return ethTx;
+        }
+      }
+
+      // B. Find by auto create account tx
+      // TODO: delete cache store if dropped by godwoken
+      // convert to tx hash mapping store if account id generated ?
+      const polyjuiceRawTx = await this.cacheStore.get(acaCacheKey);
+      if (polyjuiceRawTx != null) {
+        const tipBlock = await this.query.getTipBlock();
+        if (tipBlock == null) {
+          throw new Error("tip block not found!");
+        }
+        // Convert polyjuice tx to api transaction
+        const { tx, fromAddress }: AutoCreateAccountCacheValue =
+          JSON.parse(polyjuiceRawTx);
+        const isAcaTxExist: boolean = await this.isAcaTxExist(
+          ethTxHash,
+          tx,
+          fromAddress
+        );
+        logger.info(
+          `aca tx: action: getTransactionByHash, eth_tx_hash: ${ethTxHash}, is_tx_exist: ${isAcaTxExist}`
+        );
+        if (isAcaTxExist) {
+          const apiTransaction: EthTransaction =
+            polyjuiceRawTransactionToApiTransaction(
+              tx,
+              ethTxHash,
+              tipBlock.hash,
+              tipBlock.number,
+              fromAddress
+            );
+          return apiTransaction;
+        } else {
+          // If not found, means dropped by godwoken, should delete cache
+          this.cacheStore.delete(acaCacheKey);
+        }
       }
     }
 
@@ -861,6 +871,7 @@ export class Eth {
       return null;
     }
 
+    // 1. Find in db
     const data = await this.query.getTransactionAndLogsByHash(gwTxHash);
     if (data != null) {
       const [tx, logs] = data;
@@ -869,37 +880,43 @@ export class Eth {
       return transactionReceipt;
     }
 
-    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus == null) {
-      return null;
-    }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-    if (godwokenTxReceipt == null) {
-      return null;
-    }
-    const tipBlock = await this.query.getTipBlock();
-    if (tipBlock == null) {
-      throw new Error(`tip block not found`);
-    }
-    let ethTxInfo = undefined;
-    try {
-      ethTxInfo = await filterWeb3Transaction(
-        ethTxHash,
-        this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
+    // 2. If under instant-finality hack mode, build receipt from gw mempool block
+    if (this.instantFinalityHackMode) {
+      logger.debug(
+        `[eth_getTransactionReceipt] find with instant-finality hack`
       );
-    } catch (err) {
-      logger.error("filterWeb3Transaction:", err);
-      logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
-      throw err;
-    }
-    if (ethTxInfo != null) {
-      const ethTxReceipt = ethTxInfo[1]!;
-      return ethTxReceipt;
+      const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
+      if (godwokenTxWithStatus == null) {
+        return null;
+      }
+      const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
+      if (godwokenTxReceipt == null) {
+        return null;
+      }
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error(`tip block not found`);
+      }
+      let ethTxInfo = undefined;
+      try {
+        ethTxInfo = await filterWeb3Transaction(
+          ethTxHash,
+          this.rpc,
+          tipBlock.number,
+          tipBlock.hash,
+          godwokenTxWithStatus.transaction,
+          godwokenTxReceipt
+        );
+      } catch (err) {
+        logger.error("filterWeb3Transaction:", err);
+        logger.info("godwoken tx:", godwokenTxWithStatus);
+        logger.info("godwoken receipt:", godwokenTxReceipt);
+        throw err;
+      }
+      if (ethTxInfo != null) {
+        const ethTxReceipt = ethTxInfo[1]!;
+        return ethTxReceipt;
+      }
     }
 
     return null;
