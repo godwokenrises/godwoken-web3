@@ -1108,7 +1108,11 @@ export class Eth {
   ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return undefined;
+        if (this.instantFinalityHackMode) {
+          // under instant-finality hack, we treat latest as pending
+          return undefined;
+        }
+        return await this.getTipNumber();
       case "earliest":
         return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
@@ -1152,6 +1156,9 @@ export class Eth {
     return blockNumber;
   }
 
+  // Some RPCs does not support pending parameter
+  // eth_getBlockByNumber/eth_getBlockTransactionCountByNumber/eth_getTransactionByBlockNumberAndIndex
+  // TODO: maybe we should support for those as well?
   private async blockParameterToBlockNumber(
     blockParameter: BlockParameter
   ): Promise<U64> {
@@ -1477,7 +1484,7 @@ function serializeEthCallParameters(
     gasPrice: ethCallObj.gasPrice || "0x",
     data: ethCallObj.data || "0x",
     value: ethCallObj.value || "0x",
-    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means pending block, the key contains tipBlockHash, so there is no need to diff pending height
   };
   return JSON.stringify(toSerializeObj);
 }
@@ -1507,7 +1514,7 @@ function serializeEstimateGasParameters(
     gasPrice: estimateGasObj.gasPrice || "0x",
     data: estimateGasObj.data || "0x",
     value: estimateGasObj.value || "0x",
-    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means pending block, the key contains tipBlockHash, so there is no need to diff pending height
   };
   return JSON.stringify(toSerializeObj);
 }
