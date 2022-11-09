@@ -275,6 +275,110 @@ pub async fn insert_web3_txs_and_logs(
     Ok((txs_len, logs_len))
 }
 
+pub async fn update_web3_block(
+    web3_block: Block,
+    pg_tx: &mut sqlx::Transaction<'_, Postgres>,
+) -> Result<()> {
+    let block = DbBlock::try_from(&web3_block)?;
+
+    sqlx::query(
+        "UPDATE blocks SET number=$1, parent_hash=$3, gas_limit=$4, gas_used=$5,timestamp=$6, miner=$7, size=$8 where hash=$2"
+    )
+        .bind(block.number)
+        .bind(block.hash)
+        .bind(block.parent_hash)
+        .bind(block.gas_limit)
+        .bind(block.gas_used)
+        .bind(block.timestamp)
+        .bind(block.miner)
+        .bind(block.size)
+        .execute(pg_tx)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn update_web3_txs_and_logs(
+    web3_tx_with_logs_vec: Vec<TransactionWithLogs>,
+    pg_tx: &mut sqlx::Transaction<'_, Postgres>,
+) -> Result<(usize, usize)> {
+    if web3_tx_with_logs_vec.is_empty() {
+        return Ok((0, 0));
+    }
+
+    let (txs, logs) = web3_tx_with_logs_vec
+        .into_par_iter()
+        .enumerate()
+        .map(|(i, web3_tx_with_logs)| {
+            let db_logs: Result<Vec<DbLog>> = web3_tx_with_logs
+                .logs
+                .into_par_iter()
+                .map(|l| DbLog::try_from_log(l, i as i64))
+                .collect();
+            (DbTransaction::try_from(web3_tx_with_logs.tx), db_logs)
+        })
+        .collect::<(Vec<_>, Vec<_>)>();
+    let txs = txs.into_iter().collect::<Result<Vec<_>>>()?;
+    let logs = logs.into_iter().collect::<Result<Vec<_>>>()?;
+    let logs = logs.into_iter().flatten().collect::<Vec<_>>();
+
+    let logs_len = logs.len();
+    let txs_len = txs.len();
+
+    let logs_slice = logs
+        .into_iter()
+        .chunks(INSERT_LOGS_BATCH_SIZE)
+        .into_iter()
+        .map(|chunk| chunk.collect())
+        .collect::<Vec<Vec<_>>>();
+
+    for tx in txs {
+        sqlx::query(
+                "UPDATE transactions SET hash = $1, eth_tx_hash = $2, from_address = $3, to_address = $4, value = $5, nonce = $6, gas_limit = $7, gas_price = $8, input = $9, v = $10, r = $11, s = $12, cumulative_gas_used = $13, gas_used = $14, contract_address = $15, exit_code = $16, chain_id = $17 where block_hash = $18 and transaction_index = $19"
+            )
+                    .bind(tx.hash)
+                        .bind(tx.eth_tx_hash)
+                        .bind(tx.from_address)
+                        .bind(tx.to_address)
+                        .bind(tx.value)
+                        .bind(tx.nonce)
+                        .bind(tx.gas_limit)
+                        .bind(tx.gas_price)
+                        .bind(tx.input)
+                        .bind(tx.v)
+                        .bind(tx.r)
+                        .bind(tx.s)
+                        .bind(tx.cumulative_gas_used)
+                        .bind(tx.gas_used)
+                        .bind(tx.contract_address)
+                        .bind(tx.exit_code)
+                        .bind(tx.chain_id)
+                        .bind(tx.block_hash)
+                        .bind(tx.transaction_index)
+                        .execute(&mut *pg_tx)
+                        .await?;
+    }
+
+    for db_logs in logs_slice {
+        for log in db_logs {
+            sqlx::query(
+                        "UPDATE logs SET transaction_hash = $1, address = $2, data = $3, topics = $4 WHERE block_hash = $5 AND transaction_index = $6 AND log_index = $7 "
+                    )
+                    .bind(log.transaction_hash)
+                    .bind(log.address)
+                    .bind(log.data)
+                    .bind(log.topics)
+                    .bind(log.block_hash)
+                    .bind(log.transaction_index)
+                    .bind(log.log_index)
+                    .execute(&mut *pg_tx)
+                    .await?;
+        }
+    }
+
+    Ok((txs_len, logs_len))
+}
+
 fn u128_to_big_decimal(value: &u128) -> Result<BigDecimal> {
     let result = BigDecimal::from_str(&value.to_string())?;
     Ok(result)

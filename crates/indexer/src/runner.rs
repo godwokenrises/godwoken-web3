@@ -4,8 +4,8 @@ use gw_web3_rpc_client::{
 };
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-use crate::{config::IndexerConfig, pool::POOL, Web3Indexer};
-use anyhow::Result;
+use crate::{config::IndexerConfig, helper::hex, pool::POOL, Web3Indexer};
+use anyhow::{anyhow, Result};
 
 pub struct Runner {
     indexer: Web3Indexer,
@@ -111,6 +111,96 @@ impl Runner {
             .await?;
         tx.commit().await?;
         Ok(())
+    }
+
+    pub async fn update(
+        &mut self,
+        start_block_number: Option<u64>,
+        end_block_number: Option<u64>,
+    ) -> Result<bool> {
+        let start_block_number = start_block_number.unwrap_or(0);
+        let local_tip = self.tip().await?;
+
+        // end_block_number must be <= local tip
+        if let Some(end_num) = end_block_number {
+            if let Some(tip_num) = local_tip {
+                if end_num > tip_num {
+                    return Err(anyhow!(
+                        "end_block_number {} can't larger than tip number: {}",
+                        end_num,
+                        tip_num
+                    ));
+                }
+            }
+        }
+
+        let end_block_number = end_block_number.unwrap_or_else(|| local_tip.unwrap_or(0));
+
+        log::info!(
+            "Update from block {} to block {}",
+            start_block_number,
+            end_block_number
+        );
+
+        let mut current_block_number = start_block_number;
+        loop {
+            if current_block_number >= end_block_number {
+                log::info!("All blocks have been updated!");
+                break;
+            }
+
+            let start = std::time::Instant::now();
+
+            let current_block = self
+                .godwoken_rpc_client
+                .get_block_by_number(current_block_number)?
+                .ok_or_else(|| anyhow!("block {} not exist!", current_block_number))?;
+
+            let l2_block = to_l2_block(current_block);
+            let l2_block_parent_hash = l2_block.raw().parent_block_hash();
+
+            if current_block_number > 0 {
+                let prev_block_number = current_block_number - 1;
+                let db_prev_block_hash = self.get_db_block_hash(prev_block_number).await?;
+                if let Some(prev_block_hash) = db_prev_block_hash {
+                    // if match, insert a new block
+                    // if not match, sleep and try again
+                    if l2_block_parent_hash.as_slice() == prev_block_hash.as_bytes() {
+                        let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
+
+                        let duration = start.elapsed();
+                        log::info!(
+                            "Update block {}, {} txs, {} logs, duration: {:?}",
+                            current_block_number,
+                            txs_len,
+                            logs_len,
+                            duration,
+                        );
+
+                        current_block_number += 1;
+                    } else {
+                        // Sleep and try again, wait for indexer to deal with revert
+                        log::info!("block {}'s parent_block_hash: {} not match prev block's hash {}, sleep and try again", current_block_number, hex(l2_block_parent_hash.as_slice())?, hex(prev_block_hash.as_bytes())?);
+                        let sleep_time = std::time::Duration::from_secs(3);
+                        smol::Timer::after(sleep_time).await;
+                    }
+                }
+            } else {
+                let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
+
+                let duration = start.elapsed();
+                log::info!(
+                    "Update block {}, {} txs, {} logs, duration: {:?}",
+                    current_block_number,
+                    txs_len,
+                    logs_len,
+                    duration,
+                );
+
+                current_block_number += 1;
+            }
+        }
+        Ok(true)
     }
 
     pub async fn insert(&mut self) -> Result<bool> {

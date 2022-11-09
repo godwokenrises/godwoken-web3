@@ -21,7 +21,27 @@ fn main() -> Result<()> {
     };
 
     let mut runner = Runner::new(indexer_config)?;
-    smol::block_on(runner.run())?;
+
+    let command_name = std::env::args().nth(1);
+
+    // `cargo run` -> run sync mode
+    // `cargo run update <optional start number> <optional end number>` -> run update mode
+    if let Some(name) = command_name {
+        if name == "update" {
+            let start_block_number = std::env::args()
+                .nth(2)
+                .map(|num| num.parse::<u64>().unwrap());
+            let end_block_number = std::env::args()
+                .nth(3)
+                .map(|num| num.parse::<u64>().unwrap());
+            smol::block_on(runner.update(start_block_number, end_block_number))?;
+        } else {
+            smol::block_on(runner.run())?;
+        }
+    } else {
+        smol::block_on(runner.run())?;
+    }
+
     Ok(())
 }
 
