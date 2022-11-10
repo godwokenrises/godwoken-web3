@@ -113,100 +113,58 @@ impl Runner {
         Ok(())
     }
 
-    pub async fn update(
-        &mut self,
-        start_block_number: Option<u64>,
-        end_block_number: Option<u64>,
-    ) -> Result<bool> {
-        let start_block_number = start_block_number.unwrap_or(0);
-        let local_tip = self.tip().await?;
+    async fn update(&mut self, current_block_number: u64) -> Result<bool> {
+        let start = std::time::Instant::now();
 
-        // end_block_number must be <= local tip
-        if let Some(end_num) = end_block_number {
-            if let Some(tip_num) = local_tip {
-                if end_num > tip_num {
-                    return Err(anyhow!(
-                        "end_block_number {} can't larger than tip number: {}",
-                        end_num,
-                        tip_num
-                    ));
+        let current_block = self
+            .godwoken_rpc_client
+            .get_block_by_number(current_block_number)?
+            .ok_or_else(|| anyhow!("block {} not exist!", current_block_number))?;
+
+        let l2_block = to_l2_block(current_block);
+        let l2_block_parent_hash = l2_block.raw().parent_block_hash();
+
+        if current_block_number > 0 {
+            let prev_block_number = current_block_number - 1;
+            let db_prev_block_hash = self.get_db_block_hash(prev_block_number).await?;
+            if let Some(prev_block_hash) = db_prev_block_hash {
+                // if match, insert a new block
+                // if not match, sleep and try again
+                if l2_block_parent_hash.as_slice() == prev_block_hash.as_bytes() {
+                    let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
+
+                    let duration = start.elapsed();
+                    log::info!(
+                        "Update block {}, {} txs, {} logs, duration: {:?}",
+                        current_block_number,
+                        txs_len,
+                        logs_len,
+                        duration,
+                    );
+
+                    return Ok(true);
+                } else {
+                    // Sleep and try again, wait for indexer to deal with revert
+                    log::info!("block {}'s parent_block_hash: {} not match prev block's hash {}, sleep and try again", current_block_number, hex(l2_block_parent_hash.as_slice())?, hex(prev_block_hash.as_bytes())?);
+                    let sleep_time = std::time::Duration::from_secs(3);
+                    smol::Timer::after(sleep_time).await;
                 }
             }
+        } else {
+            let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
+
+            let duration = start.elapsed();
+            log::info!(
+                "Update block {}, {} txs, {} logs, duration: {:?}",
+                current_block_number,
+                txs_len,
+                logs_len,
+                duration,
+            );
+
+            return Ok(true);
         }
-
-        let end_block_number = end_block_number.unwrap_or_else(|| local_tip.unwrap_or(0));
-
-        log::info!(
-            "Update from block {} to block {}",
-            start_block_number,
-            end_block_number
-        );
-
-        let loop_start = std::time::Instant::now();
-
-        let mut current_block_number = start_block_number;
-        loop {
-            if current_block_number > end_block_number {
-                let loop_duration = loop_start.elapsed();
-                log::info!(
-                    "All blocks have been updated! Total duration: {:?}",
-                    loop_duration
-                );
-                break;
-            }
-
-            let start = std::time::Instant::now();
-
-            let current_block = self
-                .godwoken_rpc_client
-                .get_block_by_number(current_block_number)?
-                .ok_or_else(|| anyhow!("block {} not exist!", current_block_number))?;
-
-            let l2_block = to_l2_block(current_block);
-            let l2_block_parent_hash = l2_block.raw().parent_block_hash();
-
-            if current_block_number > 0 {
-                let prev_block_number = current_block_number - 1;
-                let db_prev_block_hash = self.get_db_block_hash(prev_block_number).await?;
-                if let Some(prev_block_hash) = db_prev_block_hash {
-                    // if match, insert a new block
-                    // if not match, sleep and try again
-                    if l2_block_parent_hash.as_slice() == prev_block_hash.as_bytes() {
-                        let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
-
-                        let duration = start.elapsed();
-                        log::info!(
-                            "Update block {}, {} txs, {} logs, duration: {:?}",
-                            current_block_number,
-                            txs_len,
-                            logs_len,
-                            duration,
-                        );
-
-                        current_block_number += 1;
-                    } else {
-                        // Sleep and try again, wait for indexer to deal with revert
-                        log::info!("block {}'s parent_block_hash: {} not match prev block's hash {}, sleep and try again", current_block_number, hex(l2_block_parent_hash.as_slice())?, hex(prev_block_hash.as_bytes())?);
-                        let sleep_time = std::time::Duration::from_secs(3);
-                        smol::Timer::after(sleep_time).await;
-                    }
-                }
-            } else {
-                let (txs_len, logs_len) = self.indexer.update_l2_block(l2_block).await?;
-
-                let duration = start.elapsed();
-                log::info!(
-                    "Update block {}, {} txs, {} logs, duration: {:?}",
-                    current_block_number,
-                    txs_len,
-                    logs_len,
-                    duration,
-                );
-
-                current_block_number += 1;
-            }
-        }
-        Ok(true)
+        Ok(false)
     }
 
     pub async fn insert(&mut self) -> Result<bool> {
@@ -292,5 +250,72 @@ impl Runner {
                 }
             };
         }
+    }
+
+    pub async fn run_update(
+        &mut self,
+        start_block_number: Option<u64>,
+        end_block_number: Option<u64>,
+    ) -> Result<()> {
+        let start_block_number = start_block_number.unwrap_or(0);
+        let local_tip = self.tip().await?;
+
+        // end_block_number must be <= local tip
+        if let Some(end_num) = end_block_number {
+            if let Some(tip_num) = local_tip {
+                if end_num > tip_num {
+                    return Err(anyhow!(
+                        "end_block_number {} can't larger than tip number: {}",
+                        end_num,
+                        tip_num
+                    ));
+                }
+            }
+        }
+
+        let end_block_number = end_block_number.unwrap_or_else(|| local_tip.unwrap_or(0));
+
+        log::info!(
+            "Update from block {} to block {}",
+            start_block_number,
+            end_block_number
+        );
+
+        let loop_start = std::time::Instant::now();
+
+        let mut current_block_number = start_block_number;
+
+        loop {
+            if current_block_number > end_block_number {
+                let loop_duration = loop_start.elapsed();
+                log::info!(
+                    "All blocks have been updated! Total duration: {:?}",
+                    loop_duration
+                );
+                break;
+            }
+
+            match self.update(current_block_number).await {
+                Ok(result) => {
+                    if result {
+                        current_block_number += 1;
+                    } else {
+                        continue;
+                    }
+                }
+                Err(err) => {
+                    let err_ref = err.downcast_ref::<RpcClientError>();
+                    if let Some(RpcClientError::ConnectionError(_, _)) = err_ref {
+                        log::error!("{}", err);
+                        // wait for 1s
+                        let sleep_time = std::time::Duration::from_secs(1);
+                        smol::Timer::after(sleep_time).await;
+                        continue;
+                    };
+                    return Err(err);
+                }
+            };
+        }
+        Ok(())
     }
 }

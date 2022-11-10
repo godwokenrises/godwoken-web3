@@ -34,7 +34,7 @@ fn main() -> Result<()> {
             let end_block_number = std::env::args()
                 .nth(3)
                 .map(|num| num.parse::<u64>().unwrap());
-            smol::block_on(runner.update(start_block_number, end_block_number))?;
+            smol::block_on(runner.run_update(start_block_number, end_block_number))?;
         } else {
             smol::block_on(runner.run())?;
         }
