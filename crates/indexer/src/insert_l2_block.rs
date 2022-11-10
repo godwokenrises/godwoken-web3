@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use gw_types::U256;
 use rust_decimal::Decimal;
 use sqlx::{
@@ -13,7 +13,10 @@ use sqlx::{
 };
 use sqlx::{Postgres, QueryBuilder};
 
-use crate::types::{Block, Log, Transaction, TransactionWithLogs};
+use crate::{
+    pool::POOL_FOR_UPDATE,
+    types::{Block, Log, Transaction, TransactionWithLogs},
+};
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -282,9 +285,8 @@ pub async fn update_web3_block(
     let block = DbBlock::try_from(&web3_block)?;
 
     sqlx::query(
-        "UPDATE blocks SET number=$1, parent_hash=$3, gas_limit=$4, gas_used=$5,timestamp=$6, miner=$7, size=$8 where hash=$2"
+        "UPDATE blocks SET hash = $1, parent_hash = $2, gas_limit = $3, gas_used = $4, timestamp = $5, miner = $6, size = $7 where number = $8"
     )
-        .bind(block.number)
         .bind(block.hash)
         .bind(block.parent_hash)
         .bind(block.gas_limit)
@@ -292,6 +294,7 @@ pub async fn update_web3_block(
         .bind(block.timestamp)
         .bind(block.miner)
         .bind(block.size)
+        .bind(block.number)
         .execute(pg_tx)
         .await?;
 
@@ -300,7 +303,7 @@ pub async fn update_web3_block(
 
 pub async fn update_web3_txs_and_logs(
     web3_tx_with_logs_vec: Vec<TransactionWithLogs>,
-    pg_tx: &mut sqlx::Transaction<'_, Postgres>,
+    _pg_tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> Result<(usize, usize)> {
     if web3_tx_with_logs_vec.is_empty() {
         return Ok((0, 0));
@@ -325,55 +328,80 @@ pub async fn update_web3_txs_and_logs(
     let logs_len = logs.len();
     let txs_len = txs.len();
 
+    let size = logs_len / 4;
+    let final_size = if size > INSERT_LOGS_BATCH_SIZE || size == 0 {
+        INSERT_LOGS_BATCH_SIZE
+    } else {
+        size
+    };
+
     let logs_slice = logs
         .into_iter()
-        .chunks(INSERT_LOGS_BATCH_SIZE)
+        .chunks(final_size)
         .into_iter()
         .map(|chunk| chunk.collect())
         .collect::<Vec<Vec<_>>>();
 
-    for tx in txs {
-        sqlx::query(
-                "UPDATE transactions SET hash = $1, eth_tx_hash = $2, from_address = $3, to_address = $4, value = $5, nonce = $6, gas_limit = $7, gas_price = $8, input = $9, v = $10, r = $11, s = $12, cumulative_gas_used = $13, gas_used = $14, contract_address = $15, exit_code = $16, chain_id = $17 where block_hash = $18 and transaction_index = $19"
-            )
-                    .bind(tx.hash)
-                        .bind(tx.eth_tx_hash)
-                        .bind(tx.from_address)
-                        .bind(tx.to_address)
-                        .bind(tx.value)
-                        .bind(tx.nonce)
-                        .bind(tx.gas_limit)
-                        .bind(tx.gas_price)
-                        .bind(tx.input)
-                        .bind(tx.v)
-                        .bind(tx.r)
-                        .bind(tx.s)
-                        .bind(tx.cumulative_gas_used)
-                        .bind(tx.gas_used)
-                        .bind(tx.contract_address)
-                        .bind(tx.exit_code)
-                        .bind(tx.chain_id)
-                        .bind(tx.block_hash)
-                        .bind(tx.transaction_index)
-                        .execute(&mut *pg_tx)
-                        .await?;
-    }
+    futures::future::join_all(
+        txs.into_iter().map(|tx| {
+                sqlx::query(
+                    "UPDATE transactions SET hash = $1, eth_tx_hash = $2, from_address = $3, to_address = $4, value = $5, nonce = $6, gas_limit = $7, gas_price = $8, input = $9, v = $10, r = $11, s = $12, cumulative_gas_used = $13, gas_used = $14, contract_address = $15, exit_code = $16, chain_id = $17 where block_number = $18 and transaction_index = $19"
+                )
+                        .bind(tx.hash)
+                            .bind(tx.eth_tx_hash)
+                            .bind(tx.from_address)
+                            .bind(tx.to_address)
+                            .bind(tx.value)
+                            .bind(tx.nonce)
+                            .bind(tx.gas_limit)
+                            .bind(tx.gas_price)
+                            .bind(tx.input)
+                            .bind(tx.v)
+                            .bind(tx.r)
+                            .bind(tx.s)
+                            .bind(tx.cumulative_gas_used)
+                            .bind(tx.gas_used)
+                            .bind(tx.contract_address)
+                            .bind(tx.exit_code)
+                            .bind(tx.chain_id)
+                            .bind(tx.block_number)
+                            .bind(tx.transaction_index)
+                            .execute(&*POOL_FOR_UPDATE)
+        })
+    )
+    .await
+    .into_iter()
+    .collect::<Result<Vec<_>, sqlx::Error>>()?;
 
-    for db_logs in logs_slice {
-        for log in db_logs {
-            sqlx::query(
-                        "UPDATE logs SET transaction_hash = $1, address = $2, data = $3, topics = $4 WHERE block_hash = $5 AND transaction_index = $6 AND log_index = $7 "
-                    )
-                    .bind(log.transaction_hash)
-                    .bind(log.address)
-                    .bind(log.data)
-                    .bind(log.topics)
-                    .bind(log.block_hash)
-                    .bind(log.transaction_index)
-                    .bind(log.log_index)
-                    .execute(&mut *pg_tx)
-                    .await?;
-        }
+    if logs_len != 0 {
+        let mut logs_querys = logs_slice
+        .into_par_iter()
+        .map(|db_logs| {
+            let mut logs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+                "UPDATE logs SET transaction_hash = data_table.transaction_hash, address = data_table.address, data = data_table.data, topics = data_table.topics FROM ( "
+            );
+
+            logs_query_builder.push_values(db_logs, |mut b, log| {
+                b.push_bind(log.transaction_hash)
+                    .push_bind(log.address)
+                    .push_bind(log.data)
+                    .push_bind(log.topics)
+                    .push_bind(log.block_number)
+                    .push_bind(log.log_index);
+            })
+            .push(" ) AS data_table(transaction_hash, address, data, topics, block_number, log_index) WHERE logs.block_number = data_table.block_number AND logs.log_index = data_table.log_index");
+            logs_query_builder
+        }).collect::<Vec<_>>();
+
+        logs_querys
+            .par_iter_mut()
+            .map(|query_builder| {
+                let query = query_builder.build();
+                smol::block_on(query.execute(&*POOL_FOR_UPDATE)).map_err(|err| anyhow!(err))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?;
     }
 
     Ok((txs_len, logs_len))

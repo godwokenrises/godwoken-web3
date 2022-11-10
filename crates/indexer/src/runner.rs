@@ -142,10 +142,16 @@ impl Runner {
             end_block_number
         );
 
+        let loop_start = std::time::Instant::now();
+
         let mut current_block_number = start_block_number;
         loop {
-            if current_block_number >= end_block_number {
-                log::info!("All blocks have been updated!");
+            if current_block_number > end_block_number {
+                let loop_duration = loop_start.elapsed();
+                log::info!(
+                    "All blocks have been updated! Total duration: {:?}",
+                    loop_duration
+                );
                 break;
             }
 
