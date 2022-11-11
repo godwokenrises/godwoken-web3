@@ -23,7 +23,7 @@ jobs:
     # Godwoken-Kicker
     - uses: actions/checkout@v3
       with:
-        repository: RetricSu/godwoken-kicker
+        repository: godwokenrises/godwoken-kicker
         ref: 'master'
     - name: Kicker init
       run: ./kicker init
