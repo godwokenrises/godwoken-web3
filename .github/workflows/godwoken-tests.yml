@@ -13,8 +13,6 @@ jobs:
     uses: godwokenrises/godwoken-tests/.github/workflows/reusable-integration-test-v1.yml@develop
     with:
       extra_github_env: |
-        GODWOKEN_TESTS_REPO=RetricSu/godwoken-tests
-        GODWOKEN_TESTS_REF=sisyhusGamble-block
         MANUAL_BUILD_WEB3=true
         MANUAL_BUILD_WEB3_INDEXER=true
         WEB3_GIT_URL=https://github.com/${{ github.repository }}
