@@ -1,7 +1,10 @@
 import { EthNewHead } from "../base/types/api";
 import { BlockEmitter } from "../block-emitter";
 import { INVALID_PARAMS, METHOD_NOT_FOUND } from "../methods/error-code";
-import { methods } from "../methods/index";
+import {
+  instantFinalityHackMethods,
+  methods as compatibleMethods,
+} from "../methods/index";
 import { middleware as wsrpc } from "./wss";
 import crypto from "crypto";
 import { HexNumber } from "@ckb-lumos/base";
@@ -11,6 +14,7 @@ import { Store } from "../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
 import { wsApplyRateLimitByIp } from "../rate-limit";
 import { gwTxHashToEthTxHash } from "../cache/tx-hash";
+import { isInstantFinalityHackMode } from "../util";
 
 const query = new Query();
 const cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
@@ -25,6 +29,13 @@ export function wrapper(ws: any, req: any) {
 
   wsrpc(ws);
 
+  // check if use most compatible or enable additional feature
+  let methods = compatibleMethods;
+  if (isInstantFinalityHackMode(req)) {
+    methods = instantFinalityHackMethods;
+  }
+
+  // 1. RPC request
   for (const [method, methodFunc] of Object.entries(methods)) {
     ws.on(method, async function (...args: any[]) {
       const execMethod = async () => {
@@ -54,6 +65,48 @@ export function wrapper(ws: any, req: any) {
     });
   }
 
+  // 2. RPC batch request
+  ws.on("@batchRequests", async function (...args: any[]) {
+    const objs = args.slice(0, args.length - 1);
+    const cb = args[args.length - 1];
+
+    const callback = (err: any, result: any) => {
+      return { err, result };
+    };
+    const info = await Promise.all(
+      objs.map(async (obj) => {
+        // check rate limit
+        const err = await wsApplyRateLimitByIp(req, obj.method);
+        if (err != null) {
+          return {
+            err,
+          };
+        }
+
+        if (obj.method === "eth_subscribe") {
+          const r = ethSubscribe(obj.params, callback);
+          return r;
+        } else if (obj.method === "eth_unsubscribe") {
+          const r = ethUnsubscribe(obj.params, callback);
+          return r;
+        }
+        const value = methods[obj.method];
+        if (value == null) {
+          return {
+            err: {
+              code: METHOD_NOT_FOUND,
+              message: `method ${obj.method} not found!`,
+            },
+          };
+        }
+        const r = await (value as any)(obj.params, callback);
+        return r;
+      })
+    );
+    cb(info);
+  });
+
+  // 3. RPC Subscribe request
   const newHeadsIds: Set<HexNumber> = new Set();
   const syncingIds: Set<HexNumber> = new Set();
   const logsQueryMaps: Map<HexNumber, LogQueryOption> = new Map();
@@ -203,44 +256,4 @@ export function wrapper(ws: any, req: any) {
 
     return {};
   }
-
-  ws.on("@batchRequests", async function (...args: any[]) {
-    const objs = args.slice(0, args.length - 1);
-    const cb = args[args.length - 1];
-
-    const callback = (err: any, result: any) => {
-      return { err, result };
-    };
-    const info = await Promise.all(
-      objs.map(async (obj) => {
-        // check rate limit
-        const err = await wsApplyRateLimitByIp(req, obj.method);
-        if (err != null) {
-          return {
-            err,
-          };
-        }
-
-        if (obj.method === "eth_subscribe") {
-          const r = ethSubscribe(obj.params, callback);
-          return r;
-        } else if (obj.method === "eth_unsubscribe") {
-          const r = ethUnsubscribe(obj.params, callback);
-          return r;
-        }
-        const value = methods[obj.method];
-        if (value == null) {
-          return {
-            err: {
-              code: METHOD_NOT_FOUND,
-              message: `method ${obj.method} not found!`,
-            },
-          };
-        }
-        const r = await (value as any)(obj.params, callback);
-        return r;
-      })
-    );
-    cb(info);
-  });
 }
