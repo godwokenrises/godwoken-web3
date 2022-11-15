@@ -315,6 +315,7 @@ export function buildQueryLogId(
   }
 }
 
+// chainId = 0 means non-EIP155 tx
 // v = v(0/1) + chainId * 2 + 35 OR v = v(0/1) + 27
 export function getRealV(v: bigint, chainId?: bigint): bigint {
   if (![0n, 1n].includes(v)) {
