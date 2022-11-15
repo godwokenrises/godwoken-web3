@@ -18,6 +18,7 @@ import {
   POLY_BLOCK_DIFFICULTY,
   POLY_MAX_BLOCK_GAS_LIMIT,
 } from "../methods/constant";
+import { getRealV } from "./helpers";
 
 export interface DBBlock {
   number: string;
@@ -63,6 +64,7 @@ export interface DBTransaction {
   gas_used?: string;
   contract_address?: Buffer;
   exit_code: number;
+  chain_id?: string;
 }
 
 export interface Transaction {
@@ -87,6 +89,7 @@ export interface Transaction {
   logs_bloom: HexString;
   contract_address?: HexString;
   exit_code: number;
+  chain_id?: bigint;
 }
 
 export interface DBLog {
@@ -164,7 +167,7 @@ export function toApiTransaction(t: Transaction): EthTransaction {
     input: t.input || "0x", // TODO: check default value
     nonce: new Uint64(t.nonce || 0n).toHex(), // TODO: check default value
     value: new Uint256(t.value).toHex(),
-    v: new Uint64(t.v).toHex(),
+    v: new Uint128(getRealV(t.v, t.chain_id)).toHex(),
     r: "0x" + BigInt(t.r).toString(16),
     s: "0x" + BigInt(t.s).toString(16),
   };

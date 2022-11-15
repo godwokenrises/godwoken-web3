@@ -5,7 +5,9 @@ use std::{
 
 use crate::{
     helper::{hex, parse_log, GwLog, PolyjuiceArgs, GW_LOG_POLYJUICE_SYSTEM},
-    insert_l2_block::{insert_web3_block, insert_web3_txs_and_logs},
+    insert_l2_block::{
+        insert_web3_block, insert_web3_txs_and_logs, update_web3_block, update_web3_txs_and_logs,
+    },
     pool::POOL,
     types::{
         Block as Web3Block, Log as Web3Log, Transaction as Web3Transaction,
@@ -66,13 +68,27 @@ impl Web3Indexer {
         }
     }
 
+    pub async fn update_l2_block(&self, l2_block: L2Block) -> Result<(usize, usize)> {
+        let number: u64 = l2_block.raw().number().unpack();
+        // update block
+        let (txs_len, logs_len) = self.insert_or_update_l2block(l2_block, true).await?;
+        log::debug!(
+            "web3 indexer: update block #{}, {} txs, {} logs",
+            number,
+            txs_len,
+            logs_len
+        );
+        Ok((txs_len, logs_len))
+    }
+
     pub async fn store_l2_block(&self, l2_block: L2Block) -> Result<(usize, usize)> {
         let number: u64 = l2_block.raw().number().unpack();
         let local_tip_number = self.tip_number().await?.unwrap_or(0);
         let mut txs_len = 0;
         let mut logs_len = 0;
         if number > local_tip_number || self.query_number(number).await?.is_none() {
-            (txs_len, logs_len) = self.insert_l2block(l2_block).await?;
+            // insert l2 block
+            (txs_len, logs_len) = self.insert_or_update_l2block(l2_block, false).await?;
             log::debug!(
                 "web3 indexer: sync new block #{}, {} txs, {} logs",
                 number,
@@ -442,7 +458,11 @@ impl Web3Indexer {
         Ok(hashmap)
     }
 
-    async fn insert_l2block(&self, l2_block: L2Block) -> Result<(usize, usize)> {
+    async fn insert_or_update_l2block(
+        &self,
+        l2_block: L2Block,
+        is_update: bool,
+    ) -> Result<(usize, usize)> {
         let block_number = l2_block.raw().number().unpack();
         let block_hash: gw_common::H256 = blake2b_256(l2_block.raw().as_slice()).into();
         // let mut cumulative_gas_used: u128 = 0;
@@ -508,19 +528,26 @@ impl Web3Indexer {
 
             tx_index_cursor += txs_vec.len() as u32;
 
-            // insert to db
-            let (txs_part_len, logs_part_len) =
-                insert_web3_txs_and_logs(txs_vec, &mut pg_tx).await?;
+            // insert to db or update
+            let (txs_part_len, logs_part_len) = if is_update {
+                update_web3_txs_and_logs(txs_vec, &mut pg_tx).await?
+            } else {
+                insert_web3_txs_and_logs(txs_vec, &mut pg_tx).await?
+            };
 
             web3_txs_len += txs_part_len;
             logs_len += logs_part_len;
         }
 
-        // insert block
+        // insert or update block
         let web3_block = self
             .build_web3_block(&l2_block, total_gas_limit, cumulative_gas_used)
             .await?;
-        insert_web3_block(web3_block, &mut pg_tx).await?;
+        if is_update {
+            update_web3_block(web3_block, &mut pg_tx).await?;
+        } else {
+            insert_web3_block(web3_block, &mut pg_tx).await?;
+        }
 
         // commit
         pg_tx.commit().await?;

@@ -209,7 +209,7 @@ export function polyjuiceRawTransactionToApiTransaction(
     input: tx.data,
     nonce: tx.nonce === "0x" ? "0x0" : tx.nonce,
     value: tx.value === "0x" ? "0x0" : tx.value,
-    v: +tx.v % 2 === 0 ? "0x1" : "0x0",
+    v: "0x" + BigInt(tx.v).toString(16),
     r: "0x" + BigInt(tx.r).toString(16),
     s: "0x" + BigInt(tx.s).toString(16),
   };
