@@ -315,10 +315,10 @@ export function buildQueryLogId(
   }
 }
 
-// v = v(0/1) * 2 + 35 OR v = v(0/1) + 27
+// v = v(0/1) + chainId * 2 + 35 OR v = v(0/1) + 27
 export function getRealV(v: bigint, chainId?: bigint): bigint {
   if (![0n, 1n].includes(v)) {
-    throw new Error("chain id must be 0 / 1");
+    throw new Error("V value must be 0 / 1");
   }
   return v + (chainId == null || chainId === 0n ? 27n : chainId * 2n + 35n);
 }
