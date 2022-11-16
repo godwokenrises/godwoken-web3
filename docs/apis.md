@@ -93,10 +93,13 @@ You can find most usage guidelines from Ethereum RPC docs like <https://eth.wiki
 - gw_get_withdrawal
 - gw_get_last_submitted_info
 - gw_get_node_info
+- gw_is_request_in_queue
+- gw_get_pending_tx_hashes
+- gw_debug_replay_transaction (should enable `Debug` RPC module in Godwoken)
 
 #### Usage
 
-Get details at [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/develop/docs/RPC.md)
+Get details at [Godwoken Docs](https://github.com/godwokenrises/godwoken/blob/develop/docs/RPC.md)
 
 ### poly (Polyjuice RPCs)
 
@@ -115,3 +118,8 @@ Get details at [Godwoken Docs](https://github.com/nervosnetwork/godwoken/blob/de
 #### Usage
 
 Get details at [Poly APIs doc](poly-apis.md)
+
+### debug (Debug RPCs)
+
+#### Methods
+- debug_replayTransaction (should enable `Debug` RPC module in Godwoken)
