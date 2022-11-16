@@ -85,6 +85,7 @@ export function formatTransaction(tx: DBTransaction): Transaction {
     s: bufferToHex(tx.s),
     contract_address: bufferToHexOpt(tx.contract_address),
     logs_bloom: "0x",
+    chain_id: toBigIntOpt(tx.chain_id),
   };
 }
 
@@ -312,4 +313,13 @@ export function buildQueryLogId(
   if (lastPollId !== BigInt(-1)) {
     queryBuilder.where("id", ">", lastPollId.toString());
   }
+}
+
+// chainId = 0 means non-EIP155 tx
+// v = v(0/1) + chainId * 2 + 35 OR v = v(0/1) + 27
+export function getRealV(v: bigint, chainId?: bigint): bigint {
+  if (![0n, 1n].includes(v)) {
+    throw new Error("V value must be 0 / 1");
+  }
+  return v + (chainId == null || chainId === 0n ? 27n : chainId * 2n + 35n);
 }

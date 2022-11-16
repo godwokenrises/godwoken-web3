@@ -94,16 +94,18 @@ type GodwokenBlockParameter = U64 | undefined;
 export class Eth {
   private query: Query;
   private rpc: GodwokenClient;
+  private instantFinalityHackMode: boolean;
   private filterManager: FilterManager;
   private cacheStore: Store;
   private ethNormalizer: EthNormalizer;
 
-  constructor() {
+  constructor(instantFinalityHackMode: boolean = false) {
     this.query = new Query();
     this.rpc = new GodwokenClient(
       envConfig.godwokenJsonRpc,
       envConfig.godwokenReadonlyJsonRpc
     );
+    this.instantFinalityHackMode = instantFinalityHackMode;
     this.filterManager = new FilterManager(true);
     this.cacheStore = new Store(true, CACHE_EXPIRED_TIME_MILSECS);
     this.ethNormalizer = new EthNormalizer(this.rpc);
@@ -723,19 +725,19 @@ export class Eth {
 
   async getTransactionByHash(args: [string]): Promise<EthTransaction | null> {
     const ethTxHash: Hash = args[0];
-    const cacheKey = autoCreateAccountCacheKey(ethTxHash);
+    const acaCacheKey = autoCreateAccountCacheKey(ethTxHash);
 
     // 1. Find in db
     const tx = await this.query.getTransactionByEthTxHash(ethTxHash);
     if (tx != null) {
       // no need await
       // delete auto create account tx if already in db
-      this.cacheStore.delete(cacheKey);
+      this.cacheStore.delete(acaCacheKey);
       const apiTx = toApiTransaction(tx);
       return apiTx;
     }
 
-    // 2. If null, find pending transactions
+    // 2. Find pending tx from gw mempool block
     const ethTxHashKey = ethTxHashCacheKey(ethTxHash);
     const gwTxHash: Hash | null = await this.cacheStore.get(ethTxHashKey);
     if (gwTxHash != null) {
@@ -773,7 +775,7 @@ export class Eth {
     // 3. Find by auto create account tx
     // TODO: delete cache store if dropped by godwoken
     // convert to tx hash mapping store if account id generated ?
-    const polyjuiceRawTx = await this.cacheStore.get(cacheKey);
+    const polyjuiceRawTx = await this.cacheStore.get(acaCacheKey);
     if (polyjuiceRawTx != null) {
       const tipBlock = await this.query.getTipBlock();
       if (tipBlock == null) {
@@ -802,7 +804,7 @@ export class Eth {
         return apiTransaction;
       } else {
         // If not found, means dropped by godwoken, should delete cache
-        this.cacheStore.delete(cacheKey);
+        this.cacheStore.delete(acaCacheKey);
       }
     }
 
@@ -866,6 +868,7 @@ export class Eth {
       return null;
     }
 
+    // 1. Find in db
     const data = await this.query.getTransactionAndLogsByHash(gwTxHash);
     if (data != null) {
       const [tx, logs] = data;
@@ -874,37 +877,43 @@ export class Eth {
       return transactionReceipt;
     }
 
-    const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
-    if (godwokenTxWithStatus == null) {
-      return null;
-    }
-    const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
-    if (godwokenTxReceipt == null) {
-      return null;
-    }
-    const tipBlock = await this.query.getTipBlock();
-    if (tipBlock == null) {
-      throw new Error(`tip block not found`);
-    }
-    let ethTxInfo = undefined;
-    try {
-      ethTxInfo = await filterWeb3Transaction(
-        ethTxHash,
-        this.rpc,
-        tipBlock.number,
-        tipBlock.hash,
-        godwokenTxWithStatus.transaction,
-        godwokenTxReceipt
+    // 2. If under instant-finality hack mode, build receipt from gw mempool block
+    if (this.instantFinalityHackMode) {
+      logger.debug(
+        `[eth_getTransactionReceipt] find with instant-finality hack`
       );
-    } catch (err) {
-      logger.error("filterWeb3Transaction:", err);
-      logger.info("godwoken tx:", godwokenTxWithStatus);
-      logger.info("godwoken receipt:", godwokenTxReceipt);
-      throw err;
-    }
-    if (ethTxInfo != null) {
-      const ethTxReceipt = ethTxInfo[1]!;
-      return ethTxReceipt;
+      const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
+      if (godwokenTxWithStatus == null) {
+        return null;
+      }
+      const godwokenTxReceipt = await this.rpc.getTransactionReceipt(gwTxHash);
+      if (godwokenTxReceipt == null) {
+        return null;
+      }
+      const tipBlock = await this.query.getTipBlock();
+      if (tipBlock == null) {
+        throw new Error(`tip block not found`);
+      }
+      let ethTxInfo = undefined;
+      try {
+        ethTxInfo = await filterWeb3Transaction(
+          ethTxHash,
+          this.rpc,
+          tipBlock.number,
+          tipBlock.hash,
+          godwokenTxWithStatus.transaction,
+          godwokenTxReceipt
+        );
+      } catch (err) {
+        logger.error("filterWeb3Transaction:", err);
+        logger.info("godwoken tx:", godwokenTxWithStatus);
+        logger.info("godwoken receipt:", godwokenTxReceipt);
+        throw err;
+      }
+      if (ethTxInfo != null) {
+        const ethTxReceipt = ethTxInfo[1]!;
+        return ethTxReceipt;
+      }
     }
 
     return null;
@@ -1104,7 +1113,11 @@ export class Eth {
   ): Promise<GodwokenBlockParameter> {
     switch (blockParameter) {
       case "latest":
-        return undefined;
+        if (this.instantFinalityHackMode) {
+          // under instant-finality hack, we treat latest as pending
+          return undefined;
+        }
+        return await this.getTipNumber();
       case "earliest":
         return 0n;
       // It's supposed to be filtered in the validator, so throw an error if matched
@@ -1148,6 +1161,9 @@ export class Eth {
     return blockNumber;
   }
 
+  // Some RPCs does not support pending parameter
+  // eth_getBlockByNumber/eth_getBlockTransactionCountByNumber/eth_getTransactionByBlockNumberAndIndex
+  // TODO: maybe we should support for those as well?
   private async blockParameterToBlockNumber(
     blockParameter: BlockParameter
   ): Promise<U64> {
@@ -1473,7 +1489,7 @@ function serializeEthCallParameters(
     gasPrice: ethCallObj.gasPrice || "0x",
     data: ethCallObj.data || "0x",
     value: ethCallObj.value || "0x",
-    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means pending block, the key contains tipBlockHash, so there is no need to diff pending height
   };
   return JSON.stringify(toSerializeObj);
 }
@@ -1503,7 +1519,7 @@ function serializeEstimateGasParameters(
     gasPrice: estimateGasObj.gasPrice || "0x",
     data: estimateGasObj.data || "0x",
     value: estimateGasObj.value || "0x",
-    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means latest block, the key contains tipBlockHash, so there is no need to diff latest height
+    blockNumber: blockNumber ? "0x" + blockNumber?.toString(16) : "0x", // undefined means pending block, the key contains tipBlockHash, so there is no need to diff pending height
   };
   return JSON.stringify(toSerializeObj);
 }

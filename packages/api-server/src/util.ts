@@ -1,4 +1,5 @@
 import { HexString } from "@ckb-lumos/base";
+import { Request } from "express";
 import {
   TX_DATA_NONE_ZERO_GAS,
   TX_DATA_ZERO_GAS,
@@ -119,6 +120,14 @@ export function calcIntrinsicGas(
 export function calcFee(serializedL2Tx: HexString, feeRate: bigint) {
   const byteLen = BigInt(serializedL2Tx.slice(2).length / 2);
   return byteLen * feeRate;
+}
+
+// WEB3_RPC_URL/instant-finality-hack or WEB3_RPC_URL?instant-finality-hack=true
+export function isInstantFinalityHackMode(req: Request): boolean {
+  return (
+    req.url == "/instant-finality-hack" ||
+    (req.query && req.query["instant-finality-hack"] == "true")
+  );
 }
 
 export async function asyncSleep(ms = 0) {

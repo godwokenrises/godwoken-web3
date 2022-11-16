@@ -75,4 +75,9 @@ function getMethods(argsList: ModConstructorArgs = {}) {
   return methods;
 }
 
+const instantFinalityHackMode = true;
+
 export const methods = getMethods();
+export const instantFinalityHackMethods = getMethods({
+  eth: [instantFinalityHackMode],
+});
