@@ -103,6 +103,10 @@ export class Gw {
       this.get_pending_tx_hashes.bind(this),
       0
     );
+    this.debug_replay_transaction = middleware(
+      this.debug_replay_transaction.bind(this),
+      1
+    );
   }
 
   async ping(args: any[]) {
@@ -680,6 +684,15 @@ export class Gw {
   async get_pending_tx_hashes(args: any[]) {
     try {
       const result = await this.readonlyRpc.gw_get_pending_tx_hashes(...args);
+      return result;
+    } catch (error) {
+      handleGwError(error);
+    }
+  }
+
+  async debug_replay_transaction(args: []) {
+    try {
+      const result = await this.readonlyRpc.debug_replay_transaction(...args);
       return result;
     } catch (error) {
       handleGwError(error);

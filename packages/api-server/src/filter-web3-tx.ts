@@ -294,7 +294,7 @@ function parsePolyjuiceSystemLog(data: HexString): PolyjuiceSystemLog {
   };
 }
 
-function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
+export function parsePolyjuiceUserLog(data: HexString): PolyjuiceUserLog {
   const dataWithoutPrefix = data.slice(2);
 
   let offset = 0;
