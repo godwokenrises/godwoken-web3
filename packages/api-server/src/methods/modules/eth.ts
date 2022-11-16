@@ -423,6 +423,11 @@ export class Eth {
 
       const address = args[0];
       const blockParameter = args[1];
+
+      if (address === ZERO_ETH_ADDRESS) {
+        return defaultResult;
+      }
+
       const blockNumber: GodwokenBlockParameter =
         await this.parseBlockParameter(blockParameter);
       const accountId: number | undefined = await ethAddressToAccountId(
