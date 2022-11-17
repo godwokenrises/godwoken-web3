@@ -34,7 +34,7 @@ export class Debug {
       this.cacheStore
     );
     if (gwTxHash == null) {
-      return undefined;
+      throw new Error(`gw tx hash not found by eth tx hash ${ethTxHash}`);
     }
     let result;
     try {
