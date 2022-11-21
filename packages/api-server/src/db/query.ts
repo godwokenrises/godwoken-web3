@@ -171,7 +171,8 @@ export class Query {
   ): Promise<Transaction[]> {
     const transactions = await this.knex<DBTransaction>("transactions")
       .where(params)
-      .orderBy("transaction_index", "asc");
+      .orderBy("transaction_index", "asc")
+      .cache();
     return transactions.map((tx) => formatTransaction(tx));
   }
 
@@ -243,7 +244,8 @@ export class Query {
     const transactionHashes = await this.knex<DBTransaction>("transactions")
       .select("eth_tx_hash")
       .where(params)
-      .orderBy("transaction_index", "asc");
+      .orderBy("transaction_index", "asc")
+      .cache();
     return transactionHashes.map((tx) => bufferToHex(tx.eth_tx_hash));
   }
 
