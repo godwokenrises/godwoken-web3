@@ -8,7 +8,7 @@ import {
   DBTransaction,
   DBLog,
 } from "./types";
-//import "./knex";
+import "./knex";
 import Knex, { knex, Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
@@ -285,7 +285,8 @@ export class Query {
       .where({
         transaction_hash: hexToBuffer(txHash),
       })
-      .orderBy("log_index", "asc");
+      .orderBy("log_index", "asc")
+      .cache();
     return [formatTransaction(tx), logs.map((log) => formatLog(log))];
   }
 
@@ -325,6 +326,7 @@ export class Query {
       .join("logs", { "logs.transaction_hash": "transactions.hash" });
     let logs: DBLog[] = await selectLogsJoinTransactions
       .timeout(MAX_QUERY_TIME_MILSECS, { cancel: true })
+      .cache()
 
       .catch((knexError: any) => {
         if (knexError instanceof KnexTimeoutError) {
