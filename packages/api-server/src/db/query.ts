@@ -88,8 +88,7 @@ export class Query {
     const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
       .orderBy("number", "desc")
-      .first()
-      .cache();
+      .first();
 
     return toBigIntOpt(blockData?.number);
   }
@@ -97,8 +96,7 @@ export class Query {
   async getTipBlock(): Promise<Block | undefined> {
     const block = await this.knex<DBBlock>("blocks")
       .orderBy("number", "desc")
-      .first()
-      .cache();
+      .first();
 
     if (!block) {
       return undefined;
