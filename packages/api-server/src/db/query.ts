@@ -135,7 +135,8 @@ export class Query {
     const blocks = await this.knex<DBBlock>("blocks")
       .where("number", ">", minBlockNumber.toString())
       .andWhere("number", "<=", maxBlockNumber.toString())
-      .orderBy("number", "asc");
+      .orderBy("number", "asc")
+      .cache();
     return blocks.map((block) => formatBlock(block));
   }
 
@@ -149,7 +150,8 @@ export class Query {
     }>("blocks")
       .select("hash", "number")
       .where("number", ">", number.toString())
-      .orderBy("number", order);
+      .orderBy("number", order)
+      .cache();
     return arrayOfHashAndNumber.map((hn) => {
       return { hash: bufferToHex(hn.hash), number: BigInt(hn.number) };
     });
