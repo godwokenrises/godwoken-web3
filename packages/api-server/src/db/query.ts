@@ -64,7 +64,8 @@ export class Query {
       .where({
         hash: hexToBuffer(gwTxHash),
       })
-      .first();
+      .first()
+      .cache();
     if (ethTxHash == null) {
       return undefined;
     }
@@ -77,7 +78,8 @@ export class Query {
       .where({
         eth_tx_hash: hexToBuffer(ethTxHash),
       })
-      .first();
+      .first()
+      .cache();
     if (gwTxHash == null) {
       return undefined;
     }
@@ -88,14 +90,16 @@ export class Query {
     const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
       .orderBy("number", "desc")
-      .first();
+      .first()
+      .cache();
     return toBigIntOpt(blockData?.number);
   }
 
   async getTipBlock(): Promise<Block | undefined> {
     const block = await this.knex<DBBlock>("blocks")
       .orderBy("number", "desc")
-      .first();
+      .first()
+      .cache();
     if (!block) {
       return undefined;
     }
@@ -117,7 +121,10 @@ export class Query {
   private async getBlock(
     params: Readonly<Partial<KnexType.MaybeRawRecord<DBBlock>>>
   ): Promise<Block | undefined> {
-    const block = await this.knex<DBBlock>("blocks").where(params).first();
+    const block = await this.knex<DBBlock>("blocks")
+      .where(params)
+      .first()
+      .cache();
     if (!block) {
       return undefined;
     }
@@ -217,7 +224,8 @@ export class Query {
   ): Promise<Transaction | undefined> {
     const transaction = await this.knex<DBTransaction>("transactions")
       .where(params)
-      .first();
+      .first()
+      .cache();
     if (transaction == null) {
       return undefined;
     }
@@ -280,7 +288,8 @@ export class Query {
   ): Promise<[Transaction, Log[]] | undefined> {
     const tx = await this.knex<DBTransaction>("transactions")
       .where({ hash: hexToBuffer(txHash) })
-      .first();
+      .first()
+      .cache();
     if (!tx) {
       return undefined;
     }
@@ -295,7 +304,10 @@ export class Query {
   }
 
   async getTipLog() {
-    let log = await this.knex<DBLog>("logs").orderBy("id", "desc").first();
+    let log = await this.knex<DBLog>("logs")
+      .orderBy("id", "desc")
+      .first()
+      .cache();
     if (log != null) {
       return formatLog(log);
     }
