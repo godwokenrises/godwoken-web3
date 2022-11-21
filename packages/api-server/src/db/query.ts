@@ -90,16 +90,14 @@ export class Query {
     const blockData = await this.knex<DBBlock>("blocks")
       .select("number")
       .orderBy("number", "desc")
-      .first()
-      .cache();
+      .first();
     return toBigIntOpt(blockData?.number);
   }
 
   async getTipBlock(): Promise<Block | undefined> {
     const block = await this.knex<DBBlock>("blocks")
       .orderBy("number", "desc")
-      .first()
-      .cache();
+      .first();
     if (!block) {
       return undefined;
     }
@@ -121,10 +119,7 @@ export class Query {
   private async getBlock(
     params: Readonly<Partial<KnexType.MaybeRawRecord<DBBlock>>>
   ): Promise<Block | undefined> {
-    const block = await this.knex<DBBlock>("blocks")
-      .where(params)
-      .first()
-      .cache();
+    const block = await this.knex<DBBlock>("blocks").where(params).first();
     if (!block) {
       return undefined;
     }
