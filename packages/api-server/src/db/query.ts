@@ -8,7 +8,7 @@ import {
   DBTransaction,
   DBLog,
 } from "./types";
-import "./knex";
+//import "./knex";
 import Knex, { knex, Knex as KnexType } from "knex";
 import { envConfig } from "../base/env-config";
 import { LATEST_MEDIAN_GAS_PRICE } from "./constant";
