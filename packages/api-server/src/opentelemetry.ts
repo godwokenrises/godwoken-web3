@@ -43,14 +43,20 @@ const sdk = new opentelemetry.NodeSDK({
 });
 
 export function startOpentelemetry() {
-  sdk.start()
+  sdk
+    .start()
     .then(() => console.log("Opentelemetry tracing initialized"))
-    .catch((error) => console.log("Error initializing opentelemetry tracing", error));
+    .catch((error) =>
+      console.log("Error initializing opentelemetry tracing", error)
+    );
 
   process.on("SIGTERM", () => {
-    sdk.shutdown()
+    sdk
+      .shutdown()
       .then(() => console.log("Opentelemetry Tracing terminated"))
-      .catch((error) => console.log("Error terminating opentelemetry tracing", error))
+      .catch((error) =>
+        console.log("Error terminating opentelemetry tracing", error)
+      )
       .finally(() => process.exit(0));
   });
 }
