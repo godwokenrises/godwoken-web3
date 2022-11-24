@@ -13,7 +13,7 @@ const numOfCluster = clusterCount || numCPUs;
 
 startOpentelemetry();
 
-if (cluster.isPrimary) {
+if (cluster.isMaster) {
   logger.info(`Master ${process.pid} is running`);
 
   initSentry();
