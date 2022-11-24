@@ -354,6 +354,7 @@ export class Gw {
   async execute_raw_l2transaction(
     args: [HexString, HexNumber | null | undefined]
   ) {
+    // todo: check raw tx for known types(including gasless tx)
     try {
       args[1] = formatHexNumber(args[1]);
 

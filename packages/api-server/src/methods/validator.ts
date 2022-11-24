@@ -12,6 +12,8 @@ import { CKB_SUDT_ID, RPC_MAX_GAS_LIMIT } from "./constant";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { EthRegistryAddress } from "../base/address";
+import { decodeGaslessPayload } from "../gasless/payload";
+import { entrypointContract } from "../base";
 
 /**
  * middleware for parameters validation
@@ -662,6 +664,147 @@ export async function verifyEnoughBalance(
   }
   return undefined;
 }
+
+export function verifyGaslessTransaction(
+  to: HexString,
+  inputData: HexString,
+  gasPrice: HexNumber,
+  gasLimit: HexNumber,
+  index: number
+) {
+  if (gasPrice != "0x0") {
+    return invalidParamsError(
+      index,
+      `gasless transaction require 0x0 gas price, got ${gasPrice}`
+    );
+  }
+
+  const toErr = verifyAddress(to, index);
+  if (toErr != null) {
+    return toErr.padContext("Gasless to address");
+  }
+
+  const gasLimitErr = verifyGasLimit(gasLimit, index);
+  if (gasLimitErr != null) {
+    return gasLimitErr.padContext("Gasless gasLimit");
+  }
+
+  const dataErr = verifyHexString(inputData, index);
+  if (dataErr != null) {
+    return dataErr.padContext("Gasless inputData");
+  }
+
+  // verify type for each field of user operation
+  const userOperation = decodeGaslessPayload(inputData);
+  // callContract
+  {
+    const err = verifyAddress(userOperation.callContract, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.callContract");
+    }
+  }
+  // callData
+  {
+    const err = verifyHexString(userOperation.callData, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.callData");
+    }
+  }
+
+  // callGasLimit
+  {
+    const err = verifyGasLimit(userOperation.callGasLimit, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.callGasLimit");
+    }
+  }
+
+  // maxFeePerGas
+  {
+    const err = verifyGasLimit(userOperation.maxFeePerGas, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.maxFeePerGas");
+    }
+  }
+
+  // maxPriorityFeePerGas
+  {
+    const err = verifyGasLimit(userOperation.maxPriorityFeePerGas, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.maxPriorityFeePerGas");
+    }
+  }
+
+  // verificationGasLimit
+  {
+    const err = verifyGasLimit(userOperation.verificationGasLimit, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.verificationGasLimit");
+    }
+  }
+
+  // paymasterAndData
+  {
+    const err = verifyHexString(userOperation.paymasterAndData, index);
+    if (err != null) {
+      return err.padContext("Gasless userOperation.paymasterAndData");
+    }
+
+    // paymasterAndData should contain paymaster address
+    if (userOperation.paymasterAndData.slice(2).length / 2 < 20) {
+      return invalidParamsError(
+        index,
+        `userOperation.paymasterAndData(${
+          userOperation.paymasterAndData.slice(2).length / 2
+        }) < 20 bytes`
+      );
+    }
+
+    const addrErr = verifyAddress(
+      userOperation.paymasterAndData.slice(0, 42),
+      index
+    );
+    if (addrErr != null) {
+      return addrErr.padContext(
+        "Gasless userOperation.paymasterAndData.address"
+      );
+    }
+  }
+
+  // extra check
+  // 1. no base fee since we are not impl eip1559
+  if (userOperation.maxFeePerGas != userOperation.maxFeePerGas) {
+    return invalidParamsError(
+      index,
+      `userOperation.maxFeePerGas(${userOperation.maxFeePerGas}) != userOperation.maxFeePerGas(${userOperation.maxFeePerGas})`
+    );
+  }
+  // 2. gasLimit = verificationGasLimit * 3 + callGasLimit
+  if (
+    BigInt(gasLimit) !=
+    BigInt(userOperation.verificationGasLimit) * 3n +
+      BigInt(userOperation.callGasLimit)
+  ) {
+    return invalidParamsError(
+      index,
+      `userOperation.gasLimit(${BigInt(gasLimit).toString(
+        10
+      )}) != verificationGasLimit(${BigInt(
+        userOperation.verificationGasLimit
+      ).toString(10)}) * 3 + callGasLimit(${BigInt(
+        userOperation.callGasLimit
+      ).toString(10)})`
+    );
+  }
+  // 3. to address should equal entrypoint
+  if (to != entrypointContract.address) {
+    return invalidParamsError(
+      index,
+      `userOperation.to(${to}}) != entrypointContract.address(${entrypointContract.address})`
+    );
+  }
+}
+
 //******* end of standalone verify function ********/
 
 // some utils function

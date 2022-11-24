@@ -1,12 +1,14 @@
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { gwConfig } from "../base";
+import { entrypointContract, gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
+import { decodeGaslessPayload } from "../gasless/payload";
 import { calcIntrinsicGas } from "../util";
 import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
 import { TransactionCallObject } from "./types";
 import {
   verifyEnoughBalance,
+  verifyGaslessTransaction,
   verifyGasLimit,
   verifyIntrinsicGas,
 } from "./validator";
@@ -49,6 +51,14 @@ export class EthNormalizer {
     const gasLimitErr = verifyGasLimit(gas, 0);
     if (gasLimitErr) {
       throw gasLimitErr.padContext(this.normalizeCallTx.name);
+    }
+
+    //check gasless transaction
+    if (isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })) {
+      const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
+      if (err) {
+        throw err.padContext(this.normalizeCallTx.name);
+      }
     }
 
     const intrinsicGasErr = verifyIntrinsicGas(toAddress, data, gas, 0);
@@ -108,6 +118,14 @@ export class EthNormalizer {
       gas = gasLow;
     }
 
+    //check gasless transaction
+    if (isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })) {
+      const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
+      if (err) {
+        throw err.padContext(this.normalizeCallTx.name);
+      }
+    }
+
     // check gas-limit cap with user available gas
     if (BigInt(gasPrice) > 0n) {
       const gasCap = await getMaxGasByBalance(
@@ -137,6 +155,37 @@ export class EthNormalizer {
       gasPrice,
     };
   }
+}
+
+/**
+ * Determine whether the call/estimateGas transaction is a gasless transaction.
+ */
+function isGaslessTransactionCallObject({
+  to: toAddress,
+  gasPrice,
+  data: inputData,
+}: {
+  to: HexString;
+  gasPrice: HexNumber;
+  data: HexString;
+}): boolean {
+  if (BigInt(gasPrice) != 0n) {
+    return false;
+  }
+
+  // since the gasPrice can be 0 in normal call/estimateGas transaction,
+  // we will only check if to == entrypoint and data is GaslessPayload type(can be decoded)
+  if (toAddress != entrypointContract.address) {
+    return false;
+  }
+
+  try {
+    decodeGaslessPayload(inputData);
+  } catch (error) {
+    return false;
+  }
+
+  return true;
 }
 
 async function getDefaultFromAddress(rpc: GodwokenClient): Promise<HexString> {

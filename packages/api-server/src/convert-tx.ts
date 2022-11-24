@@ -21,6 +21,7 @@ import {
 import {
   checkBalance,
   verifyEnoughBalance,
+  verifyGaslessTransaction,
   verifyGasLimit,
   verifyGasPrice,
   verifyIntrinsicGas,
@@ -367,19 +368,32 @@ export async function polyTxToGwTx(
     );
   }
 
+  // Check gas limit
   const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
-  const minGasPrice = await readonlyPriceOracle.minGasPrice();
-  const gasPriceErr = verifyGasPrice(
-    gasPrice === "0x" ? "0x0" : gasPrice,
-    minGasPrice,
-    0
-  );
-  if (gasPriceErr) {
-    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
+  // Check gas price
+  if (gasPrice == "0x" || gasPrice == "0x0") {
+    // 1. gasless transaction
+    const err = verifyGaslessTransaction(to, data, gasPrice, gasLimit, 0);
+    if (err != null) {
+      throw err.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
+    }
+  } else {
+    // 2. non-gasless transaction
+    const minGasPrice = await readonlyPriceOracle.minGasPrice();
+    const gasPriceErr = verifyGasPrice(
+      gasPrice === "0x" ? "0x0" : gasPrice,
+      minGasPrice,
+      0
+    );
+    if (gasPriceErr) {
+      throw gasPriceErr.padContext(
+        `eth_sendRawTransaction ${polyTxToGwTx.name}`
+      );
+    }
   }
 
   const signature: HexString = getSignature(rawTx);
