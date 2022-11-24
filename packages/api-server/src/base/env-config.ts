@@ -10,6 +10,9 @@ export const envConfig = {
   get godwokenJsonRpc() {
     return getRequired("GODWOKEN_JSON_RPC");
   },
+  get gaslessEntrypointAddress() {
+    return getRequired("GASLESS_ENTRYPOINT_ADDRESS");
+  },
 
   _newRelicLicenseKey: getOptional("NEW_RELIC_LICENSE_KEY"),
   clusterCount: getOptional("CLUSTER_COUNT"),
@@ -38,7 +41,6 @@ export const envConfig = {
   minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
   minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
   blockCongestionGasUsed: getOptional("BLOCK_CONGESTION_GAS_USED"),
-  gaslessEntrypointAddress: getRequired("GASLESS_ENTRYPOINT_ADDRESS"),
 };
 
 function getRequired(name: string): string {
