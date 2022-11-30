@@ -1,4 +1,5 @@
 pub mod config;
+pub mod cpu_count;
 pub mod helper;
 pub mod indexer;
 pub mod insert_l2_block;

@@ -1357,6 +1357,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num-bigint",
+ "num_cpus",
  "rayon",
  "rlp",
  "rust_decimal",

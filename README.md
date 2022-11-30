@@ -86,7 +86,7 @@ pg_url=<database url, e.g. "postgres://username:password@localhost:5432/dbname">
 Update blocks / transactions / logs info in database by update command, include start block and end block.
 
 ```bash
-./target/release/gw-web3-indexer update <optional start block, default to 0> <optional end block, default to local tip>
+./target/release/gw-web3-indexer update <optional start block, default to 0> <optional end block, default to local tip> <optional cpu cores to use for update, default to half of local cores>
 ```
 
 ### Start API server

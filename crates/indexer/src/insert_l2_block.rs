@@ -14,12 +14,15 @@ use sqlx::{
 use sqlx::{Postgres, QueryBuilder};
 
 use crate::{
+    cpu_count::CPU_COUNT,
     pool::POOL_FOR_UPDATE,
     types::{Block, Log, Transaction, TransactionWithLogs},
 };
 
 use itertools::Itertools;
 use rayon::prelude::*;
+
+extern crate num_cpus;
 
 const INSERT_LOGS_BATCH_SIZE: usize = 5000;
 
@@ -374,7 +377,7 @@ pub async fn update_web3_txs_and_logs(
     .collect::<Result<Vec<_>, sqlx::Error>>()?;
 
     if logs_len != 0 {
-        let mut logs_querys = logs_slice
+        let logs_querys = logs_slice
         .into_par_iter()
         .map(|db_logs| {
             let mut logs_query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
@@ -393,15 +396,36 @@ pub async fn update_web3_txs_and_logs(
             logs_query_builder
         }).collect::<Vec<_>>();
 
-        logs_querys
-            .par_iter_mut()
-            .map(|query_builder| {
-                let query = query_builder.build();
-                smol::block_on(query.execute(&*POOL_FOR_UPDATE)).map_err(|err| anyhow!(err))
-            })
-            .collect::<Vec<_>>()
+        let logs_slice_size: usize = if let Some(cpu_num) = *CPU_COUNT {
+            cpu_num
+        } else {
+            let cpu_count = num_cpus::get();
+            let size = cpu_count / 2;
+            if size > 0 {
+                size
+            } else {
+                1
+            }
+        };
+
+        let logs_query_slice = logs_querys
             .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+            .chunks(logs_slice_size)
+            .into_iter()
+            .map(|chunk| chunk.collect())
+            .collect::<Vec<Vec<_>>>();
+
+        for mut query_builder_vec in logs_query_slice {
+            query_builder_vec
+                .par_iter_mut()
+                .map(|query_builder| {
+                    let query = query_builder.build();
+                    smol::block_on(query.execute(&*POOL_FOR_UPDATE)).map_err(|err| anyhow!(err))
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .collect::<Result<Vec<_>>>()?;
+        }
     }
 
     Ok((txs_len, logs_len))
