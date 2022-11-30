@@ -54,7 +54,10 @@ export class EthNormalizer {
     }
 
     //check gasless transaction
-    if (isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })) {
+    if (
+      entrypointContract != null &&
+      isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })
+    ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
       if (err) {
         throw err.padContext(this.normalizeCallTx.name);
@@ -119,7 +122,10 @@ export class EthNormalizer {
     }
 
     //check gasless transaction
-    if (isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })) {
+    if (
+      entrypointContract != null &&
+      isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })
+    ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
       if (err) {
         throw err.padContext(this.normalizeCallTx.name);
@@ -169,19 +175,28 @@ function isGaslessTransactionCallObject({
   gasPrice: HexNumber;
   data: HexString;
 }): boolean {
+  // since the gasPrice can be 0 in normal call/estimateGas transaction,
+  // when gasless tx is disallowed, we can't not check if it is an gasless tx.
+  if (entrypointContract == null) {
+    throw new Error(
+      "can not call isGaslessTransactionCallObject when entrypoint contract is null"
+    );
+  }
+
+  // check gas price is 0
   if (BigInt(gasPrice) != 0n) {
     return false;
   }
 
-  // since the gasPrice can be 0 in normal call/estimateGas transaction,
-  // we will only check if to == entrypoint and data is GaslessPayload type(can be decoded)
-  if (toAddress != entrypointContract.address) {
-    return false;
-  }
-
+  // check input data is GaslessPayload(can be decoded)
   try {
     decodeGaslessPayload(inputData);
   } catch (error) {
+    return false;
+  }
+
+  // check if to == entrypoint
+  if (toAddress != entrypointContract.address) {
     return false;
   }
 

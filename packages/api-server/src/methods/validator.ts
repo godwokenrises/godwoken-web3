@@ -672,6 +672,12 @@ export function verifyGaslessTransaction(
   gasLimit: HexNumber,
   index: number
 ) {
+  if (entrypointContract == null) {
+    throw new Error(
+      "can not call verifyGaslessTransaction when entrypoint contract is null"
+    );
+  }
+
   if (gasPrice != "0x0") {
     return invalidParamsError(
       index,

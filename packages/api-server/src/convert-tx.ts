@@ -12,7 +12,7 @@ import {
   ethEoaAddressToScriptHash,
   EthRegistryAddress,
 } from "./base/address";
-import { gwConfig, readonlyPriceOracle } from "./base";
+import { entrypointContract, gwConfig, readonlyPriceOracle } from "./base";
 import { logger } from "./base/logger";
 import {
   MAX_TRANSACTION_SIZE,
@@ -375,7 +375,13 @@ export async function polyTxToGwTx(
   }
 
   // Check gas price
-  if (gasPrice == "0x" || gasPrice == "0x0") {
+  const isZeroGasPrice = gasPrice == "0x" || gasPrice == "0x0";
+  if (isZeroGasPrice) {
+    if (entrypointContract == null) {
+      throw new Error(
+        "Gas price can not be zero when gasless tx is disallowed"
+      );
+    }
     // 1. gasless transaction
     const err = verifyGaslessTransaction(to, data, gasPrice, gasLimit, 0);
     if (err != null) {

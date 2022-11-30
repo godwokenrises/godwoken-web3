@@ -7,7 +7,9 @@ export const gwConfig = new GwConfig(envConfig.godwokenJsonRpc);
 
 export const readonlyPriceOracle = new CKBPriceOracle({ readonly: true });
 
-export const entrypointContract = new EntryPointContract(
-  envConfig.godwokenJsonRpc,
-  envConfig.gaslessEntrypointAddress
-);
+export const entrypointContract = envConfig.gaslessEntrypointAddress
+  ? new EntryPointContract(
+      envConfig.godwokenJsonRpc,
+      envConfig.gaslessEntrypointAddress
+    )
+  : undefined;

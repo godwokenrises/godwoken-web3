@@ -138,13 +138,15 @@ async function startServer(port: number): Promise<void> {
     process.exit(1);
   }
 
-  // todo: maybe merge into gw config
-  try {
-    await entrypointContract.init();
-    logger.info("entrypointContract initialized!");
-  } catch (err) {
-    logger.error("entrypointContract initialize failed:", err);
-    process.exit(1);
+  if (entrypointContract != null) {
+    // todo: maybe merge into gw config
+    try {
+      await entrypointContract.init();
+      logger.info("entrypointContract initialized!");
+    } catch (err) {
+      logger.error("entrypointContract initialize failed:", err);
+      process.exit(1);
+    }
   }
 
   server = app.listen(port, () => {
