@@ -513,7 +513,7 @@ export class Gw {
             to || "0x",
             input,
             gasPrice === "0x" ? "0x0" : gasPrice,
-            gas,
+            gas === "0x" ? "0x0" : gas,
             0
           );
           if (err != null) {

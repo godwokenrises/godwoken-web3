@@ -383,7 +383,13 @@ export async function polyTxToGwTx(
       );
     }
     // 1. gasless transaction
-    const err = verifyGaslessTransaction(to, data, gasPrice, gasLimit, 0);
+    const err = verifyGaslessTransaction(
+      to,
+      data,
+      gasPrice === "0x" ? "0x0" : gasPrice,
+      gasLimit === "0x" ? "0x0" : gasLimit,
+      0
+    );
     if (err != null) {
       throw err.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
     }
