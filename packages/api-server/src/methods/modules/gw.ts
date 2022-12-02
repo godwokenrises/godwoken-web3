@@ -38,6 +38,7 @@ import {
   PolyjuiceTransaction,
   recoverEthAddressFromPolyjuiceTx,
 } from "../../convert-tx";
+import { isGaslessTransaction } from "../../gasless/utils";
 
 export class Gw {
   private rpc: RPC;
@@ -500,15 +501,18 @@ export class Gw {
           throw intrinsicGasErr.padContext(`gw_submit_l2transaction`);
         }
 
-        // check gas price
-        const isZeroGasPrice = gasPrice == "0x" || gasPrice == "0x0";
-        if (isZeroGasPrice) {
-          if (entrypointContract == null) {
-            throw new Error(
-              "Gas price can not be zero when gasless tx is disallowed"
-            );
-          }
-          // 1. gasless transaction
+        // only check if it is gasless transaction when entrypointContract is configured
+        if (
+          entrypointContract != null &&
+          isGaslessTransaction(
+            {
+              to: to || "0x",
+              gasPrice: gasPrice === "0x" ? "0x0" : gasPrice,
+              data: input,
+            },
+            entrypointContract
+          )
+        ) {
           const err = verifyGaslessTransaction(
             to || "0x",
             input,
@@ -519,16 +523,12 @@ export class Gw {
           if (err != null) {
             throw err.padContext(`gw_submit_l2transaction`);
           }
-        } else {
-          // 2. non-gasless transaction
-          const gasPriceErr = verifyGasPrice(
-            decodeData.gasPrice,
-            minGasPrice,
-            0
-          );
-          if (gasPriceErr) {
-            throw gasPriceErr.padContext(`gw_submit_l2transaction`);
-          }
+        }
+
+        // check gas price
+        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, minGasPrice, 0);
+        if (gasPriceErr) {
+          throw gasPriceErr.padContext(`gw_submit_l2transaction`);
         }
 
         const client = new GodwokenClient(envConfig.godwokenJsonRpc);

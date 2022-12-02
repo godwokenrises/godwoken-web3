@@ -32,6 +32,7 @@ import { bumpHash, PENDING_TRANSACTION_INDEX } from "./filter-web3-tx";
 import { Uint64 } from "./base/types/uint";
 import { AutoCreateAccountCacheValue } from "./cache/types";
 import { TransactionCallObject } from "./methods/types";
+import { isGaslessTransaction } from "./gasless/utils";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -374,15 +375,14 @@ export async function polyTxToGwTx(
     throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
-  // Check gas price
-  const isZeroGasPrice = gasPrice == "0x" || gasPrice == "0x0";
-  if (isZeroGasPrice) {
-    if (entrypointContract == null) {
-      throw new Error(
-        "Gas price can not be zero when gasless tx is disallowed"
-      );
-    }
-    // 1. gasless transaction
+  // only check if it is gasless transaction when entrypointContract is configured
+  if (
+    entrypointContract != null &&
+    isGaslessTransaction(
+      { to, gasPrice: gasPrice === "0x" ? "0x0" : gasPrice, data },
+      entrypointContract
+    )
+  ) {
     const err = verifyGaslessTransaction(
       to,
       data,
@@ -393,19 +393,17 @@ export async function polyTxToGwTx(
     if (err != null) {
       throw err.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
     }
-  } else {
-    // 2. non-gasless transaction
-    const minGasPrice = await readonlyPriceOracle.minGasPrice();
-    const gasPriceErr = verifyGasPrice(
-      gasPrice === "0x" ? "0x0" : gasPrice,
-      minGasPrice,
-      0
-    );
-    if (gasPriceErr) {
-      throw gasPriceErr.padContext(
-        `eth_sendRawTransaction ${polyTxToGwTx.name}`
-      );
-    }
+  }
+
+  // Check gas price
+  const minGasPrice = await readonlyPriceOracle.minGasPrice();
+  const gasPriceErr = verifyGasPrice(
+    gasPrice === "0x" ? "0x0" : gasPrice,
+    minGasPrice,
+    0
+  );
+  if (gasPriceErr) {
+    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
   const signature: HexString = getSignature(rawTx);

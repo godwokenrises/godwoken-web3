@@ -2,7 +2,7 @@ import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { entrypointContract, gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
-import { decodeGaslessPayload } from "../gasless/payload";
+import { isGaslessTransaction } from "../gasless/utils";
 import { calcIntrinsicGas } from "../util";
 import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
 import { TransactionCallObject } from "./types";
@@ -53,10 +53,13 @@ export class EthNormalizer {
       throw gasLimitErr.padContext(this.normalizeCallTx.name);
     }
 
-    //check gasless transaction
+    // only check if it is gasless transaction when entrypointContract is configured
     if (
       entrypointContract != null &&
-      isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })
+      isGaslessTransaction(
+        { to: toAddress, gasPrice, data },
+        entrypointContract
+      )
     ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
       if (err) {
@@ -124,7 +127,10 @@ export class EthNormalizer {
     //check gasless transaction
     if (
       entrypointContract != null &&
-      isGaslessTransactionCallObject({ to: toAddress, gasPrice, data })
+      isGaslessTransaction(
+        { to: toAddress, gasPrice, data },
+        entrypointContract
+      )
     ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
       if (err) {
@@ -161,46 +167,6 @@ export class EthNormalizer {
       gasPrice,
     };
   }
-}
-
-/**
- * Determine whether the call/estimateGas transaction is a gasless transaction.
- */
-function isGaslessTransactionCallObject({
-  to: toAddress,
-  gasPrice,
-  data: inputData,
-}: {
-  to: HexString;
-  gasPrice: HexNumber;
-  data: HexString;
-}): boolean {
-  // since the gasPrice can be 0 in normal call/estimateGas transaction,
-  // when gasless tx is disallowed, we can't not check if it is an gasless tx.
-  if (entrypointContract == null) {
-    throw new Error(
-      "can not call isGaslessTransactionCallObject when entrypoint contract is null"
-    );
-  }
-
-  // check gas price is 0
-  if (BigInt(gasPrice) != 0n) {
-    return false;
-  }
-
-  // check input data is GaslessPayload(can be decoded)
-  try {
-    decodeGaslessPayload(inputData);
-  } catch (error) {
-    return false;
-  }
-
-  // check if to == entrypoint
-  if (toAddress != entrypointContract.address) {
-    return false;
-  }
-
-  return true;
 }
 
 async function getDefaultFromAddress(rpc: GodwokenClient): Promise<HexString> {
