@@ -44,7 +44,6 @@ GAS_PRICE_DIVIDER=<optional, a system value to adjust gasPrice with ckbPrice, de
 MIN_GAS_PRICE_UPPER_LIMIT=<optional, uint pCKB(ether), default to 0.00004>
 MIN_GAS_PRICE_LOWER_LIMIT=<optional, uint pCKB(ether), default to 0.00001>
 BLOCK_CONGESTION_GAS_USED=<optional, default to 33848315>
-GASLESS_ENTRYPOINT_ADDRESS=<optional, the address of gasless entrypoint contract, Gasless transaction is allowed if provided>
 EOF
 
 $ yarn

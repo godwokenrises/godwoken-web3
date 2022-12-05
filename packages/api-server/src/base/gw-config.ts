@@ -18,6 +18,7 @@ import {
 import { CKB_SUDT_ID } from "../methods/constant";
 import { Uint32 } from "./types/uint";
 import { snakeToCamel } from "../util";
+import { EntryPointContract } from "../gasless/entrypoint";
 
 // source: https://github.com/nervosnetwork/godwoken/commit/d6c98d8f8a199b6ec29bc77c5065c1108220bb0a#diff-c56fda2ca3b1366049c88e633389d9b6faa8366151369fd7314c81f6e389e5c7R5
 const BUILTIN_ETH_ADDR_REG_ACCOUNT_ID = 2;
@@ -34,6 +35,7 @@ export class GwConfig {
   private iRollupCell: RollupCell | undefined;
   private iNodeMode: NodeMode | undefined;
   private iNodeVersion: string | undefined;
+  private iEntryPointContract: EntryPointContract | undefined;
 
   constructor(rpcOrUrl: GodwokenClient | string) {
     if (typeof rpcOrUrl === "string") {
@@ -65,6 +67,16 @@ export class GwConfig {
     this.iRollupConfig = this.nodeInfo.rollupConfig;
     this.iNodeMode = this.nodeInfo.mode;
     this.iNodeVersion = this.nodeInfo.version;
+
+    const entrypointAddr = this.nodeInfo.gaslessTxSupport?.entrypointAddress;
+    if (entrypointAddr != null) {
+      this.iEntryPointContract = new EntryPointContract(
+        this.rpc,
+        entrypointAddr,
+        ethAddrReg.id
+      );
+      await this.iEntryPointContract.init();
+    }
 
     return this;
   }
@@ -103,6 +115,10 @@ export class GwConfig {
 
   public get nodeVersion(): string {
     return this.iNodeVersion!;
+  }
+
+  public get entrypointContract(): EntryPointContract | undefined {
+    return this.iEntryPointContract;
   }
 
   private get nodeInfo(): NodeInfo {

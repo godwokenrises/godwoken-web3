@@ -12,7 +12,7 @@ import {
   ethEoaAddressToScriptHash,
   EthRegistryAddress,
 } from "./base/address";
-import { entrypointContract, gwConfig, readonlyPriceOracle } from "./base";
+import { gwConfig, readonlyPriceOracle } from "./base";
 import { logger } from "./base/logger";
 import {
   MAX_TRANSACTION_SIZE,
@@ -377,10 +377,10 @@ export async function polyTxToGwTx(
 
   // only check if it is gasless transaction when entrypointContract is configured
   if (
-    entrypointContract != null &&
+    gwConfig.entrypointContract != null &&
     isGaslessTransaction(
       { to, gasPrice: gasPrice === "0x" ? "0x0" : gasPrice, data },
-      entrypointContract
+      gwConfig.entrypointContract
     )
   ) {
     const err = verifyGaslessTransaction(

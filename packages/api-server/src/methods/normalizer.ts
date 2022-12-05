@@ -1,6 +1,6 @@
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
-import { entrypointContract, gwConfig } from "../base";
+import { gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
 import { isGaslessTransaction } from "../gasless/utils";
 import { calcIntrinsicGas } from "../util";
@@ -55,10 +55,10 @@ export class EthNormalizer {
 
     // only check if it is gasless transaction when entrypointContract is configured
     if (
-      entrypointContract != null &&
+      gwConfig.entrypointContract != null &&
       isGaslessTransaction(
         { to: toAddress, gasPrice, data },
-        entrypointContract
+        gwConfig.entrypointContract
       )
     ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
@@ -126,10 +126,10 @@ export class EthNormalizer {
 
     //check gasless transaction
     if (
-      entrypointContract != null &&
+      gwConfig.entrypointContract != null &&
       isGaslessTransaction(
         { to: toAddress, gasPrice, data },
-        entrypointContract
+        gwConfig.entrypointContract
       )
     ) {
       const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);

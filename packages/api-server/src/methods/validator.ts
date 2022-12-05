@@ -13,7 +13,7 @@ import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { EthRegistryAddress } from "../base/address";
 import { decodeGaslessPayload } from "../gasless/payload";
-import { entrypointContract } from "../base";
+import { gwConfig } from "../base";
 
 /**
  * middleware for parameters validation
@@ -672,7 +672,7 @@ export function verifyGaslessTransaction(
   gasLimit: HexNumber,
   index: number
 ) {
-  if (entrypointContract == null) {
+  if (gwConfig.entrypointContract == null) {
     throw new Error(
       "can not call verifyGaslessTransaction when entrypoint contract is null"
     );
@@ -803,10 +803,10 @@ export function verifyGaslessTransaction(
     );
   }
   // 3. to address should equal entrypoint
-  if (to != entrypointContract.address) {
+  if (to != gwConfig.entrypointContract.address) {
     return invalidParamsError(
       index,
-      `userOperation.to(${to}}) != entrypointContract.address(${entrypointContract.address})`
+      `userOperation.to(${to}}) != entrypointContract.address(${gwConfig.entrypointContract.address})`
     );
   }
 }

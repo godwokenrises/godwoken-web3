@@ -8,7 +8,7 @@ import Sentry from "@sentry/node";
 import { applyRateLimitByIp } from "../rate-limit";
 import { initSentry } from "../sentry";
 import { envConfig } from "../base/env-config";
-import { entrypointContract, gwConfig } from "../base/index";
+import { gwConfig } from "../base/index";
 import { expressLogger, logger } from "../base/logger";
 import { Server } from "http";
 
@@ -136,17 +136,6 @@ async function startServer(port: number): Promise<void> {
   } catch (err) {
     logger.error("godwoken config initialize failed:", err);
     process.exit(1);
-  }
-
-  if (entrypointContract != null) {
-    // todo: maybe merge into gw config
-    try {
-      await entrypointContract.init();
-      logger.info("entrypointContract initialized!");
-    } catch (err) {
-      logger.error("entrypointContract initialize failed:", err);
-      process.exit(1);
-    }
   }
 
   server = app.listen(port, () => {

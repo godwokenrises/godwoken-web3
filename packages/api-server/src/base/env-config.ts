@@ -38,7 +38,6 @@ export const envConfig = {
   minGasPriceUpperLimit: getOptional("MIN_GAS_PRICE_UPPER_LIMIT"),
   minGasPriceLowerLimit: getOptional("MIN_GAS_PRICE_LOWER_LIMIT"),
   blockCongestionGasUsed: getOptional("BLOCK_CONGESTION_GAS_USED"),
-  gaslessEntrypointAddress: getOptional("GASLESS_ENTRYPOINT_ADDRESS"),
 };
 
 function getRequired(name: string): string {

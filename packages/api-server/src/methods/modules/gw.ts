@@ -32,7 +32,7 @@ import {
   parseSerializeSudtArgs,
 } from "../../parse-tx";
 import { InvalidParamsError } from "../error";
-import { entrypointContract, gwConfig, readonlyPriceOracle } from "../../base";
+import { gwConfig, readonlyPriceOracle } from "../../base";
 import { META_CONTRACT_ID } from "../constant";
 import {
   PolyjuiceTransaction,
@@ -503,14 +503,14 @@ export class Gw {
 
         // only check if it is gasless transaction when entrypointContract is configured
         if (
-          entrypointContract != null &&
+          gwConfig.entrypointContract != null &&
           isGaslessTransaction(
             {
               to: to || "0x",
               gasPrice: gasPrice === "0x" ? "0x0" : gasPrice,
               data: input,
             },
-            entrypointContract
+            gwConfig.entrypointContract
           )
         ) {
           const err = verifyGaslessTransaction(
