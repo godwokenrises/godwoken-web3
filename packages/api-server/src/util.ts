@@ -41,7 +41,7 @@ export function snakeToCamel(
   let camel: any = {};
   Object.entries(t).map(([key, value]) => {
     let newValue =
-      typeof value === "object"
+      typeof value === "object" && value != null
         ? snakeToCamel(value, excludeKeys, depthLimit - 1)
         : value;
     const newKey = excludeKeys.includes(key) ? key : toCamel(key);
@@ -63,7 +63,7 @@ export function camelToSnake(
   let snake: any = {};
   Object.entries(t).map(([key, value]) => {
     let newValue =
-      typeof value === "object"
+      typeof value === "object" && value != null
         ? camelToSnake(value, excludeKeys, depthLimit - 1)
         : value;
     const newKey = excludeKeys.includes(key) ? key : toSnake(key);
