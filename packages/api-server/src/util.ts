@@ -28,7 +28,17 @@ export function toSnake(s: string) {
   return s.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
-// convert object key snake_name => camelName
+export function isObjectOrArray(obj: any) {
+  if (
+    Object.prototype.toString.call(obj) === "[object Object]" ||
+    Object.prototype.toString.call(obj) === "[object Array]"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+// convert object/array key snake_name => camelName
 export function snakeToCamel(
   t: object,
   excludeKeys: string[] = [],
@@ -38,12 +48,13 @@ export function snakeToCamel(
     throw new Error("[snakeToCamel] recursive depth reached max limit.");
   }
 
+  if (!isObjectOrArray(t)) {
+    return t;
+  }
+
   let camel: any = {};
   Object.entries(t).map(([key, value]) => {
-    let newValue =
-      typeof value === "object" && value != null
-        ? snakeToCamel(value, excludeKeys, depthLimit - 1)
-        : value;
+    let newValue = snakeToCamel(value, excludeKeys, depthLimit - 1);
     const newKey = excludeKeys.includes(key) ? key : toCamel(key);
     camel[newKey] = Array.isArray(value) ? Object.values(newValue) : newValue;
   });
@@ -60,12 +71,13 @@ export function camelToSnake(
     throw new Error("[camelToSnake] recursive depth reached max limit.");
   }
 
+  if (!isObjectOrArray(t)) {
+    return t;
+  }
+
   let snake: any = {};
   Object.entries(t).map(([key, value]) => {
-    let newValue =
-      typeof value === "object" && value != null
-        ? camelToSnake(value, excludeKeys, depthLimit - 1)
-        : value;
+    let newValue = camelToSnake(value, excludeKeys, depthLimit - 1);
     const newKey = excludeKeys.includes(key) ? key : toSnake(key);
     snake[newKey] = Array.isArray(value) ? Object.values(newValue) : newValue;
   });
