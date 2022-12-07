@@ -18,6 +18,11 @@ test("snakeToCamel", (t) => {
         },
       },
       hello_array: [{ first_array: 1 }],
+      hello_nullable: {
+        null_val: null,
+        nan_val: NaN,
+        undefined_val: undefined,
+      },
     },
   };
   const expectObj = {
@@ -36,6 +41,11 @@ test("snakeToCamel", (t) => {
         },
       },
       helloArray: [{ firstArray: 1 }],
+      helloNullable: {
+        nullVal: null,
+        nanVal: NaN,
+        undefinedVal: undefined,
+      },
     },
   };
   t.deepEqual(snakeToCamel(obj), expectObj);
@@ -58,6 +68,11 @@ test("camelToSnake", (t) => {
         },
       },
       hello_array: [{ first_array: 1 }],
+      hello_nullable: {
+        null_val: null,
+        nan_val: NaN,
+        undefined_val: undefined,
+      },
     },
   };
   const obj = {
@@ -76,6 +91,11 @@ test("camelToSnake", (t) => {
         },
       },
       helloArray: [{ firstArray: 1 }],
+      helloNullable: {
+        nullVal: null,
+        nanVal: NaN,
+        undefinedVal: undefined,
+      },
     },
   };
   t.deepEqual(camelToSnake(obj), expectObj);

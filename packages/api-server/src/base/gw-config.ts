@@ -394,6 +394,7 @@ function toConfigEoaScripts(nodeInfo: NodeInfo) {
 }
 
 function toApiNodeInfo(nodeInfo: GwNodeInfo): NodeInfo {
+  // todo: use determinable converting to replace snakeToCamel
   return snakeToCamel(nodeInfo, ["code_hash", "hash_type"]);
 }
 
