@@ -27,7 +27,7 @@ The gas fee is preventing new users step into the web3 world. Users must learn t
 
 The gas feature is based on the [ERC-4337 solution](https://eips.ethereum.org/EIPS/eip-4337) but way simpler. To use a such feature, users sign and send a special gasless transaction to call a specific smart contract named `Entrypoint`, then `Entrypoint` will call another smart contract named `Paymaster` deployed by developers to check if they are willing to pay the gas fee for this transaction. The special gasless transaction must satisfy the requirements:
 
-- Must contain an `UserOperation` structure on the `tx.data` field, which contains the target contract and the paymaster address.
+- `tx.data` must be the call data of calling `Entrypoint`'s `handleOp(UserOperation calldata op)` function, which contains the target contract and the paymaster address.
 - Must set `tx.gasPrice` to 0
 - The `tx.to` must be set to the `Entrypoint` contract.
 
@@ -63,9 +63,13 @@ dapp frontend using ethers.js
           paymasterAndData: "0x6b019795aa36dd19eb4a4d76f3b9a40239b7c19f" 
       }
       
-      // construct and send gasless transaction
+      // 1. construct and send gasless transaction
       const abiCoder = new ethers.utils.AbiCoder();
-      const payload = abiCoder.encode(["tuple(address callContract, bytes callData, uint256 callGasLimit, uint256 verificationGasLimit, uint256 maxFeePerGas, uint256 maxPriorityFeePerGas, bytes paymasterAndData) UserOperation"], [userOp])
+      const userOp = abiCoder.encode(["tuple(address callContract, bytes callData, uint256 callGasLimit, uint256 verificationGasLimit, uint256 maxFeePerGas, uint256 maxPriorityFeePerGas, bytes paymasterAndData) UserOperation"], [userOp]);
+      // first 4 bytes of keccak hash of handleOp((address,bytes,uint256,uint256,uint256,uint256,bytes))
+      const fnSelector = "fb4350d8";
+      // gasless payload = ENTRYPOINT_HANDLE_OP_SELECTOR + abiEncode(UserOperation)
+      const payload = "0x" + fnSelector + userOp.slice(2);
 
       const gaslessTx = {
         from: whitelistUser.address,
@@ -78,5 +82,15 @@ dapp frontend using ethers.js
 
       const signer = new ethers.Wallet("private key");
       const tx = await signer.sendTransaction(gaslessTx);
-      await tx.wait()
+      await tx.wait();
+
+
+      // 2. or just use ethers contract factory
+      {
+        // Send tx with a valid user.
+        const entryPoint = await ethers.getContractFactory("EntryPoint");
+        await entryPoint.attach('0x9a11f47c0729fc56d9c44c059987d40703249569');
+        const tx = await entryPoint.connect(whitelistUser).handleOp(userOp, {gasLimit: 100000, gasPrice: 0});
+        await tx.wait();
+      }
 ```
