@@ -523,12 +523,16 @@ export class Gw {
           if (err != null) {
             throw err.padContext(`gw_submit_l2transaction`);
           }
-        }
-
-        // check gas price
-        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, minGasPrice, 0);
-        if (gasPriceErr) {
-          throw gasPriceErr.padContext(`gw_submit_l2transaction`);
+        } else {
+          // not gasless transaction, check gas price
+          const gasPriceErr = verifyGasPrice(
+            decodeData.gasPrice,
+            minGasPrice,
+            0
+          );
+          if (gasPriceErr) {
+            throw gasPriceErr.padContext(`gw_submit_l2transaction`);
+          }
         }
 
         const client = new GodwokenClient(envConfig.godwokenJsonRpc);

@@ -393,17 +393,19 @@ export async function polyTxToGwTx(
     if (err != null) {
       throw err.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
     }
-  }
-
-  // Check gas price
-  const minGasPrice = await readonlyPriceOracle.minGasPrice();
-  const gasPriceErr = verifyGasPrice(
-    gasPrice === "0x" ? "0x0" : gasPrice,
-    minGasPrice,
-    0
-  );
-  if (gasPriceErr) {
-    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
+  } else {
+    // not gasless transaction, check gas price
+    const minGasPrice = await readonlyPriceOracle.minGasPrice();
+    const gasPriceErr = verifyGasPrice(
+      gasPrice === "0x" ? "0x0" : gasPrice,
+      minGasPrice,
+      0
+    );
+    if (gasPriceErr) {
+      throw gasPriceErr.padContext(
+        `eth_sendRawTransaction ${polyTxToGwTx.name}`
+      );
+    }
   }
 
   const signature: HexString = getSignature(rawTx);
