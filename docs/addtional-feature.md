@@ -88,8 +88,8 @@ dapp frontend using ethers.js
       // 2. or just use ethers contract factory
       {
         // Send tx with a valid user.
-        const entryPoint = await ethers.getContractFactory("EntryPoint");
-        await entryPoint.attach('0x9a11f47c0729fc56d9c44c059987d40703249569');
+        const EntryPoint = await ethers.getContractFactory("EntryPoint");
+        const entrypoint = await EntryPoint.attach('0x9a11f47c0729fc56d9c44c059987d40703249569');
         const tx = await entryPoint.connect(whitelistUser).handleOp(userOp, {gasLimit: 100000, gasPrice: 0});
         await tx.wait();
       }

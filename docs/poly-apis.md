@@ -2,34 +2,67 @@
 
 ## Table of Contents
 
-* [RPC Methods](#rpc-methods)
-    * [Method `poly_getCreatorId`](#method-poly_getCreatorId)
-    * [Method `poly_getDefaultFromId`](#method-poly_getDefaultFromId)
-    * [Method `poly_getContractValidatorTypeHash`](#method-poly_getContractValidatorTypeHash)
-    * [Method `poly_getRollupTypeHash`](#method-poly_getRollupTypeHash)
-    * [Method `poly_getEthAccountLockHash`](#method-poly_getEthAccountLockHash)
-    * [Method `poly_version`](#method-poly_version)
-
-* [RPC Types](#rpc-types)
-    * [Type `Uint32`](#type-uint32)
-    * [Type `Uint64`](#type-uint64)
-    * [Type `H256`](#type-h256)
-    * [Type `JsonBytes`](#type-jsonbytes)
-    * [Type `PolyVersionInfo`](#type-polyversioninfo)
-    * [Type `Versions`](#type-versions)
-    * [Type `NodeInfo`](#type-NodeInfo)
-    * [Type `RollupCell`](#type-rollupcell)
-    * [Type `RollupConfig`](#type-rollupconfig)
-    * [Type `GwScripts`](#type-gwscripts)
-    * [Type `EoaScripts`](#type-eoascripts)
-    * [Type `Backends`](#type-backends)
-    * [Type `Accounts`](#type-accounts)
-    * [Type `Script`](#type-scripts)
-    * [Type `ScriptHashType`](#type-scripthashtype)
-    * [Type `ScriptInfo`](#type-scriptinfo)
-    * [Type `BackendInfo`](#type-backendinfo)
-    * [Type `AccountInfo`](#type-accountinfo)
-    * [Type `HealthStatus`](#type-healthstatus)
+- [Poly RPCs](#poly-rpcs)
+  - [Table of Contents](#table-of-contents)
+  - [RPC Methods](#rpc-methods)
+      - [Method `poly_getCreatorId`](#method-poly_getcreatorid)
+        - [Examples](#examples)
+      - [Method `poly_getDefaultFromId`](#method-poly_getdefaultfromid)
+        - [Examples](#examples-1)
+      - [Method `poly_getContractValidatorTypeHash`](#method-poly_getcontractvalidatortypehash)
+        - [Examples](#examples-2)
+      - [Method `poly_getRollupTypeHash`](#method-poly_getrolluptypehash)
+        - [Examples](#examples-3)
+      - [Method `poly_getEthAccountLockHash`](#method-poly_getethaccountlockhash)
+        - [Examples](#examples-4)
+      - [Method `poly_version`](#method-poly_version)
+        - [Examples](#examples-5)
+      - [Method `poly_getEthTxHashByGwTxHash`](#method-poly_getethtxhashbygwtxhash)
+        - [Examples](#examples-6)
+      - [Method `poly_getGwTxHashByEthTxHash`](#method-poly_getgwtxhashbyethtxhash)
+        - [Examples](#examples-7)
+      - [Method `poly_getHealthStatus`](#method-poly_gethealthstatus)
+        - [Examples](#examples-8)
+  - [RPC Types](#rpc-types)
+    - [Type `Uint32`](#type-uint32)
+      - [Examples](#examples-9)
+    - [Type `Uint64`](#type-uint64)
+      - [Examples](#examples-10)
+    - [Type `H256`](#type-h256)
+      - [Examples](#examples-11)
+    - [Type `PolyVersionInfo`](#type-polyversioninfo)
+      - [Fields](#fields)
+    - [Type `BackendInfo`](#type-backendinfo)
+      - [Fields](#fields-1)
+    - [Type `ScriptInfo`](#type-scriptinfo)
+      - [Fields](#fields-2)
+    - [Type `Script`](#type-script)
+    - [Type `ScriptHashType`](#type-scripthashtype)
+    - [Type `JsonBytes`](#type-jsonbytes)
+      - [Example](#example)
+    - [Type `Versions`](#type-versions)
+      - [Examples](#examples-12)
+      - [Fields](#fields-3)
+    - [Type `RollupCell`](#type-rollupcell)
+      - [Fields](#fields-4)
+    - [Type `RollupConfig`](#type-rollupconfig)
+      - [Fields](#fields-5)
+    - [Type `NodeInfo`](#type-nodeinfo)
+      - [Fields](#fields-6)
+    - [Type `GwScripts`](#type-gwscripts)
+      - [Fields](#fields-7)
+    - [Type `EoaScripts`](#type-eoascripts)
+      - [Fields](#fields-8)
+    - [Type `Backends`](#type-backends)
+      - [Fields](#fields-9)
+    - [Type `AccountInfo`](#type-accountinfo)
+      - [Fields](#fields-10)
+    - [Type `Accounts`](#type-accounts)
+      - [Fields](#fields-11)
+    - [Type `HealthStatus`](#type-healthstatus)
+      - [Fields](#fields-12)
+    - [Type `GaslessTx`](#type-gaslesstx)
+      - [Fields](#fields-13)
 
 ## RPC Methods
 
@@ -346,7 +379,11 @@ Response
           "scriptHash": "0xffe2e575a9c327f160e09d142bf21bcedbf79f23d585be3b87dacde843e171a4"
         }
       },
-      "chainId": "0x116e8"
+      "chainId": "0x116e8",
+      "gaslessTx": {
+        "support": true,
+        "entrypointAddress": "0x954dcfc2b81446bc83254c1fa36a037613bd2481"
+      }
     }
   }
 }
@@ -626,6 +663,7 @@ Info of Godwoken & Web3 node.
 
 *   `chainId`: [`Uint64`](#type-uint64) - Chain ID, more info: [EIP155](https://eips.ethereum.org/EIPS/eip-155)
 
+*   `gaslessTx`: [`GaslessTx`](#type-gaslessTx) - Gasless Tx feature, more info: [additional feature](/docs/addtional-feature.md#gasless-transaction)
 
 ### Type `GwScripts`
 
@@ -728,3 +766,15 @@ Describes the web3 server health status.
 *   `syncBlocksDiff`: `number` - Web3 sync behind godwoken blocks count, eg 2 means sync behind 2 blocks, 0 means sync to the latest
 
 *   `ckbOraclePrice`: `string` - CKBPriceOracle updating value or "PriceOracleNotEnabled" if it is turned off, should not be null
+
+### Type `GaslessTx`
+
+Describes the accounts web3 used.
+
+#### Fields
+
+`GaslessTx` is a JSON object with the following fields.
+
+*   `support`: `boolean` - Weather the feature is turned on or not
+
+*   `entrypointAddress`: `string` - the entrypoint contract account address
