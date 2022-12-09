@@ -125,7 +125,7 @@ export function calcFee(serializedL2Tx: HexString, feeRate: bigint) {
 // WEB3_RPC_URL/instant-finality-hack or WEB3_RPC_URL?instant-finality-hack=true
 export function isInstantFinalityHackMode(req: Request): boolean {
   return (
-    req.url == "/instant-finality-hack" ||
+    req.url.includes("/instant-finality-hack") ||
     (req.query && req.query["instant-finality-hack"] == "true")
   );
 }
