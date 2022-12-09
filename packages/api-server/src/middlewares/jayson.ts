@@ -3,6 +3,7 @@ import { instantFinalityHackMethods, methods } from "../methods/index";
 import { Request, Response, NextFunction } from "express";
 import createServer from "connect";
 import { isInstantFinalityHackMode } from "../util";
+import { ResponseHeader, setResponseHeader } from "./header";
 
 const server = new jayson.Server(methods);
 const instantFinalityHackServer = new jayson.Server(instantFinalityHackMethods);
@@ -18,8 +19,16 @@ export const jaysonMiddleware = (
     req.body.params = [] as any[];
   }
 
+  const enableInstantFinality = isInstantFinalityHackMode(req);
+
+  // manage response header here
+  const header: ResponseHeader = {
+    instantFinality: enableInstantFinality,
+  };
+  setResponseHeader(res, header);
+
   // enable additional feature for special URL
-  if (isInstantFinalityHackMode(req)) {
+  if (enableInstantFinality) {
     const middleware =
       instantFinalityHackServer.middleware() as createServer.NextHandleFunction;
     return middleware(req, res, next);
