@@ -880,7 +880,7 @@ export class Eth {
     // 2. If under instant-finality hack mode, build receipt from gw mempool block
     if (this.instantFinalityHackMode) {
       logger.debug(
-        `[eth_getTransactionReceipt] find with instant-finality hack`
+        `[eth_getTransactionReceipt] find ${ethTxHash} with instant-finality hack`
       );
       const godwokenTxWithStatus = await this.rpc.getTransaction(gwTxHash);
       if (godwokenTxWithStatus == null) {
