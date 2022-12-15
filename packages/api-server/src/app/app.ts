@@ -137,6 +137,7 @@ async function startServer(port: number): Promise<void> {
     logger.error("godwoken config initialize failed:", err);
     process.exit(1);
   }
+
   server = app.listen(port, () => {
     const addr = (server as Server).address();
     const bind =

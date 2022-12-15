@@ -12,6 +12,7 @@ import {
 import {
   middleware,
   verifyEnoughBalance,
+  verifyGaslessTransaction,
   verifyGasLimit,
   verifyGasPrice,
   verifyIntrinsicGas,
@@ -37,6 +38,7 @@ import {
   PolyjuiceTransaction,
   recoverEthAddressFromPolyjuiceTx,
 } from "../../convert-tx";
+import { isGaslessTransaction } from "../../gasless/utils";
 
 export class Gw {
   private rpc: RPC;
@@ -354,6 +356,7 @@ export class Gw {
   async execute_raw_l2transaction(
     args: [HexString, HexNumber | null | undefined]
   ) {
+    // todo: check raw tx for known types(including gasless tx)
     try {
       args[1] = formatHexNumber(args[1]);
 
@@ -461,16 +464,12 @@ export class Gw {
           throw gasLimitErr.padContext(`gw_submit_l2transaction`);
         }
 
-        const gasPriceErr = verifyGasPrice(decodeData.gasPrice, minGasPrice, 0);
-        if (gasPriceErr) {
-          throw gasPriceErr.padContext(`gw_submit_l2transaction`);
-        }
-
         const to = decodeData.isCreate
           ? undefined
           : "0x" + toScript.args.slice(2).slice((32 + 4) * 2);
 
-        // check intrinsic gas and enough fund
+        // Check intrinsic gas and enough fund
+        // Note: gasless tx will set gas price = 0, can pass intrinsic gas check as well
         let from = "0x" + fromScript.args.slice(2).slice(64, 104);
         // For auto create account tx, from address should recover from signature
         if (fromId === "0x0") {
@@ -500,6 +499,40 @@ export class Gw {
         const intrinsicGasErr = verifyIntrinsicGas(to, input, gas, 0);
         if (intrinsicGasErr) {
           throw intrinsicGasErr.padContext(`gw_submit_l2transaction`);
+        }
+
+        // only check if it is gasless transaction when entrypointContract is configured
+        if (
+          gwConfig.entrypointContract != null &&
+          isGaslessTransaction(
+            {
+              to: to || "0x",
+              gasPrice: gasPrice === "0x" ? "0x0" : gasPrice,
+              data: input,
+            },
+            gwConfig.entrypointContract
+          )
+        ) {
+          const err = verifyGaslessTransaction(
+            to || "0x",
+            input,
+            gasPrice === "0x" ? "0x0" : gasPrice,
+            gas === "0x" ? "0x0" : gas,
+            0
+          );
+          if (err != null) {
+            throw err.padContext(`gw_submit_l2transaction`);
+          }
+        } else {
+          // not gasless transaction, check gas price
+          const gasPriceErr = verifyGasPrice(
+            decodeData.gasPrice,
+            minGasPrice,
+            0
+          );
+          if (gasPriceErr) {
+            throw gasPriceErr.padContext(`gw_submit_l2transaction`);
+          }
         }
 
         const client = new GodwokenClient(envConfig.godwokenJsonRpc);

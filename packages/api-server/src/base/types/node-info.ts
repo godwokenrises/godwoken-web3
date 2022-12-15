@@ -1,4 +1,4 @@
-import { Hash, HexNumber, Script } from "@ckb-lumos/base";
+import { Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 import {
   EoaScriptType,
   BackendType,
@@ -37,6 +37,11 @@ export interface RollupConfig {
   rewardBurnRate: HexNumber;
   chainId: HexNumber;
 }
+
+export interface GaslessTxSupport {
+  entrypointAddress: HexString;
+}
+
 export interface NodeInfo {
   backends: Array<BackendInfo>;
   eoaScripts: Array<EoaScript>;
@@ -45,4 +50,5 @@ export interface NodeInfo {
   rollupConfig: RollupConfig;
   version: string;
   mode: NodeMode;
+  gaslessTxSupport?: GaslessTxSupport;
 }

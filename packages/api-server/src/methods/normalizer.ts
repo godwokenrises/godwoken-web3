@@ -2,11 +2,13 @@ import { HexNumber, HexString } from "@ckb-lumos/base";
 import { GodwokenClient } from "@godwoken-web3/godwoken";
 import { gwConfig } from "../base";
 import { EthRegistryAddress } from "../base/address";
+import { isGaslessTransaction } from "../gasless/utils";
 import { calcIntrinsicGas } from "../util";
 import { CKB_SUDT_ID, POLY_MAX_BLOCK_GAS_LIMIT } from "./constant";
 import { TransactionCallObject } from "./types";
 import {
   verifyEnoughBalance,
+  verifyGaslessTransaction,
   verifyGasLimit,
   verifyIntrinsicGas,
 } from "./validator";
@@ -49,6 +51,20 @@ export class EthNormalizer {
     const gasLimitErr = verifyGasLimit(gas, 0);
     if (gasLimitErr) {
       throw gasLimitErr.padContext(this.normalizeCallTx.name);
+    }
+
+    // only check if it is gasless transaction when entrypointContract is configured
+    if (
+      gwConfig.entrypointContract != null &&
+      isGaslessTransaction(
+        { to: toAddress, gasPrice, data },
+        gwConfig.entrypointContract
+      )
+    ) {
+      const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
+      if (err) {
+        throw err.padContext(this.normalizeCallTx.name);
+      }
     }
 
     const intrinsicGasErr = verifyIntrinsicGas(toAddress, data, gas, 0);
@@ -106,6 +122,20 @@ export class EthNormalizer {
     const gasLow = "0x" + intrinsicGas.toString(16);
     if (BigInt(gas) < BigInt(gasLow)) {
       gas = gasLow;
+    }
+
+    //check gasless transaction
+    if (
+      gwConfig.entrypointContract != null &&
+      isGaslessTransaction(
+        { to: toAddress, gasPrice, data },
+        gwConfig.entrypointContract
+      )
+    ) {
+      const err = verifyGaslessTransaction(toAddress, data, gasPrice, gas, 0);
+      if (err) {
+        throw err.padContext(this.normalizeCallTx.name);
+      }
     }
 
     // check gas-limit cap with user available gas

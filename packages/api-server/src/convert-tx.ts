@@ -21,6 +21,7 @@ import {
 import {
   checkBalance,
   verifyEnoughBalance,
+  verifyGaslessTransaction,
   verifyGasLimit,
   verifyGasPrice,
   verifyIntrinsicGas,
@@ -31,6 +32,7 @@ import { bumpHash, PENDING_TRANSACTION_INDEX } from "./filter-web3-tx";
 import { Uint64 } from "./base/types/uint";
 import { AutoCreateAccountCacheValue } from "./cache/types";
 import { TransactionCallObject } from "./methods/types";
+import { isGaslessTransaction } from "./gasless/utils";
 
 export const DEPLOY_TO_ADDRESS = "0x";
 
@@ -367,19 +369,43 @@ export async function polyTxToGwTx(
     );
   }
 
+  // Check gas limit
   const gasLimitErr = verifyGasLimit(gasLimit === "0x" ? "0x0" : gasLimit, 0);
   if (gasLimitErr) {
     throw gasLimitErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
   }
 
-  const minGasPrice = await readonlyPriceOracle.minGasPrice();
-  const gasPriceErr = verifyGasPrice(
-    gasPrice === "0x" ? "0x0" : gasPrice,
-    minGasPrice,
-    0
-  );
-  if (gasPriceErr) {
-    throw gasPriceErr.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
+  // only check if it is gasless transaction when entrypointContract is configured
+  if (
+    gwConfig.entrypointContract != null &&
+    isGaslessTransaction(
+      { to, gasPrice: gasPrice === "0x" ? "0x0" : gasPrice, data },
+      gwConfig.entrypointContract
+    )
+  ) {
+    const err = verifyGaslessTransaction(
+      to,
+      data,
+      gasPrice === "0x" ? "0x0" : gasPrice,
+      gasLimit === "0x" ? "0x0" : gasLimit,
+      0
+    );
+    if (err != null) {
+      throw err.padContext(`eth_sendRawTransaction ${polyTxToGwTx.name}`);
+    }
+  } else {
+    // not gasless transaction, check gas price
+    const minGasPrice = await readonlyPriceOracle.minGasPrice();
+    const gasPriceErr = verifyGasPrice(
+      gasPrice === "0x" ? "0x0" : gasPrice,
+      minGasPrice,
+      0
+    );
+    if (gasPriceErr) {
+      throw gasPriceErr.padContext(
+        `eth_sendRawTransaction ${polyTxToGwTx.name}`
+      );
+    }
   }
 
   const signature: HexString = getSignature(rawTx);
