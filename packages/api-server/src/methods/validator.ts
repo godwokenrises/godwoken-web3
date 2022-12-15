@@ -678,7 +678,7 @@ export function verifyGaslessTransaction(
     );
   }
 
-  if (gasPrice != "0x0") {
+  if (gasPrice !== "0x0") {
     return invalidParamsError(
       index,
       `gasless transaction require 0x0 gas price, got ${gasPrice}`
@@ -787,7 +787,7 @@ export function verifyGaslessTransaction(
   }
   // 2. gasLimit = verificationGasLimit * 3 + callGasLimit
   if (
-    BigInt(gasLimit) !=
+    BigInt(gasLimit) !==
     BigInt(userOperation.verificationGasLimit) * 3n +
       BigInt(userOperation.callGasLimit)
   ) {
@@ -803,7 +803,7 @@ export function verifyGaslessTransaction(
     );
   }
   // 3. to address should equal entrypoint
-  if (to != gwConfig.entrypointContract.address) {
+  if (to !== gwConfig.entrypointContract.address) {
     return invalidParamsError(
       index,
       `userOperation.to(${to}}) != entrypointContract.address(${gwConfig.entrypointContract.address})`

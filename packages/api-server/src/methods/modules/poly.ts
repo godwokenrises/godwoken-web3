@@ -90,7 +90,7 @@ export class Poly {
         accounts: gwConfig.accounts,
         chainId: gwConfig.web3ChainId,
         gaslessTx: {
-          support: gwConfig.entrypointContract ? true : false,
+          support: !!gwConfig.entrypointContract,
           entrypointAddress: gwConfig.entrypointContract?.address,
         },
       },
