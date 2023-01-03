@@ -367,7 +367,7 @@ export function matchExitCode(
   mapping: ExitCodeMapping
 ): ExitCode | null {
   let code: number;
-  if (typeof exitCode == "number") {
+  if (typeof exitCode === "number") {
     code = exitCode;
   } else {
     code = exitCodeHexToNumber(exitCode);
@@ -394,8 +394,7 @@ export function exitCodeHexToNumber(hex: HexNumber): number {
 }
 
 // the exit_code in godwoken is always an i8 type.
-export function exitCodeNumberToHex(_num: number): HexNumber {
-  let num = _num;
+export function exitCodeNumberToHex(num: number): HexNumber {
   if (num < 0) {
     num = num + 256;
   }
