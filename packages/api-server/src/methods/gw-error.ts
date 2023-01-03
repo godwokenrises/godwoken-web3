@@ -9,20 +9,15 @@ import {
 } from "./error";
 import { HexNumber, HexString } from "@ckb-lumos/base";
 import { logger } from "../base/logger";
-import {
-  ErrorTxReceipt,
-  isErrorTxReceipt,
-  LogItem,
-} from "@godwoken-web3/godwoken";
+import { ErrorTxReceipt, isErrorTxReceipt } from "@godwoken-web3/godwoken";
 import {
   EVMC_EXIT_CODE_MAPPING,
-  exitCodeNumberToHex,
   GODWOKEN_EXIT_CODE_MAPPING,
   matchExitCode,
   POLYJUICE_EXIT_CODE_MAPPING,
 } from "./exit-code";
-import { PolyjuiceSystemLog } from "./types";
 import { INTERNAL_ERROR } from "./error-code";
+import { parsePolyjuiceSystemLog } from "../filter-web3-tx";
 
 const GODWOKEN_SERVER_ERROR_MESSAGE_PREFIX = "JSONRPCError: server error ";
 
@@ -105,8 +100,8 @@ export function handleErrorTxReceipt(errorTxReceipt: ErrorTxReceipt) {
 
   // if logItem exits, try parse polyjuice/evmc exit code for error message
   if (logItem) {
-    const polySystemLog = unpackPolyjuiceSystemLog(logItem);
-    const statusCode = polySystemLog.statusCode;
+    const polySystemLog = parsePolyjuiceSystemLog(logItem.data);
+    const statusCode: HexNumber = polySystemLog.statusCode;
 
     // 1. parse evmc exit code
     const evmcCode = matchExitCode(statusCode, EVMC_EXIT_CODE_MAPPING);
@@ -118,7 +113,7 @@ export function handleErrorTxReceipt(errorTxReceipt: ErrorTxReceipt) {
         message = evmcCode.message;
       }
       extraMessage = evmcCode.message;
-      extraExitCode = exitCodeNumberToHex(statusCode);
+      extraExitCode = statusCode;
       extraStack = ExtraStack.evmc;
     }
 
@@ -127,7 +122,7 @@ export function handleErrorTxReceipt(errorTxReceipt: ErrorTxReceipt) {
     if (polyCode != null) {
       message = polyCode.message;
       extraMessage = polyCode.message;
-      extraExitCode = exitCodeNumberToHex(statusCode);
+      extraExitCode = statusCode;
       extraStack = ExtraStack.poly;
     }
 
@@ -175,23 +170,6 @@ function parseGwExitCodeForErrorMessage(exitCode: HexNumber): {
   return {
     message,
     extraMessage,
-  };
-}
-
-function unpackPolyjuiceSystemLog(logItem: LogItem): PolyjuiceSystemLog {
-  let buf = Buffer.from(logItem.data.slice(2), "hex");
-  if (buf.length !== 8 + 8 + 16 + 4 + 4) {
-    throw new Error(`invalid system log raw data length: ${buf.length}`);
-  }
-  const gasUsed = buf.readBigUInt64LE(0);
-  const cumulativeGasUsed = buf.readBigUInt64LE(8);
-  const createdAddress = "0x" + buf.slice(16, 36).toString("hex");
-  const statusCode = buf.readUInt32LE(36);
-  return {
-    gasUsed: gasUsed,
-    cumulativeGasUsed: cumulativeGasUsed,
-    createdAddress: createdAddress,
-    statusCode: statusCode,
   };
 }
 
