@@ -11,8 +11,10 @@ const configPath = path.resolve(__dirname, "../../rate-limit-config.json");
 
 export const EXPIRED_TIME_MILSECS = 1 * 60 * 1000; // milsec, default 1 minutes
 export const MAX_REQUEST_COUNT = 30;
+export const BATCH_LIMIT = 100000; // 100_000 RPCs in single batch req
 
 export interface RateLimitConfig {
+  batch_limit: number;
   expired_time_milsec: number;
   methods: RpcMethodLimit;
 }
@@ -39,6 +41,7 @@ export class AccessGuard {
   public store: Store;
   public rpcMethods: RpcMethodLimit;
   public expiredTimeMilsecs: number;
+  public batchLimit: number;
 
   constructor(
     enableExpired = true,
@@ -51,6 +54,7 @@ export class AccessGuard {
     this.store = store || new Store(enableExpired, expiredTimeMilsecs);
     this.rpcMethods = config.methods;
     this.expiredTimeMilsecs = expiredTimeMilsecs || CACHE_EXPIRED_TIME_MILSECS;
+    this.batchLimit = config.batch_limit || BATCH_LIMIT;
   }
 
   async setMaxReqLimit(rpcMethod: string, maxReqCount: number) {
