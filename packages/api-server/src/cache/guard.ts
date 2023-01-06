@@ -79,11 +79,11 @@ export class AccessGuard {
     }
   }
 
-  async updateCount(rpcMethod: string, reqId: string, offset?: number) {
+  async updateCount(rpcMethod: string, reqId: string, offset: number = 1) {
     const isExist = await this.isExist(rpcMethod, reqId);
     if (isExist === true) {
       const id = getId(rpcMethod, reqId);
-      if (offset != null && offset > 1) {
+      if (offset > 1) {
         await this.store.incrBy(id, offset);
       } else {
         await this.store.incr(id);

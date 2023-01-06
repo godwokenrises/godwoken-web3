@@ -6,7 +6,47 @@ import { JSONRPCError } from "jayson";
 
 export const accessGuard = new AccessGuard();
 
-export async function wsApplyRateLimitByIp(req: Request, method: string) {
+export async function wsApplyBatchRateLimitByIp(
+  req: Request,
+  objs: any[]
+): Promise<JSONRPCError[] | undefined> {
+  const ip = getIp(req);
+  const methods = Object.keys(accessGuard.rpcMethods);
+  for (const targetMethod of methods) {
+    const count = calcMethodCount(objs, targetMethod);
+    if (count > 0 && ip != null) {
+      const isExist = await accessGuard.isExist(targetMethod, ip);
+      if (!isExist) {
+        await accessGuard.add(targetMethod, ip);
+      }
+
+      const isOverRate = await accessGuard.isOverRate(targetMethod, ip, count);
+      if (isOverRate) {
+        const remainSecs = await accessGuard.getKeyTTL(targetMethod, ip);
+        const message = `Too Many Requests, IP: ${ip}, please wait ${remainSecs}s and retry. RPC method: ${targetMethod}.`;
+        const error: JSONRPCError = {
+          code: LIMIT_EXCEEDED,
+          message: message,
+        };
+
+        logger.debug(
+          `Rate Limit Exceed, ip: ${ip}, method: ${targetMethod}, ttl: ${remainSecs}s`
+        );
+
+        return new Array(objs.length).fill(error);
+      } else {
+        await accessGuard.updateCount(targetMethod, ip, count);
+      }
+    }
+
+    return undefined;
+  }
+}
+
+export async function wsApplyRateLimitByIp(
+  req: Request,
+  method: string
+): Promise<JSONRPCError | undefined> {
   const ip = getIp(req);
   const methods = Object.keys(accessGuard.rpcMethods);
   if (methods.includes(method) && ip != null) {
@@ -61,7 +101,9 @@ export function batchLimit(req: Request, res: Response) {
       message: message,
     };
 
-    logger.debug(message);
+    logger.debug(
+      `Batch Limit Exceed, ${req.body.length}, limit: ${accessGuard.batchLimit}`
+    );
 
     const content = req.body.map((b: any) => {
       return {
@@ -85,7 +127,11 @@ export function wsBatchLimit(body: any): JSONRPCError[] | undefined {
       code: LIMIT_EXCEEDED,
       message: message,
     };
-    logger.debug(message);
+
+    logger.debug(
+      `WS Batch Limit Exceed, ${body.length}, limit: ${accessGuard.batchLimit}`
+    );
+
     return new Array(body.length).fill(error);
   }
 
@@ -168,7 +214,7 @@ export async function wsRateLimit(
     };
 
     logger.debug(
-      `Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
+      `WS Rate Limit Exceed, ip: ${reqId}, method: ${rpcMethod}, ttl: ${remainSecs}s`
     );
     return { error, remainSecs };
   } else {
