@@ -99,13 +99,14 @@ export async function rateLimit(
   reqId: string | undefined
 ) {
   let isBan = false;
-  if (hasMethod(req.body, rpcMethod) && reqId != null) {
+  const count = calcMethodCount(req.body, rpcMethod);
+  if (count > 0 && reqId != null) {
     const isExist = await accessGuard.isExist(rpcMethod, reqId);
     if (!isExist) {
       await accessGuard.add(rpcMethod, reqId);
     }
 
-    const isOverRate = await accessGuard.isOverRate(rpcMethod, reqId);
+    const isOverRate = await accessGuard.isOverRate(rpcMethod, reqId, count);
     if (isOverRate) {
       isBan = true;
 
@@ -141,7 +142,7 @@ export async function rateLimit(
           };
       res.status(httpRateLimitCode).header(httpRateLimitHeader).send(content);
     } else {
-      await accessGuard.updateCount(rpcMethod, reqId);
+      await accessGuard.updateCount(rpcMethod, reqId, count);
     }
   }
   return isBan;
@@ -183,12 +184,12 @@ export function isBatchLimit(body: any) {
   return false;
 }
 
-export function hasMethod(body: any, name: string) {
+export function calcMethodCount(body: any, targetMethod: string): number {
   if (Array.isArray(body)) {
-    return body.map((b) => b.method).includes(name);
+    return body.filter((b) => b.method === targetMethod).length;
   }
 
-  return body.method === name;
+  return body.method === targetMethod ? 1 : 0;
 }
 
 export function getIp(req: Request) {

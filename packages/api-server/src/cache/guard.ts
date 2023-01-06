@@ -79,11 +79,15 @@ export class AccessGuard {
     }
   }
 
-  async updateCount(rpcMethod: string, reqId: string) {
+  async updateCount(rpcMethod: string, reqId: string, offset?: number) {
     const isExist = await this.isExist(rpcMethod, reqId);
     if (isExist === true) {
       const id = getId(rpcMethod, reqId);
-      await this.store.incr(id);
+      if (offset != null && offset > 1) {
+        await this.store.incrBy(id, offset);
+      } else {
+        await this.store.incr(id);
+      }
     }
   }
 
@@ -94,13 +98,17 @@ export class AccessGuard {
     return true;
   }
 
-  async isOverRate(rpcMethod: string, reqId: string): Promise<boolean> {
+  async isOverRate(
+    rpcMethod: string,
+    reqId: string,
+    offset: number = 1
+  ): Promise<boolean> {
     const id = getId(rpcMethod, reqId);
     const data = await this.store.get(id);
     if (data == null) return false;
     if (this.rpcMethods[rpcMethod] == null) return false;
 
-    const count = +data;
+    const count = +data + offset;
     const maxNumber = this.rpcMethods[rpcMethod];
     if (count > maxNumber) {
       return true;
