@@ -77,6 +77,21 @@ export function batchLimit(req: Request, res: Response) {
   return isBan;
 }
 
+export function wsBatchLimit(body: any): JSONRPCError[] | undefined {
+  if (isBatchLimit(body)) {
+    // if reach batch limit, we reject the whole req with error
+    const message = `Too Many Batch Requests ${body.length}, limit: ${accessGuard.batchLimit}.`;
+    const error: JSONRPCError = {
+      code: LIMIT_EXCEEDED,
+      message: message,
+    };
+    logger.debug(message);
+    return new Array(body.length).fill(error);
+  }
+
+  return undefined;
+}
+
 export async function rateLimit(
   req: Request,
   res: Response,
@@ -165,7 +180,7 @@ export function isBatchLimit(body: any) {
   if (Array.isArray(body)) {
     return body.length >= accessGuard.batchLimit;
   }
-  return true;
+  return false;
 }
 
 export function hasMethod(body: any, name: string) {
