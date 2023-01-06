@@ -17,3 +17,5 @@ jobs:
         MANUAL_BUILD_WEB3_INDEXER=true
         WEB3_GIT_URL=https://github.com/${{ github.repository }}
         WEB3_GIT_CHECKOUT=${{ github.ref }}
+        GODWOKEN_KICKER_REPO=godwokenrises/godwoken-kicker
+        GODWOKEN_KICKER_REF=1ba9ec08bf940e7222931ccc2940159dc877d1b4

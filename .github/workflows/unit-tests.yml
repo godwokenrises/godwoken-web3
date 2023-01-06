@@ -24,7 +24,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         repository: godwokenrises/godwoken-kicker
-        ref: 'develop'
+        ref: '1ba9ec08bf940e7222931ccc2940159dc877d1b4'
     - name: Kicker init
       run: ./kicker init
     - name: Kicker start
