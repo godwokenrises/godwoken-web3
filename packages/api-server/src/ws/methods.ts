@@ -12,7 +12,7 @@ import { Log, LogQueryOption, toApiLog } from "../db/types";
 import { filterLogsByAddress, filterLogsByTopics, Query } from "../db";
 import { Store } from "../cache/store";
 import { CACHE_EXPIRED_TIME_MILSECS } from "../cache/constant";
-import { wsApplyRateLimitByIp } from "../rate-limit";
+import { wsApplyRateLimitByIp, wsBatchLimit } from "../rate-limit";
 import { gwTxHashToEthTxHash } from "../cache/tx-hash";
 import { isInstantFinalityHackMode } from "../util";
 
@@ -73,6 +73,17 @@ export function wrapper(ws: any, req: any) {
     const callback = (err: any, result: any) => {
       return { err, result };
     };
+
+    // check batch limit
+    const errs = wsBatchLimit(objs);
+    if (errs != null) {
+      return cb(
+        errs.map((err) => {
+          return { err };
+        })
+      );
+    }
+
     const info = await Promise.all(
       objs.map(async (obj) => {
         // check rate limit
