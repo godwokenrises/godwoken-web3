@@ -23,6 +23,11 @@ export async function applyRateLimitByIp(
   res: Response,
   next: NextFunction
 ) {
+  // check batch limit
+  if (batchLimit(req, res)) {
+    return;
+  }
+
   const methods = Object.keys(accessGuard.rpcMethods);
   if (methods.length === 0) {
     return next();
@@ -43,6 +48,33 @@ export async function applyRateLimitByIp(
   if (!isResSent) {
     next();
   }
+}
+
+export function batchLimit(req: Request, res: Response) {
+  let isBan = false;
+  if (isBatchLimit(req.body)) {
+    isBan = true;
+    // if reach batch limit, we reject the whole req with error
+    const message = `Too Many Batch Requests ${req.body.length}, limit: ${accessGuard.batchLimit}.`;
+    const error = {
+      code: LIMIT_EXCEEDED,
+      message: message,
+    };
+
+    logger.debug(message);
+
+    const content = req.body.map((b: any) => {
+      return {
+        jsonrpc: "2.0",
+        id: b.id,
+        error: error,
+      };
+    });
+
+    const httpRateLimitCode = 429;
+    res.status(httpRateLimitCode).send(content);
+  }
+  return isBan;
 }
 
 export async function rateLimit(
@@ -127,6 +159,13 @@ export async function wsRateLimit(
     await accessGuard.updateCount(rpcMethod, reqId);
   }
   return undefined;
+}
+
+export function isBatchLimit(body: any) {
+  if (Array.isArray(body)) {
+    return body.length >= accessGuard.batchLimit;
+  }
+  return true;
 }
 
 export function hasMethod(body: any, name: string) {
