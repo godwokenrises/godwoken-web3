@@ -56,9 +56,8 @@ export async function wsApplyBatchRateLimitByIp(
         await accessGuard.updateCount(targetMethod, ip, count);
       }
     }
-
-    return undefined;
   }
+  return undefined;
 }
 
 export async function wsApplyRateLimitByIp(
