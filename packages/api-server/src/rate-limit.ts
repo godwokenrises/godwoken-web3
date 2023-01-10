@@ -12,15 +12,21 @@ export async function wsApplyBatchRateLimitByIp(
 ): Promise<JSONRPCError[] | undefined> {
   const ip = getIp(req);
   const methods = Object.keys(accessGuard.rpcMethods);
-  logger.debug(`wsApplyBatchRateLimitByIp methods: `, methods);
-  logger.debug(`wsApplyBatchRateLimitByIp objs: `, objs);
+  if (methods.length === 0) {
+    return undefined;
+  }
+
+  logger.debug(
+    `wsApplyBatchRateLimitByIp methods: `,
+    methods,
+    methods.length,
+    methods[0],
+    methods[methods.length - 1]
+  );
   for (const targetMethod of methods) {
     const count = calcMethodCount(objs, targetMethod);
     logger.debug(
-      `wsApplyBatchRateLimitByIp method count: ${count}`,
-      objs,
-      Array.isArray(objs),
-      typeof objs,
+      `wsApplyBatchRateLimitByIp method count: ${count}, targetMethod: `,
       targetMethod,
       count > 0 && ip != null
     );
