@@ -12,15 +12,19 @@ export async function wsApplyBatchRateLimitByIp(
 ): Promise<JSONRPCError[] | undefined> {
   const ip = getIp(req);
   const methods = Object.keys(accessGuard.rpcMethods);
+  console.log(ip, methods, objs);
   for (const targetMethod of methods) {
     const count = calcMethodCount(objs, targetMethod);
+    console.log(count, count > 0 && ip != null);
     if (count > 0 && ip != null) {
       const isExist = await accessGuard.isExist(targetMethod, ip);
+      console.log("isExist: ", isExist);
       if (!isExist) {
         await accessGuard.add(targetMethod, ip);
       }
 
       const isOverRate = await accessGuard.isOverRate(targetMethod, ip, count);
+      console.log("isOverRate", isOverRate);
       if (isOverRate) {
         const remainSecs = await accessGuard.getKeyTTL(targetMethod, ip);
         const message = `Too Many Requests, IP: ${ip}, please wait ${remainSecs}s and retry. RPC method: ${targetMethod}.`;
@@ -244,5 +248,6 @@ export function getIp(req: Request) {
     ip = (req.headers["x-forwarded-for"] as string).split(",")[0].trim();
   }
 
+  console.log("getIp=>", ip, req.socket.remoteAddress);
   return ip || req.socket.remoteAddress;
 }
