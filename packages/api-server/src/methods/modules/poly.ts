@@ -1,4 +1,4 @@
-import { middleware, validators } from "../validator";
+import { middleware, validators, verifyGasPrice } from "../validator";
 import { Hash, HexNumber, Address, HexString } from "@ckb-lumos/base";
 import { toHexNumber, Uint64 } from "../../base/types/uint";
 import { envConfig } from "../../base/env-config";
@@ -86,6 +86,11 @@ export class Poly {
       const txWithAddressMapping: L2TransactionWithAddressMapping =
         deserializeL2TransactionWithAddressMapping(data);
       const l2Tx = txWithAddressMapping.tx;
+
+      // validate minimal gas price
+      const { gas_price } = decodeArgs(l2Tx.raw.args);
+      verifyGasPrice(gas_price === "0x" ? "0x0" : gas_price, 0);
+
       const result = await this.rpc.submitL2Transaction(l2Tx);
       // if result is fine, then tx is legal, we can start thinking to store the address mapping
       await saveAddressMapping(this.query, this.rpc, txWithAddressMapping);
@@ -145,6 +150,11 @@ export class Poly {
         const txWithAddressMapping: RawL2TransactionWithAddressMapping =
           deserializeRawL2TransactionWithAddressMapping(serializeRawL2Tx);
         const rawL2Tx = txWithAddressMapping.raw_tx;
+
+        // validate minimal gas price
+        const { gas_price } = decodeArgs(rawL2Tx.args);
+        verifyGasPrice(gas_price === "0x" ? "0x0" : gas_price, 0);
+
         const jsonResult = await this.rpc.executeRawL2Transaction(
           rawL2Tx,
           blockNumber
