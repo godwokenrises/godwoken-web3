@@ -30,6 +30,7 @@ export const envConfig = {
   ),
   logLevel: getOptional("LOG_LEVEL"),
   logFormat: getOptional("LOG_FORMAT"),
+  minGasPrice: getOptional("MIN_GAS_PRICE"),
 };
 
 function getRequired(name: string): string {

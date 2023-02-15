@@ -306,8 +306,7 @@ export class Eth {
     }
 
     let medianGasPrice = await this.query.getMedianGasPrice();
-    // set min to 1
-    const minGasPrice = BigInt(1);
+    const minGasPrice = BigInt(envConfig.minGasPrice || 0);
     if (medianGasPrice < minGasPrice) {
       medianGasPrice = minGasPrice;
     }
@@ -1375,7 +1374,9 @@ async function buildEthCallTx(
   const fromAddress = txCallObj.from || envConfig.defaultFromAddress;
   const toAddress = txCallObj.to || "0x" + "00".repeat(20);
   const gas = txCallObj.gas || "0x1000000";
-  const gasPrice = txCallObj.gasPrice || "0x1";
+  const gasPrice =
+    txCallObj.gasPrice ||
+    "0x" + BigInt(envConfig.minGasPrice || 0).toString(16);
   const value = txCallObj.value || "0x0";
   const data = txCallObj.data || "0x0";
   let fromId: number | undefined;

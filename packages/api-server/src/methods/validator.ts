@@ -2,6 +2,8 @@ import { validateHexNumber, validateHexString } from "../util";
 import { BlockParameter } from "./types";
 import { logger } from "../base/logger";
 import { InvalidParamsError, RpcError } from "./error";
+import { HexString } from "@ckb-lumos/base";
+import { envConfig } from "../base/env-config";
 
 /**
  * middleware for parameters validation
@@ -373,4 +375,16 @@ function validateAddress(address: string): boolean {
 
 function invalidParamsError(index: number, message: string): void {
   throw new InvalidParamsError(`invalid argument ${index}: ${message}`);
+}
+
+export function verifyGasPrice(gasPrice: HexString, index: number) {
+  verifyHexNumber(gasPrice, index);
+
+  if (envConfig.minGasPrice != null && +gasPrice < +envConfig.minGasPrice) {
+    return invalidParamsError(
+      index,
+      `minimal gas price ${+envConfig.minGasPrice} required. got ${+gasPrice}`
+    );
+  }
+  return undefined;
 }

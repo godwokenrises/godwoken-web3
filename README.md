@@ -33,6 +33,7 @@ ENABLE_CACHE_POLY_EXECUTE_RAW_L2Tx=<optional, enable poly_executeRawL2Transactio
 LOG_LEVEL=<optional, allowed value: `debug` / `info` / `warn` / `error`, default to `debug` in development, and default to `info` in production>
 LOG_FORMAT=<optional, allowed value: `json`>
 MAX_SOCKETS=<optional, max number of httpAgent sockets per host for web3 connecting to godwoken, default to 10>
+MIN_GAS_PRICE=<optional, decimal number, the minimal gas price required in wei>
 EOF
 
 $ yarn

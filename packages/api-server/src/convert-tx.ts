@@ -4,6 +4,7 @@ import { rlp } from "ethereumjs-util";
 import keccak256 from "keccak256";
 import * as secp256k1 from "secp256k1";
 import { logger } from "./base/logger";
+import { verifyGasPrice } from "./methods/validator";
 
 export const EMPTY_ETH_ADDRESS = "0x" + "00".repeat(20);
 
@@ -127,6 +128,8 @@ function encodePolyjuiceTransaction(tx: PolyjuiceTransaction) {
 
 async function parseRawTransactionData(rawTx: PolyjuiceTransaction, rpc: RPC) {
   const { nonce, gasPrice, gasLimit, to: toA, value, data, v, r, s } = rawTx;
+
+  verifyGasPrice(gasPrice === "0x" ? "0x0" : gasPrice, 0);
 
   let real_v = "0x00";
   if (+v % 2 === 0) {
