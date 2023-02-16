@@ -6,10 +6,7 @@ import { Store } from "../../cache/store";
 import { envConfig } from "../../base/env-config";
 import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
-import {
-  L2Transaction,
-  RawL2Transaction,
-} from "@godwoken-web3/godwoken/schemas";
+import { L2Transaction } from "@godwoken-web3/godwoken/schemas";
 import { Reader } from "@ckb-lumos/toolkit";
 import { decodeArgs } from "@polyjuice-provider/base";
 
@@ -311,14 +308,6 @@ export class Gw {
    */
   async execute_raw_l2transaction(args: any[]) {
     try {
-      // validate minimal gas price
-      const serializedRawL2Tx = args[0];
-      const rawL2Tx = new RawL2Transaction(new Reader(serializedRawL2Tx));
-      const { gas_price } = decodeArgs(
-        new Reader(rawL2Tx.getArgs().raw()).serializeJson()
-      );
-      verifyGasPrice(gas_price === "0x" ? "0x0" : gas_price, 0);
-
       args[1] = formatHexNumber(args[1]);
 
       const result = await this.readonlyRpc.gw_execute_raw_l2transaction(
