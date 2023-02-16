@@ -151,10 +151,6 @@ export class Poly {
           deserializeRawL2TransactionWithAddressMapping(serializeRawL2Tx);
         const rawL2Tx = txWithAddressMapping.raw_tx;
 
-        // validate minimal gas price
-        const { gas_price } = decodeArgs(rawL2Tx.args);
-        verifyGasPrice(gas_price === "0x" ? "0x0" : gas_price, 0);
-
         const jsonResult = await this.rpc.executeRawL2Transaction(
           rawL2Tx,
           blockNumber
