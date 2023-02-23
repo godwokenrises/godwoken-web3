@@ -11,7 +11,6 @@ import {
 import { Query } from "../../db";
 import { isAddressMatch, isShortAddressOnChain } from "../../base/address";
 import {
-  decodeArgs,
   deserializeL2TransactionWithAddressMapping,
   deserializeRawL2TransactionWithAddressMapping,
   deserializeAbiItem,
@@ -29,6 +28,7 @@ import { keccakFromHexString } from "ethereumjs-util";
 import { DataCacheConstructor, RedisDataCache } from "../../cache/data";
 import { BlockParameter } from "../types";
 import { logger } from "../../base/logger";
+import { decodeArgs } from "../../base/decode-args";
 
 type GodwokenBlockParameter = U64 | undefined;
 

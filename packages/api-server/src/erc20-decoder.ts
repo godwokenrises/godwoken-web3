@@ -1,6 +1,6 @@
-import { decodeArgs } from "@polyjuice-provider/base";
 import InputDataDecoder from "ethereum-input-data-decoder";
 import { SUDT_ERC20_PROXY_ABI } from "./erc20";
+import { decodeArgs } from "./base/decode-args";
 
 const deocder = new InputDataDecoder(SUDT_ERC20_PROXY_ABI as any);
 
