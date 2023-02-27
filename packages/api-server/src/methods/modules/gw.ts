@@ -8,7 +8,7 @@ import { CACHE_EXPIRED_TIME_MILSECS, GW_RPC_KEY } from "../../cache/constant";
 import { logger } from "../../base/logger";
 import { L2Transaction } from "@godwoken-web3/godwoken/schemas";
 import { Reader } from "@ckb-lumos/toolkit";
-import { decodeArgs } from "@polyjuice-provider/base";
+import { decodeArgs } from "../../base/decode-args";
 
 export class Gw {
   private rpc: RPC;
